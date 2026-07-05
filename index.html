@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Mombongo — Gestion de commerce</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#146356">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --emerald:#146356;
+    --emerald-light:#1c8a76;
+    --marigold:#e8a23b;
+    --paper:#f7f3e8;
+    --paper-2:#efe8d6;
+    --charcoal:#26221d;
+    --charcoal-soft:#5b564c;
+    --alert:#c0392b;
+    --alert-bg:#fbeae7;
+    --ok-bg:#e9f3ee;
+    --radius:14px;
+    --shadow:0 2px 10px rgba(38,34,29,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--charcoal);
+    font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,h3,.display{ font-family:'Sora',sans-serif; }
+  #app{
+    max-width:480px; margin:0 auto; min-height:100vh;
+    background:var(--paper); display:flex; flex-direction:column;
+  }
+  header.top{
+    background:var(--emerald); color:var(--paper);
+    padding:20px 20px 28px; position:relative; overflow:hidden;
+  }
+  header.top::after{
+    content:""; position:absolute; right:-30px; top:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:var(--emerald-light); opacity:.5;
+  }
+  header.top .row{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  header.top h1{font-size:22px; font-weight:800; margin:0 0 4px;}
+  header.top p{margin:0; font-size:13px; opacity:.85;}
+  .toggles{display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+  .mini-toggle{display:flex; background:rgba(0,0,0,0.18); border-radius:999px; padding:3px;}
+  .mini-toggle button{
+    border:none; background:transparent; color:var(--paper);
+    font-family:'Inter'; font-size:12px; font-weight:600;
+    padding:6px 10px; border-radius:999px; cursor:pointer;
+  }
+  .mini-toggle button.active{background:var(--paper); color:var(--emerald);}
+  #rate-row{display:none; margin-top:12px; position:relative; z-index:1;}
+  #rate-row label{font-size:11px; opacity:.85; display:block; margin-bottom:4px;}
+  #rate-row input{
+    width:110px; padding:7px 9px; border-radius:8px; border:none;
+    font-size:13px; font-family:'Inter'; font-weight:600;
+  }
+  #rate-row span{font-size:12px; margin-left:6px;}
+
+  .stats-row{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    padding:0 16px; margin-top:-18px; position:relative; z-index:2;
+  }
+  .stat-card{
+    background:var(--paper); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px;
+  }
+  .stat-card .label{font-size:10.5px; color:var(--charcoal-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  .stat-card .value{font-family:'Sora'; font-size:17px; font-weight:700; margin-top:4px;}
+  .stat-card .value.money{color:var(--emerald);}
+  .stat-card .value.alert{color:var(--alert);}
+
+  main{flex:1; padding:20px 16px 100px;}
+  section{margin-bottom:22px;}
+  section h2{font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft); margin:0 0 10px; font-weight:700;}
+
+  .alert-banner{
+    background:var(--alert-bg); border-left:4px solid var(--alert);
+    border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:13.5px;
+  }
+  .alert-banner b{color:var(--alert);}
+  .empty{
+    text-align:center; color:var(--charcoal-soft); font-size:13.5px;
+    padding:26px 10px; border:1.5px dashed var(--paper-2); border-radius:var(--radius);
+  }
+
+  .search-wrap{position:relative; margin-bottom:12px;}
+  .search-wrap input{
+    width:100%; padding:12px 14px 12px 38px; border-radius:12px;
+    border:1.5px solid var(--paper-2); background:#fff; font-size:14px;
+    font-family:'Inter'; color:var(--charcoal);
+  }
+  .search-wrap input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+  .search-wrap .icon{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-size:15px; opacity:.5; pointer-events:none;
+  }
+
+  .product-card{
+    background:#fff; border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:10px;
+  }
+  .product-card .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .dot.green{background:var(--emerald-light);}
+  .dot.amber{background:var(--marigold);}
+  .dot.red{background:var(--alert);}
+  .product-card .info{flex:1; min-width:0;}
+  .product-card .info .name{font-weight:700; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .product-card .info .meta{font-size:12px; color:var(--charcoal-soft); margin-top:2px;}
+  .product-card .price{font-family:'Sora'; font-weight:700; font-size:13px; color:var(--emerald); white-space:nowrap; text-align:right;}
+  .product-card button.sell{
+    background:var(--emerald); color:#fff; border:none; border-radius:9px;
+    padding:8px 11px; font-size:12px; font-weight:700; font-family:'Inter'; cursor:pointer; white-space:nowrap;
+  }
+  .product-card button.del{
+    background:transparent; border:none; color:var(--charcoal-soft);
+    font-size:16px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
+  }
+  .product-card button.del:active{color:var(--alert);}
+
+  .fab{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:20px;
+    width:calc(100% - 32px); max-width:448px;
+    background:var(--marigold); color:var(--charcoal);
+    border:none; border-radius:14px; padding:15px; font-size:15px; font-weight:800;
+    font-family:'Sora'; box-shadow:0 6px 18px rgba(232,162,59,0.4); cursor:pointer; z-index:20;
+  }
+
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(38,34,29,0.45);
+    display:none; align-items:flex-end; z-index:30;
+  }
+  .sheet-overlay.open{display:flex;}
+  .sheet{
+    background:var(--paper); width:100%; max-width:480px; margin:0 auto;
+    border-radius:20px 20px 0 0; padding:20px 20px 26px; max-height:88vh; overflow-y:auto;
+  }
+  .sheet h3{margin:0 0 16px; font-size:17px; font-weight:700;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--charcoal-soft); margin-bottom:6px;}
+  .field input{
+    width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:#fff; font-size:15px; font-family:'Inter'; color:var(--charcoal);
+  }
+  .field input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .btn-primary{
+    width:100%; background:var(--emerald); color:#fff; border:none; border-radius:12px;
+    padding:14px; font-size:15px; font-weight:700; font-family:'Sora'; cursor:pointer; margin-top:6px;
+  }
+  .btn-secondary{
+    width:100%; background:transparent; color:var(--charcoal-soft); border:none;
+    padding:10px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .method-row{display:flex; gap:8px;}
+  .method-row button{
+    flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:#fff; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter';
+  }
+  .method-row button.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+
+  .sell-preview{
+    background:var(--ok-bg); border-radius:12px; padding:14px; margin-bottom:14px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .sell-preview .col{text-align:center; flex:1;}
+  .sell-preview .col .lbl{font-size:10.5px; text-transform:uppercase; color:var(--charcoal-soft); font-weight:700; letter-spacing:.03em;}
+  .sell-preview .col .val{font-family:'Sora'; font-size:16px; font-weight:800; margin-top:3px; color:var(--emerald);}
+  .sell-preview .divider{width:1px; height:30px; background:var(--paper-2);}
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background:var(--charcoal); color:var(--paper); padding:11px 18px; border-radius:999px;
+    font-size:13px; font-weight:600; z-index:50; box-shadow:0 4px 14px rgba(0,0,0,0.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <div class="row">
+      <div>
+        <h1 id="t-appname">Mombongo</h1>
+        <p id="t-tagline">Suivi de ton commerce, simplement</p>
+      </div>
+      <div class="toggles">
+        <div class="mini-toggle">
+          <button id="btn-fr" class="active" onclick="setLang('fr')">FR</button>
+          <button id="btn-ln" onclick="setLang('ln')">LN</button>
+        </div>
+        <div class="mini-toggle">
+          <button id="btn-usd" class="active" onclick="setCurrency('usd')">USD</button>
+          <button id="btn-cdf" onclick="setCurrency('cdf')">FC</button>
+        </div>
+      </div>
+    </div>
+    <div id="rate-row">
+      <label id="t-rate-label">Taux de change : 1 $ =</label>
+      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
+      <span>FC</span>
+    </div>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label" id="t-today">Ventes aujourd'hui</div>
+      <div class="value money" id="stat-today">0 $</div>
+    </div>
+    <div class="stat-card">
+      <div class="label" id="t-profit-today">Bénéfice aujourd'hui</div>
+      <div class="value money" id="stat-profit-today">0 $</div>
+    </div>
+    <div class="stat-card">
+      <div class="label" id="t-profit-total">Bénéfice total</div>
+      <div class="value money" id="stat-profit-total">0 $</div>
+    </div>
+    <div class="stat-card">
+      <div class="label" id="t-alerts">Alertes stock</div>
+      <div class="value alert" id="stat-alerts">0</div>
+    </div>
+  </div>
+
+  <main>
+    <section id="alerts-section" style="display:none;">
+      <h2 id="t-alerts-title">Alertes</h2>
+      <div id="alerts-list"></div>
+    </section>
+
+    <section>
+      <h2 id="t-products-title">Mes produits</h2>
+      <div class="search-wrap">
+        <span class="icon">🔍</span>
+        <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit..." id="t-search-input">
+      </div>
+      <div id="products-list"></div>
+      <div id="empty-state" class="empty" style="display:none;">
+        <span id="t-empty">Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.</span>
+      </div>
+      <div id="no-results" class="empty" style="display:none;">
+        <span id="t-no-results">Aucun produit ne correspond à ta recherche.</span>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab" onclick="openAddSheet()" id="t-add-btn">+ Ajouter un produit</button>
+
+  <div class="sheet-overlay" id="add-overlay">
+    <div class="sheet">
+      <h3 id="t-add-title">Nouveau produit</h3>
+      <div class="field">
+        <label id="t-name">Nom du produit</label>
+        <input id="in-name" type="text" placeholder="Ex : Savon Jabon">
+      </div>
+      <div class="two-col">
+        <div class="field">
+          <label id="t-buy">Prix d'achat ($)</label>
+          <input id="in-buy" type="number" inputmode="decimal" placeholder="0.5">
+        </div>
+        <div class="field">
+          <label id="t-sell">Prix de vente ($)</label>
+          <input id="in-sell" type="number" inputmode="decimal" placeholder="1">
+        </div>
+        <div class="field" style="grid-column:1/-1; margin-bottom:0;">
+          <span id="t-currency-hint" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="field">
+          <label id="t-qty">Quantité en stock</label>
+          <input id="in-qty" type="number" inputmode="numeric" placeholder="20">
+        </div>
+        <div class="field">
+          <label id="t-threshold">Seuil d'alerte</label>
+          <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addProduct()" id="t-save">Enregistrer le produit</button>
+      <button class="btn-secondary" onclick="closeAddSheet()" id="t-cancel">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="sell-overlay">
+    <div class="sheet">
+      <h3 id="sell-title">Vendre</h3>
+      <div class="field">
+        <label id="t-sell-qty">Quantité vendue</label>
+        <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()">
+      </div>
+      <div class="sell-preview">
+        <div class="col">
+          <div class="lbl" id="t-total-label">Total</div>
+          <div class="val" id="preview-total">0 $</div>
+        </div>
+        <div class="divider"></div>
+        <div class="col">
+          <div class="lbl" id="t-profit-label">Bénéfice</div>
+          <div class="val" id="preview-profit">0 $</div>
+        </div>
+      </div>
+      <div class="field">
+        <label id="t-method">Moyen de paiement</label>
+        <div class="method-row">
+          <button class="active" data-method="cash" onclick="selectMethod('cash')" id="t-cash">Cash</button>
+          <button data-method="mpesa" onclick="selectMethod('mpesa')">M-Pesa</button>
+          <button data-method="airtel" onclick="selectMethod('airtel')">Airtel Money</button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
+      <button class="btn-secondary" onclick="closeSellSheet()" id="t-cancel2">Annuler</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ---------- Dictionnaire FR / Lingala (traductions de base, à faire vérifier par un locuteur natif) ---------- */
+const dict = {
+  fr: {
+    appname:"Mombongo", tagline:"Suivi de ton commerce, simplement",
+    today:"Ventes aujourd'hui", profitToday:"Bénéfice aujourd'hui", profitTotal:"Bénéfice total",
+    alerts:"Alertes stock", alertsTitle:"Alertes", productsTitle:"Mes produits",
+    empty:"Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.",
+    noResults:"Aucun produit ne correspond à ta recherche.",
+    searchPlaceholder:"Rechercher un produit...",
+    addBtn:"+ Ajouter un produit", addTitle:"Nouveau produit",
+    name:"Nom du produit", buy:"Prix d'achat", sell:"Prix de vente",
+    qty:"Quantité en stock", threshold:"Seuil d'alerte",
+    save:"Enregistrer le produit", cancel:"Annuler",
+    sellTitle:"Vendre", sellQty:"Quantité vendue", method:"Moyen de paiement",
+    cash:"Cash", confirmSale:"Confirmer la vente",
+    lowStock:"stock faible", dormant:"pas vendu depuis 14 jours",
+    saved:"Produit enregistré", sold:"Vente enregistrée", stockUnit:"en stock",
+    total:"Total", profit:"Bénéfice", rateLabel:"Taux de change : 1 $ =",
+    confirmDelete:"Supprimer ce produit ?", deleted:"Produit supprimé",
+    currencyHint:"Les montants seront enregistrés en"
+  },
+  ln: {
+    appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
+    today:"Kotéka ya lelo", profitToday:"Litomba ya lelo", profitTotal:"Litomba nyonso",
+    alerts:"Bikebisi ya stock", alertsTitle:"Bikebisi", productsTitle:"Biloko na ngai",
+    empty:"Eloko moko te tii sik'oyo. Bakisá eloko ya liboso na esika ya nse.",
+    noResults:"Eloko moko te ekokani na oyo olukí.",
+    searchPlaceholder:"Luká eloko...",
+    addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
+    name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
+    qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
+    save:"Bomba eloko", cancel:"Boya",
+    sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
+    cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
+    lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
+    saved:"Eloko ebombami", sold:"Kotéka ekómi", stockUnit:"ezali na stock",
+    total:"Motúya", profit:"Litomba", rateLabel:"Motángo ya kobongola : 1 $ =",
+    confirmDelete:"Olingi kolongola eloko oyo ?", deleted:"Eloko elongolámi",
+    currencyHint:"Mbongo ekobombama na"
+  }
+};
+let currentLang = 'fr';
+let currentCurrency = 'usd';
+let exchangeRate = 2800;
+
+function setLang(lang){
+  currentLang = lang;
+  document.getElementById('btn-fr').classList.toggle('active', lang==='fr');
+  document.getElementById('btn-ln').classList.toggle('active', lang==='ln');
+  applyTranslations();
+  render();
+}
+
+function setCurrency(cur){
+  currentCurrency = cur;
+  document.getElementById('btn-usd').classList.toggle('active', cur==='usd');
+  document.getElementById('btn-cdf').classList.toggle('active', cur==='cdf');
+  document.getElementById('rate-row').style.display = (cur==='cdf') ? 'block' : 'none';
+  try{ window.storage.set('mombongo:currency', cur, false); }catch(e){}
+  updateAddFieldLabels();
+  render();
+}
+
+async function updateRate(){
+  const val = parseFloat(document.getElementById('in-rate').value);
+  if(val > 0){
+    exchangeRate = val;
+    try{ await window.storage.set('mombongo:rate', String(val), false); }catch(e){}
+    updateAddFieldLabels();
+    render();
+    if(document.getElementById('sell-overlay').classList.contains('open')) updateSellPreview();
+  }
+}
+
+function formatMoney(amount){
+  if(currentCurrency === 'usd'){
+    return amount.toFixed(2) + ' $';
+  } else {
+    return Math.round(amount * exchangeRate).toLocaleString('fr-FR') + ' FC';
+  }
+}
+
+function updateAddFieldLabels(){
+  const t = dict[currentLang];
+  const unit = currentCurrency === 'usd' ? '$' : 'FC';
+  document.getElementById('t-buy').textContent = `${t.buy} (${unit})`;
+  document.getElementById('t-sell').textContent = `${t.sell} (${unit})`;
+  document.getElementById('t-currency-hint').textContent = `${t.currencyHint} ${unit}`;
+  if(currentCurrency === 'usd'){
+    document.getElementById('in-buy').placeholder = '0.5';
+    document.getElementById('in-sell').placeholder = '1';
+  } else {
+    document.getElementById('in-buy').placeholder = String(Math.round(0.5 * exchangeRate));
+    document.getElementById('in-sell').placeholder = String(Math.round(1 * exchangeRate));
+  }
+}
+
+function applyTranslations(){
+  const t = dict[currentLang];
+  updateAddFieldLabels();
+  document.getElementById('t-appname').textContent = t.appname;
+  document.getElementById('t-tagline').textContent = t.tagline;
+  document.getElementById('t-today').textContent = t.today;
+  document.getElementById('t-profit-today').textContent = t.profitToday;
+  document.getElementById('t-profit-total').textContent = t.profitTotal;
+  document.getElementById('t-alerts').textContent = t.alerts;
+  document.getElementById('t-alerts-title').textContent = t.alertsTitle;
+  document.getElementById('t-products-title').textContent = t.productsTitle;
+  document.getElementById('t-empty').textContent = t.empty;
+  document.getElementById('t-no-results').textContent = t.noResults;
+  document.getElementById('search-input').placeholder = t.searchPlaceholder;
+  document.getElementById('t-add-btn').textContent = t.addBtn;
+  document.getElementById('t-add-title').textContent = t.addTitle;
+  document.getElementById('t-name').textContent = t.name;
+  document.getElementById('t-buy').textContent = t.buy;
+  document.getElementById('t-sell').textContent = t.sell;
+  document.getElementById('t-qty').textContent = t.qty;
+  document.getElementById('t-threshold').textContent = t.threshold;
+  document.getElementById('t-save').textContent = t.save;
+  document.getElementById('t-cancel').textContent = t.cancel;
+  document.getElementById('sell-title').textContent = t.sellTitle;
+  document.getElementById('t-sell-qty').textContent = t.sellQty;
+  document.getElementById('t-total-label').textContent = t.total;
+  document.getElementById('t-profit-label').textContent = t.profit;
+  document.getElementById('t-method').textContent = t.method;
+  document.getElementById('t-cash').textContent = t.cash;
+  document.getElementById('t-confirm-sale').textContent = t.confirmSale;
+  document.getElementById('t-cancel2').textContent = t.cancel;
+  document.getElementById('t-rate-label').textContent = t.rateLabel;
+}
+
+/* ---------- Données ---------- */
+let products = [];
+let sales = [];
+let sellingProductId = null;
+let selectedMethod = 'cash';
+
+async function loadData(){
+  try{
+    const p = await window.storage.get('mombongo:products', false);
+    products = p ? JSON.parse(p.value) : [];
+  }catch(e){ products = []; }
+  try{
+    const s = await window.storage.get('mombongo:sales', false);
+    sales = s ? JSON.parse(s.value) : [];
+  }catch(e){ sales = []; }
+  try{
+    const r = await window.storage.get('mombongo:rate', false);
+    if(r){ exchangeRate = parseFloat(r.value); document.getElementById('in-rate').value = exchangeRate; }
+  }catch(e){}
+  try{
+    const c = await window.storage.get('mombongo:currency', false);
+    if(c && c.value === 'cdf'){ setCurrency('cdf'); }
+  }catch(e){}
+  render();
+}
+
+async function saveProducts(){
+  try{ await window.storage.set('mombongo:products', JSON.stringify(products), false); }
+  catch(e){ console.error('Erreur sauvegarde produits', e); }
+}
+async function saveSales(){
+  try{ await window.storage.set('mombongo:sales', JSON.stringify(sales), false); }
+  catch(e){ console.error('Erreur sauvegarde ventes', e); }
+}
+
+/* ---------- Ajout produit ---------- */
+function openAddSheet(){ updateAddFieldLabels(); document.getElementById('add-overlay').classList.add('open'); }
+function closeAddSheet(){
+  document.getElementById('add-overlay').classList.remove('open');
+  ['in-name','in-buy','in-sell','in-qty','in-threshold'].forEach(id=>document.getElementById(id).value='');
+}
+async function addProduct(){
+  const name = document.getElementById('in-name').value.trim();
+  const rawBuy = parseFloat(document.getElementById('in-buy').value) || 0;
+  const rawSell = parseFloat(document.getElementById('in-sell').value) || 0;
+  // Les montants sont toujours stockés en dollars en interne, quelle que soit la devise de saisie
+  const buy = currentCurrency === 'cdf' ? rawBuy / exchangeRate : rawBuy;
+  const sell = currentCurrency === 'cdf' ? rawSell / exchangeRate : rawSell;
+  const qty = parseInt(document.getElementById('in-qty').value) || 0;
+  const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
+  if(!name || !sell){
+    showToast(currentLang==='fr' ? "Donne au moins un nom et un prix de vente" : "Pesa nkombo na ntalo ya kotéka");
+    return;
+  }
+  products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, lastSoldAt: null, createdAt: Date.now() });
+  await saveProducts();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+}
+
+/* ---------- Suppression produit ---------- */
+async function deleteProduct(id){
+  const product = products.find(p=>p.id===id);
+  if(!product) return;
+  const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
+  if(!ok) return;
+  products = products.filter(p=>p.id!==id);
+  await saveProducts();
+  showToast(dict[currentLang].deleted);
+  render();
+}
+
+/* ---------- Vente ---------- */
+function openSellSheet(id){
+  sellingProductId = id;
+  selectedMethod = 'cash';
+  document.querySelectorAll('.method-row button').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
+  document.getElementById('in-sell-qty').value = 1;
+  document.getElementById('sell-overlay').classList.add('open');
+  updateSellPreview();
+}
+function closeSellSheet(){
+  document.getElementById('sell-overlay').classList.remove('open');
+  sellingProductId = null;
+}
+function selectMethod(m){
+  selectedMethod = m;
+  document.querySelectorAll('.method-row button').forEach(b=>b.classList.toggle('active', b.dataset.method===m));
+}
+function updateSellPreview(){
+  const product = products.find(p=>p.id===sellingProductId);
+  if(!product) return;
+  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
+  const total = qty * product.sell;
+  const profit = qty * (product.sell - product.buy);
+  document.getElementById('preview-total').textContent = formatMoney(total);
+  document.getElementById('preview-profit').textContent = formatMoney(profit);
+}
+async function confirmSale(){
+  const product = products.find(p=>p.id===sellingProductId);
+  if(!product) return;
+  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
+  if(qty <= 0 || qty > product.qty){
+    showToast(currentLang==='fr' ? "Quantité invalide" : "Motángo ekoki te");
+    return;
+  }
+  product.qty -= qty;
+  product.lastSoldAt = Date.now();
+  sales.push({
+    id: Date.now().toString(), productId: product.id,
+    qty, total: qty*product.sell, profit: qty*(product.sell-product.buy),
+    method: selectedMethod, date: Date.now()
+  });
+  await saveProducts();
+  await saveSales();
+  closeSellSheet();
+  showToast(dict[currentLang].sold);
+  render();
+}
+
+/* ---------- Rendu ---------- */
+function isToday(ts){
+  const d = new Date(ts), now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+function daysSince(ts){ return Math.floor((Date.now()-ts)/86400000); }
+
+function getFilteredProducts(){
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q) return products;
+  return products.filter(p=>p.name.toLowerCase().includes(q));
+}
+
+function render(){
+  const t = dict[currentLang];
+  const todaySales = sales.filter(s=>isToday(s.date));
+  const todayTotal = todaySales.reduce((sum,s)=>sum+s.total,0);
+  const todayProfit = todaySales.reduce((sum,s)=>sum+s.profit,0);
+  const totalProfit = sales.reduce((sum,s)=>sum+s.profit,0);
+
+  document.getElementById('stat-today').textContent = formatMoney(todayTotal);
+  document.getElementById('stat-profit-today').textContent = formatMoney(todayProfit);
+  document.getElementById('stat-profit-total').textContent = formatMoney(totalProfit);
+
+  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  const dormant = products.filter(p=>{
+    const ref = p.lastSoldAt || p.createdAt;
+    return daysSince(ref) >= 14;
+  });
+  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id)]).size;
+  document.getElementById('stat-alerts').textContent = alertCount;
+
+  const alertsSection = document.getElementById('alerts-section');
+  const alertsList = document.getElementById('alerts-list');
+  alertsList.innerHTML = '';
+  if(alertCount > 0){
+    alertsSection.style.display = 'block';
+    lowStock.forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'alert-banner';
+      div.innerHTML = `<b>${p.name}</b> — ${t.lowStock} (${p.qty} ${t.stockUnit})`;
+      alertsList.appendChild(div);
+    });
+    dormant.forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'alert-banner';
+      div.innerHTML = `<b>${p.name}</b> — ${t.dormant}`;
+      alertsList.appendChild(div);
+    });
+  } else {
+    alertsSection.style.display = 'none';
+  }
+
+  const list = document.getElementById('products-list');
+  const empty = document.getElementById('empty-state');
+  const noResults = document.getElementById('no-results');
+  const filtered = getFilteredProducts();
+  list.innerHTML = '';
+
+  if(products.length === 0){
+    empty.style.display = 'block';
+    noResults.style.display = 'none';
+  } else if(filtered.length === 0){
+    empty.style.display = 'none';
+    noResults.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    noResults.style.display = 'none';
+    filtered.forEach(p=>{
+      const dotClass = p.qty === 0 ? 'red' : (p.qty <= p.threshold ? 'amber' : 'green');
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.innerHTML = `
+        <div class="dot ${dotClass}"></div>
+        <div class="info">
+          <div class="name">${p.name}</div>
+          <div class="meta">${p.qty} ${t.stockUnit}</div>
+        </div>
+        <div class="price">${formatMoney(p.sell)}</div>
+        <button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>
+        <button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>
+      `;
+      list.appendChild(card);
+    });
+  }
+}
+
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+
+loadData();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+
+</script>
+</body>
+</html>

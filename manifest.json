@@ -1,0 +1,24 @@
+{
+  "name": "Mombongo — Gestion de commerce",
+  "short_name": "Mombongo",
+  "description": "Suivi de stock, ventes et bénéfices pour petits commerçants",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f3e8",
+  "theme_color": "#146356",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
