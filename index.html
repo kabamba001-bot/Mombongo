@@ -62,6 +62,20 @@
     font-size:13px; font-family:'Inter'; font-weight:600;
   }
   #rate-row span{font-size:12px; margin-left:6px;}
+  #account-row{margin-top:10px; position:relative; z-index:1;}
+  #account-btn{
+    display:flex; align-items:center; gap:6px;
+    background:rgba(0,0,0,0.18); border:none; border-radius:999px;
+    color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
+    padding:7px 13px; cursor:pointer;
+  }
+  .account-status{
+    display:flex; align-items:center; gap:10px; background:var(--ok-bg);
+    border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .account-status img{width:36px; height:36px; border-radius:50%;}
+  .account-status .name{font-weight:700; font-size:13.5px;}
+  .account-status .email{font-size:11.5px; color:var(--charcoal-soft);}
 
   .stats-row{
     display:grid; grid-template-columns:1fr 1fr; gap:10px;
@@ -207,6 +221,12 @@
       <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
       <span>FC</span>
     </div>
+    <div id="account-row">
+      <button id="account-btn" onclick="openAccountSheet()">
+        <span id="account-btn-icon">👤</span>
+        <span id="account-btn-label">Compte</span>
+      </button>
+    </div>
   </header>
 
   <div class="stats-row">
@@ -318,10 +338,69 @@
     </div>
   </div>
 
+  <div class="sheet-overlay" id="account-overlay">
+    <div class="sheet">
+      <h3 id="t-account-title">Compte</h3>
+
+      <div id="account-logged-out">
+        <p style="font-size:13.5px; color:var(--charcoal-soft); margin-top:0;" id="t-account-desc">
+          Connecte-toi avec Google pour sauvegarder tes données en ligne et les récupérer même si tu changes de téléphone.
+        </p>
+        <button class="btn-primary" onclick="signInWithGoogle()" id="t-signin-btn">Se connecter avec Google</button>
+      </div>
+
+      <div id="account-logged-in" style="display:none;">
+        <div class="account-status">
+          <img id="account-photo" src="" alt="">
+          <div>
+            <div class="name" id="account-name"></div>
+            <div class="email" id="account-email"></div>
+          </div>
+        </div>
+        <p style="font-size:12.5px; color:var(--charcoal-soft);" id="t-sync-status">Tes données sont synchronisées.</p>
+        <button class="btn-secondary" onclick="signOutGoogle()" style="color:var(--alert);" id="t-signout-btn">Se déconnecter</button>
+      </div>
+
+      <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
+/* =========================================================================
+   ZONE À PERSONNALISER : remplace les valeurs ci-dessous par celles de TON
+   propre projet Firebase gratuit (Réglages du projet > Tes applications).
+   Tant que ce n'est pas fait, la connexion Google ne fonctionnera pas.
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAwVvxkSekMU0mXpR1A5lGcplJNwXcU9F4",
+  authDomain: "mombongo-15323.firebaseapp.com",
+  projectId: "mombongo-15323",
+  storageBucket: "mombongo-15323.firebasestorage.app",
+  messagingSenderId: "212073636592",
+  appId: "1:212073636592:web:a15328ff9389c6b8ebd835"
+};
+
+let cloudEnabled = true;
+let db = null;
+let currentUser = null;
+
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  db.enablePersistence().catch(()=>{});
+}catch(e){
+  cloudEnabled = false;
+  console.error('Firebase non configuré :', e);
+}
+</script>
+<script>
+
 /* ---------- Dictionnaire FR / Lingala (traductions de base, à faire vérifier par un locuteur natif) ---------- */
 const dict = {
   fr: {
@@ -341,7 +420,7 @@ const dict = {
     saved:"Produit enregistré", sold:"Vente enregistrée", stockUnit:"en stock",
     total:"Total", profit:"Bénéfice", rateLabel:"Taux de change : 1 $ =",
     confirmDelete:"Supprimer ce produit ?", deleted:"Produit supprimé",
-    currencyHint:"Les montants seront enregistrés en"
+    currencyHint:"Les montants seront enregistrés en", account:"Compte"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -360,12 +439,104 @@ const dict = {
     saved:"Eloko ebombami", sold:"Kotéka ekómi", stockUnit:"ezali na stock",
     total:"Motúya", profit:"Litomba", rateLabel:"Motángo ya kobongola : 1 $ =",
     confirmDelete:"Olingi kolongola eloko oyo ?", deleted:"Eloko elongolámi",
-    currencyHint:"Mbongo ekobombama na"
+    currencyHint:"Mbongo ekobombama na", account:"Compte"
   }
 };
+/* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
+function localGet(key){
+  try{
+    const v = localStorage.getItem(key);
+    return v === null ? null : { value: v };
+  }catch(e){ console.error('Erreur lecture stockage', e); return null; }
+}
+function localSet(key, value){
+  try{
+    localStorage.setItem(key, value);
+    return { value };
+  }catch(e){ console.error('Erreur écriture stockage', e); return null; }
+}
+
+/* ---------- Compte Google & synchronisation cloud ---------- */
+function openAccountSheet(){ document.getElementById('account-overlay').classList.add('open'); }
+function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
+
+function signInWithGoogle(){
+  if(!cloudEnabled){
+    showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithRedirect(provider);
+}
+function signOutGoogle(){
+  firebase.auth().signOut();
+  closeAccountSheet();
+}
+
+function renderAccountUI(){
+  const loggedOut = document.getElementById('account-logged-out');
+  const loggedIn = document.getElementById('account-logged-in');
+  const btnLabel = document.getElementById('account-btn-label');
+  if(currentUser){
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    document.getElementById('account-photo').src = currentUser.photoURL || '';
+    document.getElementById('account-name').textContent = currentUser.displayName || '';
+    document.getElementById('account-email').textContent = currentUser.email || '';
+    btnLabel.textContent = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Compte';
+  } else {
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+    btnLabel.textContent = dict[currentLang].account || 'Compte';
+  }
+}
+
+async function pushToCloud(){
+  if(!cloudEnabled || !db || !currentUser) return;
+  try{
+    await db.collection('mombongo_users').doc(currentUser.uid).set({
+      products, sales, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
+    }, { merge: true });
+  }catch(e){ console.error('Erreur synchronisation cloud', e); }
+}
+
+async function handlePostLogin(){
+  if(!cloudEnabled || !db || !currentUser) return;
+  try{
+    const doc = await db.collection('mombongo_users').doc(currentUser.uid).get();
+    if(doc.exists){
+      const data = doc.data();
+      products = data.products || [];
+      sales = data.sales || [];
+      if(data.rate) exchangeRate = data.rate;
+      if(data.currency) currentCurrency = data.currency;
+      localSet('mombongo:products', JSON.stringify(products));
+      localSet('mombongo:sales', JSON.stringify(sales));
+      localSet('mombongo:rate', String(exchangeRate));
+      localSet('mombongo:currency', currentCurrency);
+      document.getElementById('in-rate').value = exchangeRate;
+      setCurrency(currentCurrency);
+      showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
+    } else {
+      await pushToCloud();
+      showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
+    }
+  }catch(e){ console.error('Erreur récupération cloud', e); }
+  render();
+}
+
+if(cloudEnabled){
+  firebase.auth().getRedirectResult().catch((e)=>console.error('Erreur redirection connexion', e));
+  firebase.auth().onAuthStateChanged((user)=>{
+    currentUser = user;
+    renderAccountUI();
+    if(user) handlePostLogin();
+  });
+}
+
 let currentLang = 'fr';
 let currentCurrency = 'usd';
-let exchangeRate = 2800;
+let exchangeRate = 2300;
 
 function setLang(lang){
   currentLang = lang;
@@ -380,7 +551,7 @@ function setCurrency(cur){
   document.getElementById('btn-usd').classList.toggle('active', cur==='usd');
   document.getElementById('btn-cdf').classList.toggle('active', cur==='cdf');
   document.getElementById('rate-row').style.display = (cur==='cdf') ? 'block' : 'none';
-  try{ window.storage.set('mombongo:currency', cur, false); }catch(e){}
+  localSet('mombongo:currency', cur);
   updateAddFieldLabels();
   render();
 }
@@ -389,7 +560,7 @@ async function updateRate(){
   const val = parseFloat(document.getElementById('in-rate').value);
   if(val > 0){
     exchangeRate = val;
-    try{ await window.storage.set('mombongo:rate', String(val), false); }catch(e){}
+    localSet('mombongo:rate', String(val));
     updateAddFieldLabels();
     render();
     if(document.getElementById('sell-overlay').classList.contains('open')) updateSellPreview();
@@ -461,31 +632,31 @@ let selectedMethod = 'cash';
 
 async function loadData(){
   try{
-    const p = await window.storage.get('mombongo:products', false);
+    const p = localGet('mombongo:products');
     products = p ? JSON.parse(p.value) : [];
   }catch(e){ products = []; }
   try{
-    const s = await window.storage.get('mombongo:sales', false);
+    const s = localGet('mombongo:sales');
     sales = s ? JSON.parse(s.value) : [];
   }catch(e){ sales = []; }
   try{
-    const r = await window.storage.get('mombongo:rate', false);
+    const r = localGet('mombongo:rate');
     if(r){ exchangeRate = parseFloat(r.value); document.getElementById('in-rate').value = exchangeRate; }
   }catch(e){}
   try{
-    const c = await window.storage.get('mombongo:currency', false);
+    const c = localGet('mombongo:currency');
     if(c && c.value === 'cdf'){ setCurrency('cdf'); }
   }catch(e){}
   render();
 }
 
 async function saveProducts(){
-  try{ await window.storage.set('mombongo:products', JSON.stringify(products), false); }
-  catch(e){ console.error('Erreur sauvegarde produits', e); }
+  localSet('mombongo:products', JSON.stringify(products));
+  pushToCloud();
 }
 async function saveSales(){
-  try{ await window.storage.set('mombongo:sales', JSON.stringify(sales), false); }
-  catch(e){ console.error('Erreur sauvegarde ventes', e); }
+  localSet('mombongo:sales', JSON.stringify(sales));
+  pushToCloud();
 }
 
 /* ---------- Ajout produit ---------- */
