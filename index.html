@@ -466,8 +466,12 @@ function signInWithGoogle(){
     return;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithRedirect(provider).catch((e)=>{
-    console.error('Erreur avant redirection', e);
+  firebase.auth().signInWithPopup(provider).then((result)=>{
+    if(result && result.user){
+      showToast(currentLang==='fr' ? "Connexion réussie" : "Ekangami");
+    }
+  }).catch((e)=>{
+    console.error('Erreur de connexion', e);
     showToast('Erreur : ' + (e.code || e.message || e));
   });
 }
