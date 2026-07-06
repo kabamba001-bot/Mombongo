@@ -248,6 +248,10 @@
     </div>
   </div>
 
+  <div style="text-align:center; margin-top:10px;">
+    <button onclick="resetStats()" id="t-reset-btn" style="background:none; border:none; color:var(--charcoal-soft); font-size:12px; font-family:'Inter'; text-decoration:underline; cursor:pointer; padding:6px;">Réinitialiser les ventes et bénéfices</button>
+  </div>
+
   <main>
     <section id="alerts-section" style="display:none;">
       <h2 id="t-alerts-title">Alertes</h2>
@@ -420,7 +424,10 @@ const dict = {
     saved:"Produit enregistré", sold:"Vente enregistrée", stockUnit:"en stock",
     total:"Total", profit:"Bénéfice", rateLabel:"Taux de change : 1 $ =",
     confirmDelete:"Supprimer ce produit ?", deleted:"Produit supprimé",
-    currencyHint:"Les montants seront enregistrés en", account:"Compte"
+    currencyHint:"Les montants seront enregistrés en", account:"Compte",
+    resetBtn:"Réinitialiser les ventes et bénéfices",
+    confirmResetStats:"Réinitialiser toutes les ventes et bénéfices ? Le stock de tes produits ne sera pas touché, seul l'historique des ventes sera effacé.",
+    statsReset:"Statistiques réinitialisées"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -439,7 +446,10 @@ const dict = {
     saved:"Eloko ebombami", sold:"Kotéka ekómi", stockUnit:"ezali na stock",
     total:"Motúya", profit:"Litomba", rateLabel:"Motángo ya kobongola : 1 $ =",
     confirmDelete:"Olingi kolongola eloko oyo ?", deleted:"Eloko elongolámi",
-    currencyHint:"Mbongo ekobombama na", account:"Compte"
+    currencyHint:"Mbongo ekobombama na", account:"Compte",
+    resetBtn:"Longola ba kotéka na litomba ya kala",
+    confirmResetStats:"Olingi kolongola ba kotéka na litomba nyonso ? Stock ya biloko ekosimba te, kaka istwar ya kotéka ekolongwa.",
+    statsReset:"Ba statistiques elongwami"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -560,7 +570,7 @@ if(cloudEnabled){
 
 let currentLang = 'fr';
 let currentCurrency = 'usd';
-let exchangeRate = 2800;
+let exchangeRate = 2300;
 
 function setLang(lang){
   currentLang = lang;
@@ -617,6 +627,7 @@ function updateAddFieldLabels(){
 function applyTranslations(){
   const t = dict[currentLang];
   updateAddFieldLabels();
+  document.getElementById('t-reset-btn').textContent = t.resetBtn;
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
   document.getElementById('t-today').textContent = t.today;
@@ -854,6 +865,16 @@ function render(){
       list.appendChild(card);
     });
   }
+}
+
+async function resetStats(){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmResetStats);
+  if(!ok) return;
+  sales = [];
+  saveSales();
+  render();
+  showToast(t.statsReset);
 }
 
 function showToast(msg){
