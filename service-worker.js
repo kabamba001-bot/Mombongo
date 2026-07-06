@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mombongo-v1';
+const CACHE_NAME = 'mombongo-v2';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -22,8 +22,26 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Stratégie "réseau d'abord" pour la page principale : va toujours chercher
+// la dernière version en ligne en priorité, et n'utilise la version hors-ligne
+// que si la connexion échoue. Ça évite qu'une ancienne version reste bloquée.
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  const isPage = event.request.mode === 'navigate' || event.request.destination === 'document';
+
+  if (isPage) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((cached) => cached || fetch(event.request))
+    );
+  }
 });
+                  
