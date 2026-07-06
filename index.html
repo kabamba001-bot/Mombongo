@@ -466,7 +466,10 @@ function signInWithGoogle(){
     return;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithRedirect(provider);
+  firebase.auth().signInWithRedirect(provider).catch((e)=>{
+    console.error('Erreur avant redirection', e);
+    showToast('Erreur : ' + (e.code || e.message || e));
+  });
 }
 function signOutGoogle(){
   firebase.auth().signOut();
@@ -521,12 +524,22 @@ async function handlePostLogin(){
       await pushToCloud();
       showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
     }
-  }catch(e){ console.error('Erreur récupération cloud', e); }
+  }catch(e){
+    console.error('Erreur récupération cloud', e);
+    showToast('Erreur données : ' + (e.code || e.message || e));
+  }
   render();
 }
 
 if(cloudEnabled){
-  firebase.auth().getRedirectResult().catch((e)=>console.error('Erreur redirection connexion', e));
+  firebase.auth().getRedirectResult().then((result)=>{
+    if(result && result.user){
+      showToast(currentLang==='fr' ? "Connexion réussie, chargement..." : "Ekangami, ezali kotia...");
+    }
+  }).catch((e)=>{
+    console.error('Erreur résultat de redirection', e);
+    showToast('Erreur redirection : ' + (e.code || e.message || e));
+  });
   firebase.auth().onAuthStateChanged((user)=>{
     currentUser = user;
     renderAccountUI();
