@@ -142,6 +142,11 @@
     font-size:16px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
   }
   .product-card button.del:active{color:var(--alert);}
+  .product-card button.edit{
+    background:transparent; border:none; color:var(--charcoal-soft);
+    font-size:15px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
+  }
+  .product-card button.edit:active{color:var(--emerald);}
 
   .fab{
     position:fixed; left:50%; transform:translateX(-50%); bottom:20px;
@@ -431,8 +436,9 @@ const dict = {
     confirmDelete:"Supprimer ce produit ?", deleted:"Produit supprimé",
     currencyHint:"Les montants seront enregistrés en", account:"Compte",
     resetBtn:"Réinitialiser les ventes et bénéfices",
-    confirmResetStats:"Réinitialiser toutes les ventes et bénéfices ? Le stock de tes produits ne sera pas touché, seul l'historique des ventes sera effacé.",
-    statsReset:"Statistiques réinitialisées"
+    confirmResetStats:"Réinitialiser cette statistique ? Cette action est irréversible.",
+    statsReset:"Statistique réinitialisée",
+    editTitle:"Modifier le produit", saveEdit:"Enregistrer les modifications", updated:"Produit mis à jour"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -453,8 +459,9 @@ const dict = {
     confirmDelete:"Olingi kolongola eloko oyo ?", deleted:"Eloko elongolámi",
     currencyHint:"Mbongo ekobombama na", account:"Compte",
     resetBtn:"Longola ba kotéka na litomba ya kala",
-    confirmResetStats:"Olingi kolongola ba kotéka na litomba nyonso ? Stock ya biloko ekosimba te, kaka istwar ya kotéka ekolongwa.",
-    statsReset:"Ba statistiques elongwami"
+    confirmResetStats:"Olingi kolongola statistique oyo ? Ekozonga te.",
+    statsReset:"Statistique elongwami",
+    editTitle:"Bongisa eloko", saveEdit:"Bomba ba mbongwana", updated:"Eloko ebongisami"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -707,11 +714,34 @@ async function saveSales(){
   pushToCloud();
 }
 
-/* ---------- Ajout produit ---------- */
-function openAddSheet(){ updateAddFieldLabels(); document.getElementById('add-overlay').classList.add('open'); }
+/* ---------- Ajout / modification produit ---------- */
+let editingProductId = null;
+
+function openAddSheet(){
+  editingProductId = null;
+  updateAddFieldLabels();
+  document.getElementById('t-add-title').textContent = dict[currentLang].addTitle;
+  document.getElementById('t-save').textContent = dict[currentLang].save;
+  document.getElementById('add-overlay').classList.add('open');
+}
+function openEditSheet(id){
+  const product = products.find(p=>p.id===id);
+  if(!product) return;
+  editingProductId = id;
+  updateAddFieldLabels();
+  document.getElementById('t-add-title').textContent = dict[currentLang].editTitle;
+  document.getElementById('t-save').textContent = dict[currentLang].saveEdit;
+  document.getElementById('in-name').value = product.name;
+  document.getElementById('in-buy').value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
+  document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
+  document.getElementById('in-qty').value = product.qty;
+  document.getElementById('in-threshold').value = product.threshold;
+  document.getElementById('add-overlay').classList.add('open');
+}
 function closeAddSheet(){
   document.getElementById('add-overlay').classList.remove('open');
   ['in-name','in-buy','in-sell','in-qty','in-threshold'].forEach(id=>document.getElementById(id).value='');
+  editingProductId = null;
 }
 async function addProduct(){
   const name = document.getElementById('in-name').value.trim();
@@ -726,10 +756,19 @@ async function addProduct(){
     showToast(currentLang==='fr' ? "Donne au moins un nom et un prix de vente" : "Pesa nkombo na ntalo ya kotéka");
     return;
   }
-  products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, lastSoldAt: null, createdAt: Date.now() });
+  if(editingProductId){
+    const product = products.find(p=>p.id===editingProductId);
+    if(product){
+      product.name = name; product.buy = buy; product.sell = sell;
+      product.qty = qty; product.threshold = threshold;
+    }
+  } else {
+    products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, lastSoldAt: null, createdAt: Date.now() });
+  }
+  const wasEditing = !!editingProductId;
   await saveProducts();
   closeAddSheet();
-  showToast(dict[currentLang].saved);
+  showToast(wasEditing ? dict[currentLang].updated : dict[currentLang].saved);
   render();
 }
 
@@ -877,6 +916,7 @@ function render(){
         </div>
         <div class="price">${formatMoney(p.sell)}</div>
         <button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>
+        <button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>
         <button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>
       `;
       list.appendChild(card);
