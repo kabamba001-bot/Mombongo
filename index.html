@@ -83,7 +83,13 @@
   }
   .stat-card{
     background:var(--paper); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px;
+    position:relative;
   }
+  .stat-reset{
+    position:absolute; top:8px; right:8px; background:none; border:none;
+    font-size:13px; opacity:.45; cursor:pointer; padding:4px; line-height:1;
+  }
+  .stat-reset:active{opacity:.9;}
   .stat-card .label{font-size:10.5px; color:var(--charcoal-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
   .stat-card .value{font-family:'Sora'; font-size:17px; font-weight:700; margin-top:4px;}
   .stat-card .value.money{color:var(--emerald);}
@@ -218,7 +224,7 @@
     </div>
     <div id="rate-row">
       <label id="t-rate-label">Taux de change : 1 $ =</label>
-      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
+      <input id="in-rate" type="number" inputmode="decimal" value="2300" onchange="updateRate()">
       <span>FC</span>
     </div>
     <div id="account-row">
@@ -231,14 +237,17 @@
 
   <div class="stats-row">
     <div class="stat-card">
+      <button class="stat-reset" onclick="resetStat('todaySales')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-today">Ventes aujourd'hui</div>
       <div class="value money" id="stat-today">0 $</div>
     </div>
     <div class="stat-card">
+      <button class="stat-reset" onclick="resetStat('todayProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-today">Bénéfice aujourd'hui</div>
       <div class="value money" id="stat-profit-today">0 $</div>
     </div>
     <div class="stat-card">
+      <button class="stat-reset" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-total">Bénéfice total</div>
       <div class="value money" id="stat-profit-total">0 $</div>
     </div>
@@ -246,10 +255,6 @@
       <div class="label" id="t-alerts">Alertes stock</div>
       <div class="value alert" id="stat-alerts">0</div>
     </div>
-  </div>
-
-  <div style="text-align:center; margin-top:10px;">
-    <button onclick="resetStats()" id="t-reset-btn" style="background:none; border:none; color:var(--charcoal-soft); font-size:12px; font-family:'Inter'; text-decoration:underline; cursor:pointer; padding:6px;">Réinitialiser les ventes et bénéfices</button>
   </div>
 
   <main>
@@ -439,7 +444,7 @@ const dict = {
     addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
     name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
     qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
-    save:"Bomba eloko", cancel:"Boya",
+    save:"Bomba eloko", cancel:"koboya",
     sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
     cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
     lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
@@ -489,8 +494,10 @@ function signOutGoogle(){
   firebase.auth().signOut().then(()=>{
     products = [];
     sales = [];
+    stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
+    localSet('mombongo:stats', JSON.stringify(stats));
     render();
     showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");
   });
@@ -519,7 +526,7 @@ async function pushToCloud(){
   if(!cloudEnabled || !db || !currentUser) return;
   try{
     await db.collection('mombongo_users').doc(currentUser.uid).set({
-      products, sales, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
+      products, sales, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
     }, { merge: true });
   }catch(e){ console.error('Erreur synchronisation cloud', e); }
 }
@@ -532,10 +539,12 @@ async function handlePostLogin(){
       const data = doc.data();
       products = data.products || [];
       sales = data.sales || [];
+      stats = data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
       if(data.rate) exchangeRate = data.rate;
       if(data.currency) currentCurrency = data.currency;
       localSet('mombongo:products', JSON.stringify(products));
       localSet('mombongo:sales', JSON.stringify(sales));
+      localSet('mombongo:stats', JSON.stringify(stats));
       localSet('mombongo:rate', String(exchangeRate));
       localSet('mombongo:currency', currentCurrency);
       document.getElementById('in-rate').value = exchangeRate;
@@ -627,7 +636,6 @@ function updateAddFieldLabels(){
 function applyTranslations(){
   const t = dict[currentLang];
   updateAddFieldLabels();
-  document.getElementById('t-reset-btn').textContent = t.resetBtn;
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
   document.getElementById('t-today').textContent = t.today;
@@ -662,6 +670,7 @@ function applyTranslations(){
 /* ---------- Données ---------- */
 let products = [];
 let sales = [];
+let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
 let sellingProductId = null;
 let selectedMethod = 'cash';
 
@@ -674,6 +683,10 @@ async function loadData(){
     const s = localGet('mombongo:sales');
     sales = s ? JSON.parse(s.value) : [];
   }catch(e){ sales = []; }
+  try{
+    const st = localGet('mombongo:stats');
+    stats = st ? JSON.parse(st.value) : { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
+  }catch(e){ stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 }; }
   try{
     const r = localGet('mombongo:rate');
     if(r){ exchangeRate = parseFloat(r.value); document.getElementById('in-rate').value = exchangeRate; }
@@ -768,13 +781,20 @@ async function confirmSale(){
   }
   product.qty -= qty;
   product.lastSoldAt = Date.now();
+  const saleTotal = qty*product.sell;
+  const saleProfit = qty*(product.sell-product.buy);
   sales.push({
     id: Date.now().toString(), productId: product.id,
-    qty, total: qty*product.sell, profit: qty*(product.sell-product.buy),
+    qty, total: saleTotal, profit: saleProfit,
     method: selectedMethod, date: Date.now()
   });
+  ensureTodayStats();
+  stats.todaySales += saleTotal;
+  stats.todayProfit += saleProfit;
+  stats.totalProfit += saleProfit;
   await saveProducts();
   await saveSales();
+  saveStats();
   closeSellSheet();
   showToast(dict[currentLang].sold);
   render();
@@ -795,14 +815,11 @@ function getFilteredProducts(){
 
 function render(){
   const t = dict[currentLang];
-  const todaySales = sales.filter(s=>isToday(s.date));
-  const todayTotal = todaySales.reduce((sum,s)=>sum+s.total,0);
-  const todayProfit = todaySales.reduce((sum,s)=>sum+s.profit,0);
-  const totalProfit = sales.reduce((sum,s)=>sum+s.profit,0);
+  ensureTodayStats();
 
-  document.getElementById('stat-today').textContent = formatMoney(todayTotal);
-  document.getElementById('stat-profit-today').textContent = formatMoney(todayProfit);
-  document.getElementById('stat-profit-total').textContent = formatMoney(totalProfit);
+  document.getElementById('stat-today').textContent = formatMoney(stats.todaySales);
+  document.getElementById('stat-profit-today').textContent = formatMoney(stats.todayProfit);
+  document.getElementById('stat-profit-total').textContent = formatMoney(stats.totalProfit);
 
   const lowStock = products.filter(p=>p.qty <= p.threshold);
   const dormant = products.filter(p=>{
@@ -867,12 +884,27 @@ function render(){
   }
 }
 
-async function resetStats(){
+function ensureTodayStats(){
+  const todayStr = new Date().toDateString();
+  if(stats.todayDate !== todayStr){
+    stats.todayDate = todayStr;
+    stats.todaySales = 0;
+    stats.todayProfit = 0;
+    saveStats();
+  }
+}
+
+function saveStats(){
+  localSet('mombongo:stats', JSON.stringify(stats));
+  pushToCloud();
+}
+
+async function resetStat(field){
   const t = dict[currentLang];
   const ok = window.confirm(t.confirmResetStats);
   if(!ok) return;
-  sales = [];
-  saveSales();
+  stats[field] = 0;
+  saveStats();
   render();
   showToast(t.statsReset);
 }
