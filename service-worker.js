@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mombongo-v2';
+const CACHE_NAME = 'mombongo-v3';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -44,4 +44,3 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
-                  
