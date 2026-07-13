@@ -189,6 +189,27 @@
   }
   .method-row button.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
 
+  #add-sheet-inner{ min-height:75vh; }
+  .mode-row{display:flex; gap:8px; margin-bottom:18px;}
+  .mode-btn{
+    flex:1; padding:11px 6px; border-radius:11px; border:1.5px solid var(--paper-2);
+    background:#fff; font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Inter';
+    color:var(--charcoal-soft);
+  }
+  .mode-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+  .mesurette-row{
+    background:var(--ok-bg); border-radius:12px; padding:12px 12px 4px; margin-bottom:12px;
+  }
+  .btn-add-mesurette{
+    width:100%; background:#fff; border:1.5px dashed var(--paper-2); color:var(--emerald);
+    border-radius:10px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
+    cursor:pointer; margin-bottom:6px;
+  }
+  .remove-mesurette{
+    background:none; border:none; color:var(--alert); font-size:12px; font-weight:600;
+    cursor:pointer; padding:0 0 10px; font-family:'Inter';
+  }
+
   .sell-preview{
     background:var(--ok-bg); border-radius:12px; padding:14px; margin-bottom:14px;
     display:flex; justify-content:space-between; align-items:center;
@@ -229,7 +250,7 @@
     </div>
     <div id="rate-row">
       <label id="t-rate-label">Taux de change : 1 $ =</label>
-      <input id="in-rate" type="number" inputmode="decimal" value="2300" onchange="updateRate()">
+      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
       <span>FC</span>
     </div>
     <div id="account-row">
@@ -287,36 +308,98 @@
   <button class="fab" onclick="openAddSheet()" id="t-add-btn">+ Ajouter un produit</button>
 
   <div class="sheet-overlay" id="add-overlay">
-    <div class="sheet">
+    <div class="sheet" id="add-sheet-inner">
       <h3 id="t-add-title">Nouveau produit</h3>
-      <div class="field">
-        <label id="t-name">Nom du produit</label>
-        <input id="in-name" type="text" placeholder="Ex : Savon Jabon">
+
+      <div class="mode-row" id="add-mode-row">
+        <button class="mode-btn active" data-mode="simple" onclick="setAddMode('simple')" id="t-mode-simple">Produit simple</button>
+        <button class="mode-btn" data-mode="carton" onclick="setAddMode('carton')" id="t-mode-carton">📦 Carton</button>
+        <button class="mode-btn" data-mode="sac" onclick="setAddMode('sac')" id="t-mode-sac">🌾 Sac</button>
       </div>
-      <div class="two-col">
+
+      <div id="mode-simple-fields">
         <div class="field">
-          <label id="t-buy">Prix d'achat ($)</label>
-          <input id="in-buy" type="number" inputmode="decimal" placeholder="0.5">
+          <label id="t-name">Nom du produit</label>
+          <input id="in-name" type="text" placeholder="Ex : Savon Jabon">
         </div>
-        <div class="field">
-          <label id="t-sell">Prix de vente ($)</label>
-          <input id="in-sell" type="number" inputmode="decimal" placeholder="1">
+        <div class="two-col">
+          <div class="field">
+            <label id="t-buy">Prix d'achat ($)</label>
+            <input id="in-buy" type="number" inputmode="decimal" placeholder="0.5">
+          </div>
+          <div class="field">
+            <label id="t-sell">Prix de vente ($)</label>
+            <input id="in-sell" type="number" inputmode="decimal" placeholder="1">
+          </div>
+          <div class="field" style="grid-column:1/-1; margin-bottom:0;">
+            <span id="t-currency-hint" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
+          </div>
         </div>
-        <div class="field" style="grid-column:1/-1; margin-bottom:0;">
-          <span id="t-currency-hint" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-qty">Quantité en stock</label>
+            <input id="in-qty" type="number" inputmode="numeric" placeholder="20">
+          </div>
+          <div class="field">
+            <label id="t-threshold">Seuil d'alerte</label>
+            <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
         </div>
       </div>
-      <div class="two-col">
+
+      <div id="mode-carton-fields" style="display:none;">
         <div class="field">
-          <label id="t-qty">Quantité en stock</label>
-          <input id="in-qty" type="number" inputmode="numeric" placeholder="20">
+          <label id="t-carton-name">Nom du produit</label>
+          <input id="carton-name" type="text" placeholder="Ex : Savon en carton">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-carton-qty">Nombre de pièces dans le carton</label>
+            <input id="carton-qty" type="number" inputmode="numeric" placeholder="24">
+          </div>
+          <div class="field">
+            <label id="t-carton-buy">Prix d'achat du carton</label>
+            <input id="carton-buy" type="number" inputmode="decimal" placeholder="12">
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-carton-sell">Prix de vente d'une pièce</label>
+            <input id="carton-sell" type="number" inputmode="decimal" placeholder="1">
+          </div>
+          <div class="field">
+            <label id="t-carton-threshold">Seuil d'alerte</label>
+            <input id="carton-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
         </div>
         <div class="field">
-          <label id="t-threshold">Seuil d'alerte</label>
-          <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
+          <span id="t-carton-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Le prix d'achat d'une pièce sera calculé automatiquement.</span>
         </div>
       </div>
-      <button class="btn-primary" onclick="addProduct()" id="t-save">Enregistrer le produit</button>
+
+      <div id="mode-sac-fields" style="display:none;">
+        <div class="field">
+          <label id="t-sac-name">Nom du produit</label>
+          <input id="sac-name" type="text" placeholder="Ex : Riz">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-sac-buy">Prix d'achat du sac</label>
+            <input id="sac-buy" type="number" inputmode="decimal" placeholder="45">
+          </div>
+          <div class="field">
+            <label id="t-sac-threshold">Seuil d'alerte (par mesurette)</label>
+            <input id="sac-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
+        </div>
+        <div id="mesurettes-list"></div>
+        <button type="button" class="btn-add-mesurette" onclick="addMesuretteRow()" id="t-add-mesurette">+ Ajouter une mesurette</button>
+        <div class="field" style="margin-top:10px;">
+          <span id="t-sac-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.</span>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="handleAddSave()" id="t-save">Enregistrer le produit</button>
       <button class="btn-secondary" onclick="closeAddSheet()" id="t-cancel">Annuler</button>
     </div>
   </div>
@@ -337,14 +420,6 @@
         <div class="col">
           <div class="lbl" id="t-profit-label">Bénéfice</div>
           <div class="val" id="preview-profit">0 $</div>
-        </div>
-      </div>
-      <div class="field">
-        <label id="t-method">Moyen de paiement</label>
-        <div class="method-row">
-          <button class="active" data-method="cash" onclick="selectMethod('cash')" id="t-cash">Cash</button>
-          <button data-method="mpesa" onclick="selectMethod('mpesa')">M-Pesa</button>
-          <button data-method="airtel" onclick="selectMethod('airtel')">Airtel Money</button>
         </div>
       </div>
       <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
@@ -438,7 +513,16 @@ const dict = {
     resetBtn:"Réinitialiser les ventes et bénéfices",
     confirmResetStats:"Réinitialiser cette statistique ? Cette action est irréversible.",
     statsReset:"Statistique réinitialisée",
-    editTitle:"Modifier le produit", saveEdit:"Enregistrer les modifications", updated:"Produit mis à jour"
+    editTitle:"Modifier le produit", saveEdit:"Enregistrer les modifications", updated:"Produit mis à jour",
+    modeSimple:"Produit simple", modeCarton:"📦 Carton", modeSac:"🌾 Sac",
+    cartonName:"Nom du produit", cartonQty:"Nombre de pièces dans le carton",
+    cartonBuy:"Prix d'achat du carton", cartonSell:"Prix de vente d'une pièce",
+    cartonThreshold:"Seuil d'alerte", cartonHint:"Le prix d'achat d'une pièce sera calculé automatiquement.",
+    sacName:"Nom du produit", sacBuy:"Prix d'achat du sac", sacThreshold:"Seuil d'alerte (par mesurette)",
+    sacHint:"Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.",
+    addMesurette:"+ Ajouter une mesurette",
+    mesuretteName:"Nom de la mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Prix de vente",
+    mesuretteQty:"Quantité obtenue du sac", mesuretteRemove:"Retirer cette mesurette"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -461,7 +545,16 @@ const dict = {
     resetBtn:"Longola ba kotéka na litomba ya kala",
     confirmResetStats:"Olingi kolongola statistique oyo ? Ekozonga te.",
     statsReset:"Statistique elongwami",
-    editTitle:"Bongisa eloko", saveEdit:"Bomba ba mbongwana", updated:"Eloko ebongisami"
+    editTitle:"Bongisa eloko", saveEdit:"Bomba ba mbongwana", updated:"Eloko ebongisami",
+    modeSimple:"Eloko ya pete", modeCarton:"📦 Carton", modeSac:"🌾 Sac",
+    cartonName:"Nkombo ya eloko", cartonQty:"Motángo ya biloko na carton",
+    cartonBuy:"Ntalo ya kosomba carton", cartonSell:"Ntalo ya kotéka eloko moko",
+    cartonThreshold:"Ndelo ya likebisi", cartonHint:"Ntalo ya kosomba eloko moko ekotángama yango moko.",
+    sacName:"Nkombo ya eloko", sacBuy:"Ntalo ya kosomba sac", sacThreshold:"Ndelo ya likebisi (mesurette moko moko)",
+    sacHint:"Opesa motángo ya mbala okoki kotondisa mesurette na sac mobimba.",
+    addMesurette:"+ Bakisá mesurette",
+    mesuretteName:"Nkombo ya mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Ntalo ya kotéka",
+    mesuretteQty:"Motángo ekobima na sac", mesuretteRemove:"Longola mesurette oyo"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -631,6 +724,20 @@ function updateAddFieldLabels(){
   document.getElementById('t-buy').textContent = `${t.buy} (${unit})`;
   document.getElementById('t-sell').textContent = `${t.sell} (${unit})`;
   document.getElementById('t-currency-hint').textContent = `${t.currencyHint} ${unit}`;
+  document.getElementById('t-mode-simple').textContent = t.modeSimple;
+  document.getElementById('t-mode-carton').textContent = t.modeCarton;
+  document.getElementById('t-mode-sac').textContent = t.modeSac;
+  document.getElementById('t-carton-name').textContent = t.cartonName;
+  document.getElementById('t-carton-qty').textContent = t.cartonQty;
+  document.getElementById('t-carton-buy').textContent = `${t.cartonBuy} (${unit})`;
+  document.getElementById('t-carton-sell').textContent = `${t.cartonSell} (${unit})`;
+  document.getElementById('t-carton-threshold').textContent = t.cartonThreshold;
+  document.getElementById('t-carton-hint').textContent = t.cartonHint;
+  document.getElementById('t-sac-name').textContent = t.sacName;
+  document.getElementById('t-sac-buy').textContent = `${t.sacBuy} (${unit})`;
+  document.getElementById('t-sac-threshold').textContent = t.sacThreshold;
+  document.getElementById('t-sac-hint').textContent = t.sacHint;
+  document.getElementById('t-add-mesurette').textContent = t.addMesurette;
   if(currentCurrency === 'usd'){
     document.getElementById('in-buy').placeholder = '0.5';
     document.getElementById('in-sell').placeholder = '1';
@@ -667,8 +774,6 @@ function applyTranslations(){
   document.getElementById('t-sell-qty').textContent = t.sellQty;
   document.getElementById('t-total-label').textContent = t.total;
   document.getElementById('t-profit-label').textContent = t.profit;
-  document.getElementById('t-method').textContent = t.method;
-  document.getElementById('t-cash').textContent = t.cash;
   document.getElementById('t-confirm-sale').textContent = t.confirmSale;
   document.getElementById('t-cancel2').textContent = t.cancel;
   document.getElementById('t-rate-label').textContent = t.rateLabel;
@@ -679,7 +784,6 @@ let products = [];
 let sales = [];
 let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
 let sellingProductId = null;
-let selectedMethod = 'cash';
 
 async function loadData(){
   try{
@@ -716,12 +820,63 @@ async function saveSales(){
 
 /* ---------- Ajout / modification produit ---------- */
 let editingProductId = null;
+let addMode = 'simple';
+let mesuretteCount = 0;
+
+function setAddMode(mode){
+  addMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  document.getElementById('mode-simple-fields').style.display = mode==='simple' ? 'block':'none';
+  document.getElementById('mode-carton-fields').style.display = mode==='carton' ? 'block':'none';
+  document.getElementById('mode-sac-fields').style.display = mode==='sac' ? 'block':'none';
+  if(mode==='sac' && mesuretteCount===0){
+    addMesuretteRow(); addMesuretteRow(); addMesuretteRow();
+  }
+}
+
+function addMesuretteRow(){
+  mesuretteCount++;
+  const idx = mesuretteCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'mesurette-row';
+  wrap.id = 'mesurette-row-'+idx;
+  const t = dict[currentLang];
+  wrap.innerHTML = `
+    <div class="field">
+      <label>${t.mesuretteName}</label>
+      <input id="mesurette-name-${idx}" type="text" value="${t.mesuretteDefault} ${idx}">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>${t.mesuretteSell}</label>
+        <input id="mesurette-sell-${idx}" type="number" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>${t.mesuretteQty}</label>
+        <input id="mesurette-qty-${idx}" type="number" inputmode="numeric">
+      </div>
+    </div>
+    <button type="button" class="remove-mesurette" onclick="removeMesuretteRow(${idx})">✕ ${t.mesuretteRemove}</button>
+  `;
+  document.getElementById('mesurettes-list').appendChild(wrap);
+}
+function removeMesuretteRow(idx){
+  const el = document.getElementById('mesurette-row-'+idx);
+  if(el) el.remove();
+}
+function resetMesurettes(){
+  document.getElementById('mesurettes-list').innerHTML = '';
+  mesuretteCount = 0;
+}
 
 function openAddSheet(){
   editingProductId = null;
   updateAddFieldLabels();
   document.getElementById('t-add-title').textContent = dict[currentLang].addTitle;
   document.getElementById('t-save').textContent = dict[currentLang].save;
+  document.getElementById('add-mode-row').style.display = 'flex';
+  resetMesurettes();
+  setAddMode('simple');
   document.getElementById('add-overlay').classList.add('open');
 }
 function openEditSheet(id){
@@ -731,6 +886,9 @@ function openEditSheet(id){
   updateAddFieldLabels();
   document.getElementById('t-add-title').textContent = dict[currentLang].editTitle;
   document.getElementById('t-save').textContent = dict[currentLang].saveEdit;
+  document.getElementById('add-mode-row').style.display = 'none';
+  resetMesurettes();
+  setAddMode('simple');
   document.getElementById('in-name').value = product.name;
   document.getElementById('in-buy').value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
   document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
@@ -740,16 +898,33 @@ function openEditSheet(id){
 }
 function closeAddSheet(){
   document.getElementById('add-overlay').classList.remove('open');
-  ['in-name','in-buy','in-sell','in-qty','in-threshold'].forEach(id=>document.getElementById(id).value='');
+  ['in-name','in-buy','in-sell','in-qty','in-threshold',
+   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold',
+   'sac-name','sac-buy','sac-threshold'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value='';
+  });
+  resetMesurettes();
   editingProductId = null;
 }
+
+function toInternal(raw){
+  return currentCurrency === 'cdf' ? raw / exchangeRate : raw;
+}
+
+async function handleAddSave(){
+  if(addMode === 'simple'){ await addProduct(); return; }
+  if(addMode === 'carton'){ await addCartonProduct(); return; }
+  if(addMode === 'sac'){ await addSacProduct(); return; }
+}
+
 async function addProduct(){
   const name = document.getElementById('in-name').value.trim();
   const rawBuy = parseFloat(document.getElementById('in-buy').value) || 0;
   const rawSell = parseFloat(document.getElementById('in-sell').value) || 0;
   // Les montants sont toujours stockés en dollars en interne, quelle que soit la devise de saisie
-  const buy = currentCurrency === 'cdf' ? rawBuy / exchangeRate : rawBuy;
-  const sell = currentCurrency === 'cdf' ? rawSell / exchangeRate : rawSell;
+  const buy = toInternal(rawBuy);
+  const sell = toInternal(rawSell);
   const qty = parseInt(document.getElementById('in-qty').value) || 0;
   const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
   if(!name || !sell){
@@ -772,6 +947,66 @@ async function addProduct(){
   render();
 }
 
+async function addCartonProduct(){
+  const name = document.getElementById('carton-name').value.trim();
+  const cartonQty = parseInt(document.getElementById('carton-qty').value) || 0;
+  const rawCartonBuy = parseFloat(document.getElementById('carton-buy').value) || 0;
+  const rawSell = parseFloat(document.getElementById('carton-sell').value) || 0;
+  const threshold = parseInt(document.getElementById('carton-threshold').value) || 3;
+  if(!name || !cartonQty || !rawSell){
+    showToast(currentLang==='fr' ? "Remplis le nom, le nombre de pièces et le prix de vente" : "Pesa nkombo, motángo na ntalo ya kotéka");
+    return;
+  }
+  const cartonBuyInternal = toInternal(rawCartonBuy);
+  const buyPerPiece = cartonBuyInternal / cartonQty;
+  const sell = toInternal(rawSell);
+  products.push({
+    id: Date.now().toString(), name, buy: buyPerPiece, sell,
+    qty: cartonQty, threshold, lastSoldAt: null, createdAt: Date.now()
+  });
+  await saveProducts();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+}
+
+async function addSacProduct(){
+  const name = document.getElementById('sac-name').value.trim();
+  const rawSacBuy = parseFloat(document.getElementById('sac-buy').value) || 0;
+  const threshold = parseInt(document.getElementById('sac-threshold').value) || 3;
+  if(!name || !rawSacBuy){
+    showToast(currentLang==='fr' ? "Remplis le nom et le prix d'achat du sac" : "Pesa nkombo na ntalo ya sac");
+    return;
+  }
+  const sacBuyInternal = toInternal(rawSacBuy);
+  const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
+  let createdCount = 0;
+  let offset = 0;
+  rows.forEach((row)=>{
+    const idx = row.id.replace('mesurette-row-','');
+    const mName = document.getElementById('mesurette-name-'+idx).value.trim();
+    const rawMSell = parseFloat(document.getElementById('mesurette-sell-'+idx).value) || 0;
+    const mQty = parseInt(document.getElementById('mesurette-qty-'+idx).value) || 0;
+    if(!mName || !rawMSell || !mQty) return;
+    const mSell = toInternal(rawMSell);
+    const buyPerUnit = sacBuyInternal / mQty;
+    offset++;
+    products.push({
+      id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell,
+      qty: mQty, threshold, lastSoldAt: null, createdAt: Date.now()
+    });
+    createdCount++;
+  });
+  if(createdCount === 0){
+    showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
+    return;
+  }
+  await saveProducts();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+}
+
 /* ---------- Suppression produit ---------- */
 async function deleteProduct(id){
   const product = products.find(p=>p.id===id);
@@ -787,8 +1022,6 @@ async function deleteProduct(id){
 /* ---------- Vente ---------- */
 function openSellSheet(id){
   sellingProductId = id;
-  selectedMethod = 'cash';
-  document.querySelectorAll('.method-row button').forEach(b=>b.classList.toggle('active', b.dataset.method==='cash'));
   document.getElementById('in-sell-qty').value = 1;
   document.getElementById('sell-overlay').classList.add('open');
   updateSellPreview();
@@ -796,10 +1029,6 @@ function openSellSheet(id){
 function closeSellSheet(){
   document.getElementById('sell-overlay').classList.remove('open');
   sellingProductId = null;
-}
-function selectMethod(m){
-  selectedMethod = m;
-  document.querySelectorAll('.method-row button').forEach(b=>b.classList.toggle('active', b.dataset.method===m));
 }
 function updateSellPreview(){
   const product = products.find(p=>p.id===sellingProductId);
@@ -825,7 +1054,7 @@ async function confirmSale(){
   sales.push({
     id: Date.now().toString(), productId: product.id,
     qty, total: saleTotal, profit: saleProfit,
-    method: selectedMethod, date: Date.now()
+    date: Date.now()
   });
   ensureTodayStats();
   stats.todaySales += saleTotal;
