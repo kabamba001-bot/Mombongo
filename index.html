@@ -241,6 +241,7 @@
         <div class="mini-toggle">
           <button id="btn-fr" class="active" onclick="setLang('fr')">FR</button>
           <button id="btn-ln" onclick="setLang('ln')">LN</button>
+          <button id="btn-sw" onclick="setLang('sw')">SW</button>
         </div>
         <div class="mini-toggle">
           <button id="btn-usd" class="active" onclick="setCurrency('usd')">USD</button>
@@ -250,7 +251,7 @@
     </div>
     <div id="rate-row">
       <label id="t-rate-label">Taux de change : 1 $ =</label>
-      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
+      <input id="in-rate" type="number" inputmode="decimal" value="2300" onchange="updateRate()">
       <span>FC</span>
     </div>
     <div id="account-row">
@@ -534,7 +535,7 @@ const dict = {
     addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
     name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
     qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
-    save:"Bomba eloko", cancel:"koboya",
+    save:"Bomba eloko", cancel:"Boya",
     sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
     cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
     lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
@@ -555,6 +556,38 @@ const dict = {
     addMesurette:"+ Bakisá mesurette",
     mesuretteName:"Nkombo ya mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Ntalo ya kotéka",
     mesuretteQty:"Motángo ekobima na sac", mesuretteRemove:"Longola mesurette oyo"
+  },
+  sw: {
+    appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
+    today:"Mauzo ya leo", profitToday:"Faida ya leo", profitTotal:"Faida yote",
+    alerts:"Onyo za bidhaa", alertsTitle:"Maonyo", productsTitle:"Bidhaa zangu",
+    empty:"Hakuna bidhaa bado. Ongeza bidhaa yako ya kwanza na kitufe kilicho chini.",
+    noResults:"Hakuna bidhaa inayolingana na utafutaji wako.",
+    searchPlaceholder:"Tafuta bidhaa...",
+    addBtn:"+ Ongeza bidhaa", addTitle:"Bidhaa mpya",
+    name:"Jina la bidhaa", buy:"Bei ya ununuzi", sell:"Bei ya mauzo",
+    qty:"Idadi iliyopo", threshold:"Kiwango cha onyo",
+    save:"Hifadhi bidhaa", cancel:"Ghairi",
+    sellTitle:"Uza", sellQty:"Idadi iliyouzwa", method:"Njia ya malipo",
+    cash:"Fedha taslimu", confirmSale:"Thibitisha uuzaji",
+    lowStock:"bidhaa inaisha", dormant:"haijauzwa kwa siku 14",
+    saved:"Bidhaa imehifadhiwa", sold:"Uuzaji umehifadhiwa", stockUnit:"zilizopo",
+    total:"Jumla", profit:"Faida", rateLabel:"Kiwango cha ubadilishaji : 1 $ =",
+    confirmDelete:"Futa bidhaa hii ?", deleted:"Bidhaa imefutwa",
+    currencyHint:"Kiasi kitahifadhiwa kwa", account:"Akaunti",
+    resetBtn:"Rudisha mauzo na faida kwa sifuri",
+    confirmResetStats:"Rudisha takwimu hii kwa sifuri ? Hatua hii haiwezi kurudishwa.",
+    statsReset:"Takwimu imerudishwa",
+    editTitle:"Hariri bidhaa", saveEdit:"Hifadhi mabadiliko", updated:"Bidhaa imesasishwa",
+    modeSimple:"Bidhaa rahisi", modeCarton:"📦 Katoni", modeSac:"🌾 Gunia",
+    cartonName:"Jina la bidhaa", cartonQty:"Idadi ya vipande kwenye katoni",
+    cartonBuy:"Bei ya ununuzi wa katoni", cartonSell:"Bei ya mauzo ya kipande kimoja",
+    cartonThreshold:"Kiwango cha onyo", cartonHint:"Bei ya ununuzi ya kipande kimoja itahesabiwa kiotomatiki.",
+    sacName:"Jina la bidhaa", sacBuy:"Bei ya ununuzi wa gunia", sacThreshold:"Kiwango cha onyo (kwa kipimo kimoja)",
+    sacHint:"Hakuna haja ya kupima : eleza tu mara ngapi unajaza kipimo hiki na gunia zima.",
+    addMesurette:"+ Ongeza kipimo",
+    mesuretteName:"Jina la kipimo", mesuretteDefault:"Kipimo", mesuretteSell:"Bei ya mauzo",
+    mesuretteQty:"Idadi inayopatikana kwa gunia", mesuretteRemove:"Ondoa kipimo hiki"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -689,6 +722,7 @@ function setLang(lang){
   currentLang = lang;
   document.getElementById('btn-fr').classList.toggle('active', lang==='fr');
   document.getElementById('btn-ln').classList.toggle('active', lang==='ln');
+  document.getElementById('btn-sw').classList.toggle('active', lang==='sw');
   applyTranslations();
   render();
 }
