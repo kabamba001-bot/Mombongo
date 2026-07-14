@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
 <title>Mombongo — Gestion de commerce</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146356">
@@ -409,7 +409,7 @@
       <h3 id="sell-title">Vendre</h3>
       <div class="field">
         <label id="t-sell-qty">Quantité vendue</label>
-        <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()">
+        <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()" onfocus="scrollConfirmIntoView()">
       </div>
       <div class="sell-preview">
         <div class="col">
@@ -594,9 +594,11 @@ function signOutGoogle(){
   firebase.auth().signOut().then(()=>{
     products = [];
     sales = [];
+    lots = [];
     stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
+    localSet('mombongo:lots', JSON.stringify(lots));
     localSet('mombongo:stats', JSON.stringify(stats));
     render();
     showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");
@@ -626,7 +628,7 @@ async function pushToCloud(){
   if(!cloudEnabled || !db || !currentUser) return;
   try{
     await db.collection('mombongo_users').doc(currentUser.uid).set({
-      products, sales, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
+      products, sales, lots, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
     }, { merge: true });
   }catch(e){ console.error('Erreur synchronisation cloud', e); }
 }
@@ -639,11 +641,13 @@ async function handlePostLogin(){
       const data = doc.data();
       products = data.products || [];
       sales = data.sales || [];
+      lots = data.lots || [];
       stats = data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
       if(data.rate) exchangeRate = data.rate;
       if(data.currency) currentCurrency = data.currency;
       localSet('mombongo:products', JSON.stringify(products));
       localSet('mombongo:sales', JSON.stringify(sales));
+      localSet('mombongo:lots', JSON.stringify(lots));
       localSet('mombongo:stats', JSON.stringify(stats));
       localSet('mombongo:rate', String(exchangeRate));
       localSet('mombongo:currency', currentCurrency);
@@ -679,7 +683,7 @@ if(cloudEnabled){
 
 let currentLang = 'fr';
 let currentCurrency = 'usd';
-let exchangeRate = 2300;
+let exchangeRate = 2800;
 
 function setLang(lang){
   currentLang = lang;
@@ -782,8 +786,22 @@ function applyTranslations(){
 /* ---------- Données ---------- */
 let products = [];
 let sales = [];
+let lots = [];
 let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
 let sellingProductId = null;
+
+function saveLots(){
+  localSet('mombongo:lots', JSON.stringify(lots));
+  pushToCloud();
+}
+
+function recalcLotQuantities(lotId){
+  const lot = lots.find(l=>l.id===lotId);
+  if(!lot) return;
+  products.filter(p=>p.lotId===lotId).forEach(p=>{
+    p.qty = Math.max(0, Math.floor(lot.remainingFraction * p.yieldPerSac + 1e-9));
+  });
+}
 
 async function loadData(){
   try{
@@ -794,6 +812,11 @@ async function loadData(){
     const s = localGet('mombongo:sales');
     sales = s ? JSON.parse(s.value) : [];
   }catch(e){ sales = []; }
+  try{
+    const l = localGet('mombongo:lots');
+    lots = l ? JSON.parse(l.value) : [];
+  }catch(e){ lots = []; }
+  lots.forEach(lot=>recalcLotQuantities(lot.id));
   try{
     const st = localGet('mombongo:stats');
     stats = st ? JSON.parse(st.value) : { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
@@ -980,6 +1003,7 @@ async function addSacProduct(){
   }
   const sacBuyInternal = toInternal(rawSacBuy);
   const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
+  const lotId = 'lot' + Date.now().toString();
   let createdCount = 0;
   let offset = 0;
   rows.forEach((row)=>{
@@ -993,7 +1017,8 @@ async function addSacProduct(){
     offset++;
     products.push({
       id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell,
-      qty: mQty, threshold, lastSoldAt: null, createdAt: Date.now()
+      qty: mQty, threshold, lastSoldAt: null, createdAt: Date.now(),
+      lotId: lotId, yieldPerSac: mQty
     });
     createdCount++;
   });
@@ -1001,7 +1026,9 @@ async function addSacProduct(){
     showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
     return;
   }
+  lots.push({ id: lotId, name, remainingFraction: 1, createdAt: Date.now() });
   await saveProducts();
+  saveLots();
   closeAddSheet();
   showToast(dict[currentLang].saved);
   render();
@@ -1017,6 +1044,13 @@ async function deleteProduct(id){
   await saveProducts();
   showToast(dict[currentLang].deleted);
   render();
+}
+
+function scrollConfirmIntoView(){
+  setTimeout(()=>{
+    const btn = document.getElementById('t-confirm-sale');
+    if(btn) btn.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 300);
 }
 
 /* ---------- Vente ---------- */
@@ -1047,8 +1081,22 @@ async function confirmSale(){
     showToast(currentLang==='fr' ? "Quantité invalide" : "Motángo ekoki te");
     return;
   }
-  product.qty -= qty;
-  product.lastSoldAt = Date.now();
+  if(product.lotId){
+    const lot = lots.find(l=>l.id===product.lotId);
+    if(lot){
+      const fractionConsumed = qty / product.yieldPerSac;
+      lot.remainingFraction = Math.max(0, lot.remainingFraction - fractionConsumed);
+      recalcLotQuantities(product.lotId);
+      products.filter(p=>p.lotId===product.lotId).forEach(p=>{ p.lastSoldAt = Date.now(); });
+      saveLots();
+    } else {
+      product.qty -= qty;
+      product.lastSoldAt = Date.now();
+    }
+  } else {
+    product.qty -= qty;
+    product.lastSoldAt = Date.now();
+  }
   const saleTotal = qty*product.sell;
   const saleProfit = qty*(product.sell-product.buy);
   sales.push({
