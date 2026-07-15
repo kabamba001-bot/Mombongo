@@ -63,11 +63,30 @@
   }
   #rate-row span{font-size:12px; margin-left:6px;}
   #account-row{margin-top:10px; position:relative; z-index:1;}
-  #account-btn{
+  #account-btn, #history-btn{
     display:flex; align-items:center; gap:6px;
     background:rgba(0,0,0,0.18); border:none; border-radius:999px;
     color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
     padding:7px 13px; cursor:pointer;
+  }
+  .history-item{
+    background:#fff; border-radius:12px; padding:12px 14px; margin-bottom:8px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .history-item .info{flex:1; min-width:0;}
+  .history-item .info .name{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .history-item .info .meta{font-size:11.5px; color:var(--charcoal-soft); margin-top:2px;}
+  .history-item .amounts{text-align:right; white-space:nowrap;}
+  .history-item .amounts .total{font-family:'Sora'; font-weight:700; font-size:13.5px; color:var(--emerald);}
+  .history-item .amounts .profit{font-size:11px; color:var(--charcoal-soft);}
+  .history-item button.del-entry{
+    background:none; border:none; color:var(--charcoal-soft); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0;
+  }
+  .history-item button.del-entry:active{color:var(--alert);}
+  .btn-danger-outline{
+    width:100%; background:#fff; border:1.5px solid var(--alert); color:var(--alert);
+    border-radius:12px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
+    cursor:pointer; margin-top:6px; margin-bottom:6px;
   }
   .account-status{
     display:flex; align-items:center; gap:10px; background:var(--ok-bg);
@@ -251,13 +270,17 @@
     </div>
     <div id="rate-row">
       <label id="t-rate-label">Taux de change : 1 $ =</label>
-      <input id="in-rate" type="number" inputmode="decimal" value="2300" onchange="updateRate()">
+      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
       <span>FC</span>
     </div>
-    <div id="account-row">
+    <div id="account-row" style="display:flex; gap:8px;">
       <button id="account-btn" onclick="openAccountSheet()">
         <span id="account-btn-icon">👤</span>
         <span id="account-btn-label">Compte</span>
+      </button>
+      <button id="history-btn" onclick="openHistorySheet()">
+        <span>🧾</span>
+        <span id="t-history-btn">Historique</span>
       </button>
     </div>
   </header>
@@ -455,6 +478,18 @@
     </div>
   </div>
 
+  <div class="sheet-overlay" id="history-overlay">
+    <div class="sheet">
+      <h3 id="t-history-title">Historique des ventes</h3>
+      <div id="history-list"></div>
+      <div id="history-empty" class="empty" style="display:none;">
+        <span id="t-history-empty">Aucune vente enregistrée pour l'instant.</span>
+      </div>
+      <button class="btn-danger-outline" onclick="clearAllHistory()" id="t-clear-history">Effacer tout l'historique</button>
+      <button class="btn-secondary" onclick="closeHistorySheet()" id="t-cancel4">Fermer</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -523,7 +558,14 @@ const dict = {
     sacHint:"Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.",
     addMesurette:"+ Ajouter une mesurette",
     mesuretteName:"Nom de la mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Prix de vente",
-    mesuretteQty:"Quantité obtenue du sac", mesuretteRemove:"Retirer cette mesurette"
+    mesuretteQty:"Quantité obtenue du sac", mesuretteRemove:"Retirer cette mesurette",
+    historyBtn:"Historique", historyTitle:"Historique des ventes",
+    historyEmpty:"Aucune vente enregistrée pour l'instant.",
+    historyDeletedProduct:"Produit supprimé",
+    clearHistory:"Effacer tout l'historique", close:"Fermer",
+    confirmDeleteEntry:"Supprimer cette vente de l'historique ?", entryDeleted:"Vente supprimée",
+    confirmClearHistory:"Effacer tout l'historique des ventes ? Cette action est irréversible et n'affecte pas les compteurs de bénéfices.",
+    historyCleared:"Historique effacé"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -535,7 +577,7 @@ const dict = {
     addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
     name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
     qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
-    save:"Bomba eloko", cancel:"Boya",
+    save:"Bomba eloko", cancel:"koboya",
     sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
     cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
     lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
@@ -555,7 +597,14 @@ const dict = {
     sacHint:"Opesa motángo ya mbala okoki kotondisa mesurette na sac mobimba.",
     addMesurette:"+ Bakisá mesurette",
     mesuretteName:"Nkombo ya mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Ntalo ya kotéka",
-    mesuretteQty:"Motángo ekobima na sac", mesuretteRemove:"Longola mesurette oyo"
+    mesuretteQty:"Motángo ekobima na sac", mesuretteRemove:"Longola mesurette oyo",
+    historyBtn:"Istwaru", historyTitle:"Istwaru ya kotéka",
+    historyEmpty:"Kotéka moko te tii sik'oyo.",
+    historyDeletedProduct:"Eloko elongolámi",
+    clearHistory:"Longola istwaru nyonso", close:"Kanga",
+    confirmDeleteEntry:"Olingi kolongola kotéka oyo na istwaru ?", entryDeleted:"Kotéka elongolámi",
+    confirmClearHistory:"Olingi kolongola istwaru nyonso ya kotéka ? Ekozonga te, mpe ekosimba te ba statistique ya litomba.",
+    historyCleared:"Istwaru elongwami"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -587,7 +636,14 @@ const dict = {
     sacHint:"Hakuna haja ya kupima : eleza tu mara ngapi unajaza kipimo hiki na gunia zima.",
     addMesurette:"+ Ongeza kipimo",
     mesuretteName:"Jina la kipimo", mesuretteDefault:"Kipimo", mesuretteSell:"Bei ya mauzo",
-    mesuretteQty:"Idadi inayopatikana kwa gunia", mesuretteRemove:"Ondoa kipimo hiki"
+    mesuretteQty:"Idadi inayopatikana kwa gunia", mesuretteRemove:"Ondoa kipimo hiki",
+    historyBtn:"Historia", historyTitle:"Historia ya mauzo",
+    historyEmpty:"Hakuna uuzaji uliohifadhiwa bado.",
+    historyDeletedProduct:"Bidhaa imefutwa",
+    clearHistory:"Futa historia yote", close:"Funga",
+    confirmDeleteEntry:"Futa uuzaji huu kutoka kwenye historia ?", entryDeleted:"Uuzaji umefutwa",
+    confirmClearHistory:"Futa historia yote ya mauzo ? Hatua hii haiwezi kurudishwa na haiathiri takwimu za faida.",
+    historyCleared:"Historia imefutwa"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -788,6 +844,11 @@ function updateAddFieldLabels(){
 function applyTranslations(){
   const t = dict[currentLang];
   updateAddFieldLabels();
+  document.getElementById('t-history-btn').textContent = t.historyBtn;
+  document.getElementById('t-history-title').textContent = t.historyTitle;
+  document.getElementById('t-history-empty').textContent = t.historyEmpty;
+  document.getElementById('t-clear-history').textContent = t.clearHistory;
+  document.getElementById('t-cancel4').textContent = t.close;
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
   document.getElementById('t-today').textContent = t.today;
@@ -1258,6 +1319,67 @@ async function resetStat(field){
   saveStats();
   render();
   showToast(t.statsReset);
+}
+
+/* ---------- Historique des ventes ---------- */
+function openHistorySheet(){
+  renderHistory();
+  document.getElementById('history-overlay').classList.add('open');
+}
+function closeHistorySheet(){
+  document.getElementById('history-overlay').classList.remove('open');
+}
+function formatDateTime(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR') + ' — ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+function renderHistory(){
+  const t = dict[currentLang];
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  const sorted = [...sales].sort((a,b)=>b.date-a.date);
+  list.innerHTML = '';
+  if(sorted.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  sorted.forEach(s=>{
+    const product = products.find(p=>p.id===s.productId);
+    const pname = product ? product.name : t.historyDeletedProduct;
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="info">
+        <div class="name">${pname} × ${s.qty}</div>
+        <div class="meta">${formatDateTime(s.date)}</div>
+      </div>
+      <div class="amounts">
+        <div class="total">${formatMoney(s.total)}</div>
+        <div class="profit">+${formatMoney(s.profit)}</div>
+      </div>
+      <button class="del-entry" onclick="deleteHistoryEntry('${s.id}')" aria-label="Supprimer">🗑</button>
+    `;
+    list.appendChild(div);
+  });
+}
+async function deleteHistoryEntry(id){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmDeleteEntry);
+  if(!ok) return;
+  sales = sales.filter(s=>s.id!==id);
+  await saveSales();
+  renderHistory();
+  showToast(t.entryDeleted);
+}
+async function clearAllHistory(){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmClearHistory);
+  if(!ok) return;
+  sales = [];
+  await saveSales();
+  renderHistory();
+  showToast(t.historyCleared);
 }
 
 function showToast(msg){
