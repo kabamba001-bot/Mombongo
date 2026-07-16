@@ -22,11 +22,26 @@
     --alert:#c0392b;
     --alert-bg:#fbeae7;
     --ok-bg:#e9f3ee;
+    --card-bg:#ffffff;
     --radius:14px;
     --shadow:0 2px 10px rgba(38,34,29,0.08);
   }
+  body.dark-mode{
+    --paper:#151a17;
+    --paper-2:#20271f;
+    --charcoal:#eae7de;
+    --charcoal-soft:#a39d90;
+    --alert-bg:#3a1f1c;
+    --ok-bg:#16332a;
+    --card-bg:#1e2521;
+    --shadow:0 2px 10px rgba(0,0,0,0.35);
+  }
+  body.dark-mode .stat-reset, body.dark-mode .del-entry, body.dark-mode button.del, body.dark-mode button.edit{
+    opacity:.65;
+  }
   *{box-sizing:border-box;}
   body{
+    transition:background-color .2s ease, color .2s ease;
     margin:0; background:var(--paper); color:var(--charcoal);
     font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;
   }
@@ -69,8 +84,13 @@
     color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
     padding:7px 13px; cursor:pointer;
   }
+  #theme-btn{
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.18); border:none; border-radius:999px;
+    color:var(--paper); font-size:14px; width:34px; height:34px; cursor:pointer; flex-shrink:0;
+  }
   .history-item{
-    background:#fff; border-radius:12px; padding:12px 14px; margin-bottom:8px;
+    background:var(--card-bg); border-radius:12px; padding:12px 14px; margin-bottom:8px;
     display:flex; justify-content:space-between; align-items:center; gap:10px;
   }
   .history-item .info{flex:1; min-width:0;}
@@ -84,7 +104,7 @@
   }
   .history-item button.del-entry:active{color:var(--alert);}
   .btn-danger-outline{
-    width:100%; background:#fff; border:1.5px solid var(--alert); color:var(--alert);
+    width:100%; background:var(--card-bg); border:1.5px solid var(--alert); color:var(--alert);
     border-radius:12px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
     cursor:pointer; margin-top:6px; margin-bottom:6px;
   }
@@ -131,7 +151,7 @@
   .search-wrap{position:relative; margin-bottom:12px;}
   .search-wrap input{
     width:100%; padding:12px 14px 12px 38px; border-radius:12px;
-    border:1.5px solid var(--paper-2); background:#fff; font-size:14px;
+    border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:14px;
     font-family:'Inter'; color:var(--charcoal);
   }
   .search-wrap input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
@@ -141,7 +161,7 @@
   }
 
   .product-card{
-    background:#fff; border-radius:var(--radius); box-shadow:var(--shadow);
+    background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow);
     padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:10px;
   }
   .product-card .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
@@ -189,7 +209,7 @@
   .field label{display:block; font-size:12.5px; font-weight:600; color:var(--charcoal-soft); margin-bottom:6px;}
   .field input{
     width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2);
-    background:#fff; font-size:15px; font-family:'Inter'; color:var(--charcoal);
+    background:var(--card-bg); font-size:15px; font-family:'Inter'; color:var(--charcoal);
   }
   .field input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
@@ -204,7 +224,7 @@
   .method-row{display:flex; gap:8px;}
   .method-row button{
     flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--paper-2);
-    background:#fff; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter';
+    background:var(--card-bg); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter';
   }
   .method-row button.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
 
@@ -212,7 +232,7 @@
   .mode-row{display:flex; gap:8px; margin-bottom:18px;}
   .mode-btn{
     flex:1; padding:11px 6px; border-radius:11px; border:1.5px solid var(--paper-2);
-    background:#fff; font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Inter';
+    background:var(--card-bg); font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Inter';
     color:var(--charcoal-soft);
   }
   .mode-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
@@ -220,7 +240,7 @@
     background:var(--ok-bg); border-radius:12px; padding:12px 12px 4px; margin-bottom:12px;
   }
   .btn-add-mesurette{
-    width:100%; background:#fff; border:1.5px dashed var(--paper-2); color:var(--emerald);
+    width:100%; background:var(--card-bg); border:1.5px dashed var(--paper-2); color:var(--emerald);
     border-radius:10px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
     cursor:pointer; margin-bottom:6px;
   }
@@ -281,6 +301,9 @@
       <button id="history-btn" onclick="openHistorySheet()">
         <span>🧾</span>
         <span id="t-history-btn">Historique</span>
+      </button>
+      <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
+        <span id="theme-btn-icon">🌙</span>
       </button>
     </div>
   </header>
@@ -480,7 +503,10 @@
 
   <div class="sheet-overlay" id="history-overlay">
     <div class="sheet">
-      <h3 id="t-history-title">Historique des ventes</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-history-title" style="margin:0;">Historique des ventes</h3>
+        <button onclick="closeHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
       <div id="history-list"></div>
       <div id="history-empty" class="empty" style="display:none;">
         <span id="t-history-empty">Aucune vente enregistrée pour l'instant.</span>
@@ -577,7 +603,7 @@ const dict = {
     addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
     name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
     qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
-    save:"Bomba eloko", cancel:"koboya",
+    save:"Bomba eloko", cancel:"Boya",
     sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
     cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
     lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
@@ -659,6 +685,25 @@ function localSet(key, value){
     return { value };
   }catch(e){ console.error('Erreur écriture stockage', e); return null; }
 }
+
+/* ---------- Mode nuit ---------- */
+let darkMode = false;
+function toggleTheme(){
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  document.getElementById('theme-btn-icon').textContent = darkMode ? '☀️' : '🌙';
+  localSet('mombongo:theme', darkMode ? 'dark' : 'light');
+}
+(function applyThemeOnLoad(){
+  try{
+    const saved = localGet('mombongo:theme');
+    if(saved && saved.value === 'dark'){
+      darkMode = true;
+      document.body.classList.add('dark-mode');
+      document.getElementById('theme-btn-icon').textContent = '☀️';
+    }
+  }catch(e){}
+})();
 
 /* ---------- Compte Google & synchronisation cloud ---------- */
 function openAccountSheet(){ document.getElementById('account-overlay').classList.add('open'); }
@@ -1325,10 +1370,17 @@ async function resetStat(field){
 function openHistorySheet(){
   renderHistory();
   document.getElementById('history-overlay').classList.add('open');
+  try{ history.pushState({ mombongoHistoryOpen: true }, ''); }catch(e){}
 }
 function closeHistorySheet(){
   document.getElementById('history-overlay').classList.remove('open');
 }
+window.addEventListener('popstate', function(){
+  const el = document.getElementById('history-overlay');
+  if(el && el.classList.contains('open')){
+    el.classList.remove('open');
+  }
+});
 function formatDateTime(ts){
   const d = new Date(ts);
   return d.toLocaleDateString('fr-FR') + ' — ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
