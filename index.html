@@ -23,6 +23,7 @@
     --alert-bg:#fbeae7;
     --ok-bg:#e9f3ee;
     --card-bg:#ffffff;
+    --slate:#5a7268;
     --radius:14px;
     --shadow:0 2px 10px rgba(38,34,29,0.08);
   }
@@ -34,6 +35,7 @@
     --alert-bg:#3a1f1c;
     --ok-bg:#16332a;
     --card-bg:#1e2521;
+    --slate:#6b8a7e;
     --shadow:0 2px 10px rgba(0,0,0,0.35);
   }
   body.dark-mode .stat-reset, body.dark-mode .del-entry, body.dark-mode button.del, body.dark-mode button.edit{
@@ -98,6 +100,7 @@
   .history-item .info .meta{font-size:11.5px; color:var(--charcoal-soft); margin-top:2px;}
   .history-item .amounts{text-align:right; white-space:nowrap;}
   .history-item .amounts .total{font-family:'Sora'; font-weight:700; font-size:13.5px; color:var(--emerald);}
+  .history-item .amounts .total.negative{color:var(--alert);}
   .history-item .amounts .profit{font-size:11px; color:var(--charcoal-soft);}
   .history-item button.del-entry{
     background:none; border:none; color:var(--charcoal-soft); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0;
@@ -133,6 +136,48 @@
   .stat-card .value{font-family:'Sora'; font-size:17px; font-weight:700; margin-top:4px;}
   .stat-card .value.money{color:var(--emerald);}
   .stat-card .value.alert{color:var(--alert);}
+  .stat-card.clickable{cursor:pointer;}
+  .sub-expense{
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--paper-2);
+    font-size:11px; color:var(--alert); display:flex; align-items:center; gap:5px;
+  }
+  .expense-reset{
+    background:none; border:none; font-size:11px; opacity:.5; cursor:pointer; padding:2px; margin-left:auto;
+  }
+  .sub-debt{cursor:pointer;}
+  .sub-debt:active{opacity:.7;}
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--paper-2); border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .toggle-row span{font-size:13.5px; font-weight:600;}
+  .switch{position:relative; width:44px; height:25px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .switch-track{
+    position:absolute; inset:0; background:var(--charcoal-soft); opacity:.35;
+    border-radius:999px; cursor:pointer; transition:background .2s ease;
+  }
+  .switch-track::before{
+    content:""; position:absolute; width:19px; height:19px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:transform .2s ease;
+  }
+  .switch input:checked + .switch-track{background:var(--emerald); opacity:1;}
+  .switch input:checked + .switch-track::before{transform:translateX(19px);}
+
+  .debt-item{
+    background:var(--card-bg); border-radius:12px; padding:13px 14px; margin-bottom:10px;
+  }
+  .debt-item .top-row{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .debt-item .name{font-weight:700; font-size:14px;}
+  .debt-item .phone{font-size:11.5px; color:var(--charcoal-soft); margin-top:1px;}
+  .debt-item .owed{font-family:'Sora'; font-weight:800; font-size:15px; color:var(--alert); white-space:nowrap;}
+  .debt-item .items-list{font-size:11.5px; color:var(--charcoal-soft); margin-top:6px; line-height:1.5;}
+  .debt-item .due{font-size:11px; color:var(--marigold); margin-top:4px; font-weight:600;}
+  .debt-item .pay-btn{
+    width:100%; margin-top:10px; background:var(--emerald); color:#fff; border:none;
+    border-radius:9px; padding:9px; font-size:12.5px; font-weight:700; font-family:'Inter'; cursor:pointer;
+  }
 
   main{flex:1; padding:20px 16px 100px;}
   section{margin-bottom:22px;}
@@ -187,12 +232,21 @@
   }
   .product-card button.edit:active{color:var(--emerald);}
 
-  .fab{
+  .fab-row{
     position:fixed; left:50%; transform:translateX(-50%); bottom:20px;
-    width:calc(100% - 32px); max-width:448px;
+    width:calc(100% - 32px); max-width:448px; display:flex; gap:10px; z-index:20;
+  }
+  .fab{
+    flex:1; border:none; border-radius:14px; padding:15px; font-size:14.5px; font-weight:800;
+    font-family:'Sora'; cursor:pointer;
+  }
+  .fab-left{
     background:var(--marigold); color:var(--charcoal);
-    border:none; border-radius:14px; padding:15px; font-size:15px; font-weight:800;
-    font-family:'Sora'; box-shadow:0 6px 18px rgba(232,162,59,0.4); cursor:pointer; z-index:20;
+    box-shadow:0 6px 18px rgba(232,162,59,0.4);
+  }
+  .fab-right{
+    background:var(--slate); color:#fff;
+    box-shadow:0 6px 18px rgba(90,107,107,0.35);
   }
 
   .sheet-overlay{
@@ -323,10 +377,19 @@
       <button class="stat-reset" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-total">Bénéfice total</div>
       <div class="value money" id="stat-profit-total">0 $</div>
+      <div class="sub-expense">
+        <span id="t-expenses-label">Dépenses</span> :
+        <span id="stat-expenses">0 $</span>
+        <button class="expense-reset" onclick="resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
+      </div>
     </div>
     <div class="stat-card">
       <div class="label" id="t-alerts">Alertes stock</div>
       <div class="value alert" id="stat-alerts">0</div>
+      <div class="sub-expense sub-debt" onclick="openDebtsSheet()">
+        <span id="t-debts-label">💳 Dettes en cours</span> :
+        <span id="stat-debts">0 $</span>
+      </div>
     </div>
   </div>
 
@@ -352,7 +415,10 @@
     </section>
   </main>
 
-  <button class="fab" onclick="openAddSheet()" id="t-add-btn">+ Ajouter un produit</button>
+  <div class="fab-row">
+    <button class="fab fab-left" onclick="openAddSheet()" id="t-add-btn">➕ Produit</button>
+    <button class="fab fab-right" onclick="openExpenseSheet()" id="t-expense-btn">💸 Dépense</button>
+  </div>
 
   <div class="sheet-overlay" id="add-overlay">
     <div class="sheet" id="add-sheet-inner">
@@ -469,6 +535,29 @@
           <div class="val" id="preview-profit">0 $</div>
         </div>
       </div>
+      <div class="toggle-row">
+        <span id="t-credit-toggle">Vente à crédit ?</span>
+        <label class="switch">
+          <input type="checkbox" id="in-is-credit" onchange="toggleCreditFields()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="credit-fields" style="display:none;">
+        <div class="field">
+          <label id="t-client-name">Nom du client</label>
+          <input id="in-client-name" type="text" placeholder="Ex : Maman Marie">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-client-phone">Numéro de téléphone (optionnel)</label>
+            <input id="in-client-phone" type="tel" placeholder="09xxxxxxxx">
+          </div>
+          <div class="field">
+            <label id="t-due-date">Date limite (optionnel)</label>
+            <input id="in-due-date" type="date">
+          </div>
+        </div>
+      </div>
       <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
       <button class="btn-secondary" onclick="closeSellSheet()" id="t-cancel2">Annuler</button>
     </div>
@@ -513,6 +602,52 @@
       </div>
       <button class="btn-danger-outline" onclick="clearAllHistory()" id="t-clear-history">Effacer tout l'historique</button>
       <button class="btn-secondary" onclick="closeHistorySheet()" id="t-cancel4">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="debts-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-debts-title" style="margin:0;">Crédits &amp; Dettes</h3>
+        <button onclick="closeDebtsSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="debts-list"></div>
+      <div id="debts-empty" class="empty" style="display:none;">
+        <span id="t-debts-empty">Aucune dette en cours. 🎉</span>
+      </div>
+      <button class="btn-secondary" onclick="closeDebtsSheet()" id="t-cancel5">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="repay-overlay">
+    <div class="sheet">
+      <h3 id="t-repay-title">Enregistrer un remboursement</h3>
+      <div class="field">
+        <label id="t-repay-client">Client</label>
+        <input id="repay-client-display" type="text" disabled style="opacity:.7;">
+      </div>
+      <div class="field">
+        <label id="t-repay-amount">Montant reçu</label>
+        <input id="in-repay-amount" type="number" inputmode="decimal">
+      </div>
+      <button class="btn-primary" onclick="confirmRepay()" id="t-confirm-repay">Confirmer le remboursement</button>
+      <button class="btn-secondary" onclick="closeRepaySheet()" id="t-cancel6">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="expense-overlay">
+    <div class="sheet">
+      <h3 id="t-expense-title">Nouvelle dépense</h3>
+      <div class="field">
+        <label id="t-expense-desc">Description</label>
+        <input id="in-expense-desc" type="text" placeholder="Ex : Transport, loyer, sacs...">
+      </div>
+      <div class="field">
+        <label id="t-expense-amount">Montant</label>
+        <input id="in-expense-amount" type="number" inputmode="decimal">
+      </div>
+      <button class="btn-primary" onclick="confirmExpense()" id="t-confirm-expense">Enregistrer la dépense</button>
+      <button class="btn-secondary" onclick="closeExpenseSheet()" id="t-cancel7">Annuler</button>
     </div>
   </div>
 
@@ -591,7 +726,19 @@ const dict = {
     clearHistory:"Effacer tout l'historique", close:"Fermer",
     confirmDeleteEntry:"Supprimer cette vente de l'historique ?", entryDeleted:"Vente supprimée",
     confirmClearHistory:"Effacer tout l'historique des ventes ? Cette action est irréversible et n'affecte pas les compteurs de bénéfices.",
-    historyCleared:"Historique effacé"
+    historyCleared:"Historique effacé",
+    addBtnShort:"➕ Produit", expenseBtnShort:"💸 Dépense",
+    expensesLabel:"Dépenses", debtsLabel:"Dettes en cours",
+    creditToggle:"Vente à crédit ?", clientName:"Nom du client",
+    clientPhone:"Numéro de téléphone (optionnel)", dueDateField:"Date limite (optionnel)",
+    debtsTitle:"Crédits & Dettes", debtsEmpty:"Aucune dette en cours. 🎉",
+    dueLabel:"Échéance", payBtn:"Régler", owedSuffix:"dû(s)",
+    creditTag:"à crédit", repayLabel:"Remboursement",
+    repaySaved:"Remboursement enregistré", expenseSaved:"Dépense enregistrée",
+    repayTitle:"Enregistrer un remboursement", repayClientLabel:"Client",
+    repayAmountLabel:"Montant reçu", confirmRepayBtn:"Confirmer le remboursement",
+    expenseTitle:"Nouvelle dépense", expenseDescLabel:"Description",
+    expenseAmountLabel:"Montant", confirmExpenseBtn:"Enregistrer la dépense"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -630,7 +777,19 @@ const dict = {
     clearHistory:"Longola istwaru nyonso", close:"Kanga",
     confirmDeleteEntry:"Olingi kolongola kotéka oyo na istwaru ?", entryDeleted:"Kotéka elongolámi",
     confirmClearHistory:"Olingi kolongola istwaru nyonso ya kotéka ? Ekozonga te, mpe ekosimba te ba statistique ya litomba.",
-    historyCleared:"Istwaru elongwami"
+    historyCleared:"Istwaru elongwami",
+    addBtnShort:"➕ Eloko", expenseBtnShort:"💸 Dépense",
+    expensesLabel:"Ba dépenses", debtsLabel:"Ba dettes ezali",
+    creditToggle:"Kotéka na crédit ?", clientName:"Nkombo ya client",
+    clientPhone:"Numéro ya téléphone (na esengo te)", dueDateField:"Mokolo ya suka (na esengo te)",
+    debtsTitle:"Crédits & Dettes", debtsEmpty:"Dette moko te sik'oyo. 🎉",
+    dueLabel:"Suka", payBtn:"Futa", owedSuffix:"esengeli",
+    creditTag:"na crédit", repayLabel:"Kofuta",
+    repaySaved:"Kofuta ekómi", expenseSaved:"Dépense ekómi",
+    repayTitle:"Koleka kofuta", repayClientLabel:"Client",
+    repayAmountLabel:"Motángo eyaki", confirmRepayBtn:"Kokitisa kofuta",
+    expenseTitle:"Dépense ya sika", expenseDescLabel:"Botángi",
+    expenseAmountLabel:"Motángo", confirmExpenseBtn:"Bomba dépense"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -669,7 +828,19 @@ const dict = {
     clearHistory:"Futa historia yote", close:"Funga",
     confirmDeleteEntry:"Futa uuzaji huu kutoka kwenye historia ?", entryDeleted:"Uuzaji umefutwa",
     confirmClearHistory:"Futa historia yote ya mauzo ? Hatua hii haiwezi kurudishwa na haiathiri takwimu za faida.",
-    historyCleared:"Historia imefutwa"
+    historyCleared:"Historia imefutwa",
+    addBtnShort:"➕ Bidhaa", expenseBtnShort:"💸 Matumizi",
+    expensesLabel:"Matumizi", debtsLabel:"Madeni yaliyopo",
+    creditToggle:"Uuzaji wa mkopo ?", clientName:"Jina la mteja",
+    clientPhone:"Namba ya simu (si lazima)", dueDateField:"Tarehe ya mwisho (si lazima)",
+    debtsTitle:"Mikopo na Madeni", debtsEmpty:"Hakuna deni kwa sasa. 🎉",
+    dueLabel:"Mwisho", payBtn:"Lipa", owedSuffix:"inadaiwa",
+    creditTag:"kwa mkopo", repayLabel:"Malipo",
+    repaySaved:"Malipo yamehifadhiwa", expenseSaved:"Matumizi yamehifadhiwa",
+    repayTitle:"Andika malipo", repayClientLabel:"Mteja",
+    repayAmountLabel:"Kiasi kilichopokelewa", confirmRepayBtn:"Thibitisha malipo",
+    expenseTitle:"Matumizi mapya", expenseDescLabel:"Maelezo",
+    expenseAmountLabel:"Kiasi", confirmExpenseBtn:"Hifadhi matumizi"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -729,10 +900,14 @@ function signOutGoogle(){
     products = [];
     sales = [];
     lots = [];
-    stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
+    debts = [];
+    expenses = [];
+    stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
     localSet('mombongo:lots', JSON.stringify(lots));
+    localSet('mombongo:debts', JSON.stringify(debts));
+    localSet('mombongo:expenses', JSON.stringify(expenses));
     localSet('mombongo:stats', JSON.stringify(stats));
     render();
     showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");
@@ -762,7 +937,7 @@ async function pushToCloud(){
   if(!cloudEnabled || !db || !currentUser) return;
   try{
     await db.collection('mombongo_users').doc(currentUser.uid).set({
-      products, sales, lots, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
+      products, sales, lots, debts, expenses, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
     }, { merge: true });
   }catch(e){ console.error('Erreur synchronisation cloud', e); }
 }
@@ -776,12 +951,17 @@ async function handlePostLogin(){
       products = data.products || [];
       sales = data.sales || [];
       lots = data.lots || [];
-      stats = data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
+      debts = data.debts || [];
+      expenses = data.expenses || [];
+      stats = data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+      if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
       if(data.rate) exchangeRate = data.rate;
       if(data.currency) currentCurrency = data.currency;
       localSet('mombongo:products', JSON.stringify(products));
       localSet('mombongo:sales', JSON.stringify(sales));
       localSet('mombongo:lots', JSON.stringify(lots));
+      localSet('mombongo:debts', JSON.stringify(debts));
+      localSet('mombongo:expenses', JSON.stringify(expenses));
       localSet('mombongo:stats', JSON.stringify(stats));
       localSet('mombongo:rate', String(exchangeRate));
       localSet('mombongo:currency', currentCurrency);
@@ -905,7 +1085,7 @@ function applyTranslations(){
   document.getElementById('t-empty').textContent = t.empty;
   document.getElementById('t-no-results').textContent = t.noResults;
   document.getElementById('search-input').placeholder = t.searchPlaceholder;
-  document.getElementById('t-add-btn').textContent = t.addBtn;
+  document.getElementById('t-add-btn').textContent = t.addBtnShort;
   document.getElementById('t-add-title').textContent = t.addTitle;
   document.getElementById('t-name').textContent = t.name;
   document.getElementById('t-buy').textContent = t.buy;
@@ -921,17 +1101,47 @@ function applyTranslations(){
   document.getElementById('t-confirm-sale').textContent = t.confirmSale;
   document.getElementById('t-cancel2').textContent = t.cancel;
   document.getElementById('t-rate-label').textContent = t.rateLabel;
+  document.getElementById('t-expense-btn').textContent = t.expenseBtnShort;
+  document.getElementById('t-expenses-label').textContent = t.expensesLabel;
+  document.getElementById('t-debts-label').textContent = '💳 ' + t.debtsLabel;
+  document.getElementById('t-credit-toggle').textContent = t.creditToggle;
+  document.getElementById('t-client-name').textContent = t.clientName;
+  document.getElementById('t-client-phone').textContent = t.clientPhone;
+  document.getElementById('t-due-date').textContent = t.dueDateField;
+  document.getElementById('t-debts-title').textContent = t.debtsTitle;
+  document.getElementById('t-debts-empty').textContent = t.debtsEmpty;
+  document.getElementById('t-cancel5').textContent = t.close;
+  document.getElementById('t-repay-title').textContent = t.repayTitle;
+  document.getElementById('t-repay-client').textContent = t.repayClientLabel;
+  document.getElementById('t-repay-amount').textContent = t.repayAmountLabel;
+  document.getElementById('t-confirm-repay').textContent = t.confirmRepayBtn;
+  document.getElementById('t-cancel6').textContent = t.cancel;
+  document.getElementById('t-expense-title').textContent = t.expenseTitle;
+  document.getElementById('t-expense-desc').textContent = t.expenseDescLabel;
+  document.getElementById('t-expense-amount').textContent = t.expenseAmountLabel;
+  document.getElementById('t-confirm-expense').textContent = t.confirmExpenseBtn;
+  document.getElementById('t-cancel7').textContent = t.cancel;
 }
 
 /* ---------- Données ---------- */
 let products = [];
 let sales = [];
 let lots = [];
-let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
+let debts = [];
+let expenses = [];
+let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
 let sellingProductId = null;
 
 function saveLots(){
   localSet('mombongo:lots', JSON.stringify(lots));
+  pushToCloud();
+}
+function saveDebts(){
+  localSet('mombongo:debts', JSON.stringify(debts));
+  pushToCloud();
+}
+function saveExpenses(){
+  localSet('mombongo:expenses', JSON.stringify(expenses));
   pushToCloud();
 }
 
@@ -958,9 +1168,18 @@ async function loadData(){
   }catch(e){ lots = []; }
   lots.forEach(lot=>recalcLotQuantities(lot.id));
   try{
+    const d = localGet('mombongo:debts');
+    debts = d ? JSON.parse(d.value) : [];
+  }catch(e){ debts = []; }
+  try{
+    const ex = localGet('mombongo:expenses');
+    expenses = ex ? JSON.parse(ex.value) : [];
+  }catch(e){ expenses = []; }
+  try{
     const st = localGet('mombongo:stats');
-    stats = st ? JSON.parse(st.value) : { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 };
-  }catch(e){ stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0 }; }
+    stats = st ? JSON.parse(st.value) : { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+    if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
+  }catch(e){ stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }; }
   try{
     const r = localGet('mombongo:rate');
     if(r){ exchangeRate = parseFloat(r.value); document.getElementById('in-rate').value = exchangeRate; }
@@ -1026,8 +1245,7 @@ function addMesuretteRow(){
 function removeMesuretteRow(idx){
   const el = document.getElementById('mesurette-row-'+idx);
   if(el) el.remove();
-}
-function resetMesurettes(){
+}resetMesurettes(){
   document.getElementById('mesurettes-list').innerHTML = '';
   mesuretteCount = 0;
 }
@@ -1197,12 +1415,21 @@ function scrollConfirmIntoView(){
 function openSellSheet(id){
   sellingProductId = id;
   document.getElementById('in-sell-qty').value = 1;
+  document.getElementById('in-is-credit').checked = false;
+  document.getElementById('in-client-name').value = '';
+  document.getElementById('in-client-phone').value = '';
+  document.getElementById('in-due-date').value = '';
+  document.getElementById('credit-fields').style.display = 'none';
   document.getElementById('sell-overlay').classList.add('open');
   updateSellPreview();
 }
 function closeSellSheet(){
   document.getElementById('sell-overlay').classList.remove('open');
   sellingProductId = null;
+}
+function toggleCreditFields(){
+  const isCredit = document.getElementById('in-is-credit').checked;
+  document.getElementById('credit-fields').style.display = isCredit ? 'block' : 'none';
 }
 function updateSellPreview(){
   const product = products.find(p=>p.id===sellingProductId);
@@ -1221,6 +1448,15 @@ async function confirmSale(){
     showToast(currentLang==='fr' ? "Quantité invalide" : "Motángo ekoki te");
     return;
   }
+  const isCredit = document.getElementById('in-is-credit').checked;
+  const clientName = document.getElementById('in-client-name').value.trim();
+  if(isCredit && !clientName){
+    showToast(currentLang==='fr' ? "Indique le nom du client pour une vente à crédit" : "Pesa nkombo ya client");
+    return;
+  }
+  const clientPhone = document.getElementById('in-client-phone').value.trim();
+  const dueDate = document.getElementById('in-due-date').value;
+
   if(product.lotId){
     const lot = lots.find(l=>l.id===product.lotId);
     if(lot){
@@ -1239,20 +1475,44 @@ async function confirmSale(){
   }
   const saleTotal = qty*product.sell;
   const saleProfit = qty*(product.sell-product.buy);
+  const saleId = Date.now().toString();
   sales.push({
-    id: Date.now().toString(), productId: product.id,
+    id: saleId, productId: product.id,
     qty, total: saleTotal, profit: saleProfit,
-    date: Date.now()
+    date: Date.now(), isCredit: isCredit
   });
-  ensureTodayStats();
-  stats.todaySales += saleTotal;
-  stats.todayProfit += saleProfit;
-  stats.totalProfit += saleProfit;
   await saveProducts();
-  await saveSales();
-  saveStats();
-  closeSellSheet();
-  showToast(dict[currentLang].sold);
+
+  if(isCredit){
+    let debt = debts.find(d=>d.status==='ouvert' && d.clientName.toLowerCase()===clientName.toLowerCase());
+    if(!debt){
+      debt = {
+        id: 'debt'+Date.now().toString(), clientName, phone: clientPhone, dueDate,
+        items: [], totalOwed: 0, totalProfit: 0, amountPaid: 0, payments: [],
+        createdAt: Date.now(), status: 'ouvert'
+      };
+      debts.push(debt);
+    } else {
+      if(clientPhone) debt.phone = clientPhone;
+      if(dueDate) debt.dueDate = dueDate;
+    }
+    debt.items.push({ productName: product.name, qty, total: saleTotal, profit: saleProfit, date: Date.now() });
+    debt.totalOwed += saleTotal;
+    debt.totalProfit += saleProfit;
+    saveDebts();
+    await saveSales();
+    closeSellSheet();
+    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka na crédit ekómi");
+  } else {
+    ensureTodayStats();
+    stats.todaySales += saleTotal;
+    stats.todayProfit += saleProfit;
+    stats.totalProfit += saleProfit;
+    saveStats();
+    await saveSales();
+    closeSellSheet();
+    showToast(dict[currentLang].sold);
+  }
   render();
 }
 
@@ -1275,7 +1535,12 @@ function render(){
 
   document.getElementById('stat-today').textContent = formatMoney(stats.todaySales);
   document.getElementById('stat-profit-today').textContent = formatMoney(stats.todayProfit);
-  document.getElementById('stat-profit-total').textContent = formatMoney(stats.totalProfit);
+  document.getElementById('stat-profit-total').textContent = formatMoney(stats.totalProfit - stats.totalExpenses);
+  document.getElementById('stat-expenses').textContent = formatMoney(stats.totalExpenses);
+
+  const openDebts = debts.filter(d=>d.status==='ouvert');
+  const totalOwed = openDebts.reduce((sum,d)=>sum + Math.max(0, d.totalOwed - d.amountPaid), 0);
+  document.getElementById('stat-debts').textContent = formatMoney(totalOwed);
 
   const lowStock = products.filter(p=>p.qty <= p.threshold);
   const dormant = products.filter(p=>{
@@ -1366,6 +1631,16 @@ async function resetStat(field){
   showToast(t.statsReset);
 }
 
+async function resetExpenses(){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmResetStats);
+  if(!ok) return;
+  stats.totalExpenses = 0;
+  saveStats();
+  render();
+  showToast(t.statsReset);
+}
+
 /* ---------- Historique des ventes ---------- */
 function openHistorySheet(){
   renderHistory();
@@ -1385,42 +1660,79 @@ function formatDateTime(ts){
   const d = new Date(ts);
   return d.toLocaleDateString('fr-FR') + ' — ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 }
+function buildUnifiedHistory(){
+  const t = dict[currentLang];
+  const entries = [];
+  sales.forEach(s=>{
+    const product = products.find(p=>p.id===s.productId);
+    const pname = product ? product.name : t.historyDeletedProduct;
+    entries.push({
+      type:'sale', id:s.id, date:s.date,
+      label: pname + ' × ' + s.qty + (s.isCredit ? ' ('+t.creditTag+')' : ''),
+      amount: s.total, sub: '+'+formatMoney(s.profit), deletable:true
+    });
+  });
+  expenses.forEach(e=>{
+    entries.push({
+      type:'expense', id:e.id, date:e.date,
+      label: e.desc, amount: -e.amount, sub:'', deletable:true
+    });
+  });
+  debts.forEach(d=>{
+    (d.payments||[]).forEach((p, idx)=>{
+      entries.push({
+        type:'repay', id: d.id+'_p'+idx, date:p.date,
+        label: t.repayLabel + ' — ' + d.clientName,
+        amount: p.amount, sub:'', deletable:false
+      });
+    });
+  });
+  return entries.sort((a,b)=>b.date-a.date);
+}
+
 function renderHistory(){
   const t = dict[currentLang];
   const list = document.getElementById('history-list');
   const empty = document.getElementById('history-empty');
-  const sorted = [...sales].sort((a,b)=>b.date-a.date);
+  const sorted = buildUnifiedHistory();
   list.innerHTML = '';
   if(sorted.length === 0){
     empty.style.display = 'block';
     return;
   }
   empty.style.display = 'none';
-  sorted.forEach(s=>{
-    const product = products.find(p=>p.id===s.productId);
-    const pname = product ? product.name : t.historyDeletedProduct;
+  sorted.forEach(entry=>{
     const div = document.createElement('div');
     div.className = 'history-item';
+    const amountClass = entry.amount < 0 ? 'total negative' : 'total';
+    const delBtn = entry.deletable
+      ? `<button class="del-entry" onclick="deleteHistoryEntry('${entry.type}','${entry.id}')" aria-label="Supprimer">🗑</button>`
+      : '';
     div.innerHTML = `
       <div class="info">
-        <div class="name">${pname} × ${s.qty}</div>
-        <div class="meta">${formatDateTime(s.date)}</div>
+        <div class="name">${entry.label}</div>
+        <div class="meta">${formatDateTime(entry.date)}</div>
       </div>
       <div class="amounts">
-        <div class="total">${formatMoney(s.total)}</div>
-        <div class="profit">+${formatMoney(s.profit)}</div>
+        <div class="${amountClass}">${entry.amount < 0 ? '-' : ''}${formatMoney(Math.abs(entry.amount))}</div>
+        ${entry.sub ? `<div class="profit">${entry.sub}</div>` : ''}
       </div>
-      <button class="del-entry" onclick="deleteHistoryEntry('${s.id}')" aria-label="Supprimer">🗑</button>
+      ${delBtn}
     `;
     list.appendChild(div);
   });
 }
-async function deleteHistoryEntry(id){
+async function deleteHistoryEntry(type, id){
   const t = dict[currentLang];
   const ok = window.confirm(t.confirmDeleteEntry);
   if(!ok) return;
-  sales = sales.filter(s=>s.id!==id);
-  await saveSales();
+  if(type==='sale'){
+    sales = sales.filter(s=>s.id!==id);
+    await saveSales();
+  } else if(type==='expense'){
+    expenses = expenses.filter(e=>e.id!==id);
+    await saveExpenses();
+  }
   renderHistory();
   showToast(t.entryDeleted);
 }
@@ -1429,9 +1741,120 @@ async function clearAllHistory(){
   const ok = window.confirm(t.confirmClearHistory);
   if(!ok) return;
   sales = [];
+  expenses = [];
   await saveSales();
+  await saveExpenses();
   renderHistory();
   showToast(t.historyCleared);
+}
+
+/* ---------- Crédits & Dettes ---------- */
+function openDebtsSheet(){
+  renderDebtsList();
+  document.getElementById('debts-overlay').classList.add('open');
+}
+function closeDebtsSheet(){
+  document.getElementById('debts-overlay').classList.remove('open');
+}
+function renderDebtsList(){
+  const t = dict[currentLang];
+  const list = document.getElementById('debts-list');
+  const empty = document.getElementById('debts-empty');
+  const openDebts = debts.filter(d=>d.status==='ouvert' && (d.totalOwed - d.amountPaid) > 0.001)
+    .sort((a,b)=>b.createdAt-a.createdAt);
+  list.innerHTML = '';
+  if(openDebts.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  openDebts.forEach(d=>{
+    const remaining = Math.max(0, d.totalOwed - d.amountPaid);
+    const itemsSummary = d.items.map(it=>`${it.productName} ×${it.qty}`).join(', ');
+    const div = document.createElement('div');
+    div.className = 'debt-item';
+    div.innerHTML = `
+      <div class="top-row">
+        <div>
+          <div class="name">${d.clientName}</div>
+          ${d.phone ? `<div class="phone">📞 ${d.phone}</div>` : ''}
+        </div>
+        <div class="owed">${formatMoney(remaining)}</div>
+      </div>
+      <div class="items-list">${itemsSummary}</div>
+      ${d.dueDate ? `<div class="due">📅 ${t.dueLabel} : ${d.dueDate}</div>` : ''}
+      <button class="pay-btn" onclick="openRepaySheet('${d.id}')">${t.payBtn}</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+let repayingDebtId = null;
+function openRepaySheet(debtId){
+  const debt = debts.find(d=>d.id===debtId);
+  if(!debt) return;
+  repayingDebtId = debtId;
+  const remaining = Math.max(0, debt.totalOwed - debt.amountPaid);
+  document.getElementById('repay-client-display').value = `${debt.clientName} — ${formatMoney(remaining)} ${dict[currentLang].owedSuffix}`;
+  document.getElementById('in-repay-amount').value = currentCurrency==='cdf' ? Math.round(remaining*exchangeRate) : remaining.toFixed(2);
+  document.getElementById('repay-overlay').classList.add('open');
+}
+function closeRepaySheet(){
+  document.getElementById('repay-overlay').classList.remove('open');
+  repayingDebtId = null;
+}
+async function confirmRepay(){
+  const debt = debts.find(d=>d.id===repayingDebtId);
+  if(!debt) return;
+  const remaining = Math.max(0, debt.totalOwed - debt.amountPaid);
+  const rawAmount = parseFloat(document.getElementById('in-repay-amount').value) || 0;
+  let amount = toInternal(rawAmount);
+  if(amount <= 0){
+    showToast(currentLang==='fr' ? "Montant invalide" : "Motángo ekoki te");
+    return;
+  }
+  if(amount > remaining + 0.01) amount = remaining;
+  const profitPortion = debt.totalOwed > 0 ? amount * (debt.totalProfit / debt.totalOwed) : 0;
+  debt.amountPaid += amount;
+  debt.payments.push({ amount, date: Date.now() });
+  if(debt.totalOwed - debt.amountPaid <= 0.01){
+    debt.status = 'réglé';
+  }
+  ensureTodayStats();
+  stats.todaySales += amount;
+  stats.todayProfit += profitPortion;
+  stats.totalProfit += profitPortion;
+  saveStats();
+  saveDebts();
+  closeRepaySheet();
+  showToast(dict[currentLang].repaySaved);
+  render();
+}
+
+/* ---------- Dépenses ---------- */
+function openExpenseSheet(){
+  document.getElementById('in-expense-desc').value = '';
+  document.getElementById('in-expense-amount').value = '';
+  document.getElementById('expense-overlay').classList.add('open');
+}
+function closeExpenseSheet(){
+  document.getElementById('expense-overlay').classList.remove('open');
+}
+async function confirmExpense(){
+  const desc = document.getElementById('in-expense-desc').value.trim();
+  const rawAmount = parseFloat(document.getElementById('in-expense-amount').value) || 0;
+  if(!desc || rawAmount <= 0){
+    showToast(currentLang==='fr' ? "Indique une description et un montant" : "Pesa description na motángo");
+    return;
+  }
+  const amount = toInternal(rawAmount);
+  expenses.push({ id: Date.now().toString(), desc, amount, date: Date.now() });
+  stats.totalExpenses += amount;
+  saveStats();
+  await saveExpenses();
+  closeExpenseSheet();
+  showToast(dict[currentLang].expenseSaved);
+  render();
 }
 
 function showToast(msg){
@@ -1452,3 +1875,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+function 
