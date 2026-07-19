@@ -1110,6 +1110,7 @@ async function handlePostLogin(){
       localSet('mombongo:currency', currentCurrency);
       document.getElementById('in-rate').value = exchangeRate;
       setCurrency(currentCurrency);
+      await archiveOldData();
       await pushToCloud();
       showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
     } else {
@@ -1321,6 +1322,25 @@ function recalcLotQuantities(lotId){
   });
 }
 
+const HISTORY_RETENTION_MONTHS = 13;
+function getHistoryRetentionCutoff(){
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - HISTORY_RETENTION_MONTHS, now.getDate());
+  return cutoff.getTime();
+}
+async function archiveOldData(){
+  const cutoff = getHistoryRetentionCutoff();
+  const oldSalesCount = sales.filter(s => s.date < cutoff).length;
+  const oldExpensesCount = expenses.filter(e => e.date < cutoff).length;
+  if(oldSalesCount === 0 && oldExpensesCount === 0) return;
+  // Les compteurs de bénéfices/dépenses (stats) sont indépendants de ces listes détaillées :
+  // les supprimer ici ne change donc rien aux totaux déjà affichés, seule la mémoire est libérée.
+  sales = sales.filter(s => s.date >= cutoff);
+  expenses = expenses.filter(e => e.date >= cutoff);
+  await saveSales();
+  saveExpenses();
+}
+
 async function loadData(){
   try{
     const p = localGet('mombongo:products');
@@ -1356,6 +1376,7 @@ async function loadData(){
     const c = localGet('mombongo:currency');
     if(c && c.value === 'cdf'){ setCurrency('cdf'); }
   }catch(e){}
+  await archiveOldData();
   render();
 }
 
@@ -1909,6 +1930,9 @@ function openHistorySheet(){
   document.getElementById('custom-range-fields').style.display = 'none';
   document.getElementById('in-period-from').value = '';
   document.getElementById('in-period-to').value = '';
+  const minDate = new Date(getHistoryRetentionCutoff()).toISOString().slice(0,10);
+  document.getElementById('in-period-from').min = minDate;
+  document.getElementById('in-period-to').min = minDate;
   renderHistory();
   document.getElementById('history-overlay').classList.add('open');
   try{ history.pushState({ mombongoHistoryOpen: true }, ''); }catch(e){}
