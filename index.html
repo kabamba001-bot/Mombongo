@@ -139,8 +139,9 @@
   .stat-card.clickable{cursor:pointer;}
   .sub-expense{
     margin-top:8px; padding-top:8px; border-top:1px solid var(--paper-2);
-    font-size:11px; color:var(--alert); display:flex; align-items:center; gap:5px;
+    font-size:11px; color:var(--alert); display:flex; align-items:center; gap:5px; cursor:pointer;
   }
+  .sub-expense:active{opacity:.7;}
   .expense-reset{
     background:none; border:none; font-size:11px; opacity:.5; cursor:pointer; padding:2px; margin-left:auto;
   }
@@ -393,10 +394,10 @@
       <button class="stat-reset" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-total">Bénéfice total</div>
       <div class="value money" id="stat-profit-total">0 $</div>
-      <div class="sub-expense">
+      <div class="sub-expense" onclick="openExpensesHistorySheet()">
         <span id="t-expenses-label">Dépenses</span> :
         <span id="stat-expenses">0 $</span>
-        <button class="expense-reset" onclick="resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
+        <button class="expense-reset" onclick="event.stopPropagation(); resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
       </div>
     </div>
     <div class="stat-card">
@@ -716,6 +717,20 @@
     </div>
   </div>
 
+  <div class="sheet-overlay" id="expenses-history-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-expenses-history-title" style="margin:0;">Historique des dépenses</h3>
+        <button onclick="closeExpensesHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="expenses-history-list"></div>
+      <div id="expenses-history-empty" class="empty" style="display:none;">
+        <span id="t-expenses-history-empty">Aucune dépense enregistrée pour l'instant.</span>
+      </div>
+      <button class="btn-secondary" onclick="closeExpensesHistorySheet()" id="t-cancel9">Fermer</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -820,7 +835,11 @@ const dict = {
     limitDescExpenses:"Tu as atteint la limite de 3 dépenses de la version gratuite. Pour débloquer l'ajout illimité de dépenses, contacte directement le développeur sur WhatsApp.",
     limitDescHistory:"Tu veux voir les résultats de ton travail sur plusieurs jours ? Contacte le développeur sur WhatsApp pour débloquer l'historique complet (semaine, mois, période personnalisée).",
     limitWhatsappMsgExpenses:"Bonjour, je veux débloquer l'ajout illimité de dépenses sur Mombongo.",
-    limitWhatsappMsgHistory:"Bonjour, je veux débloquer l'historique complet (semaine/mois) sur Mombongo."
+    limitWhatsappMsgHistory:"Bonjour, je veux débloquer l'historique complet (semaine/mois) sur Mombongo.",
+    limitNeedsLoginDesc:"Tu dois d'abord te connecter avec Google pour pouvoir discuter avec le développeur ou devenir Premium. Sans compte, on ne peut pas te retrouver pour activer ton accès.",
+    limitLoginBtn:"Se connecter avec Google",
+    expensesHistoryTitle:"Historique des dépenses",
+    expensesHistoryEmpty:"Aucune dépense enregistrée pour l'instant."
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -883,7 +902,11 @@ const dict = {
     limitDescExpenses:"Okómi na ndelo ya ba dépenses 3 ya version ya ofele. Mpo na kolongola ndelo, benga développeur na WhatsApp.",
     limitDescHistory:"Olingi koyeba misala na yo ya mikolo mingi ? Benga développeur na WhatsApp mpo na kolongola istwaru mobimba (poso, sanza, mokolo oyo oponi).",
     limitWhatsappMsgExpenses:"Mbote, nalingi kolongola ndelo ya ba dépenses na Mombongo.",
-    limitWhatsappMsgHistory:"Mbote, nalingi kolongola istwaru mobimba (poso/sanza) na Mombongo."
+    limitWhatsappMsgHistory:"Mbote, nalingi kolongola istwaru mobimba (poso/sanza) na Mombongo.",
+    limitNeedsLoginDesc:"Osengeli liboso kokota na Google mpo okoka kosolola na développeur to kokóma Premium. Soki compte te, tokoki koluka yo te mpo na kofungola yo.",
+    limitLoginBtn:"Kokota na Google",
+    expensesHistoryTitle:"Istwaru ya ba dépenses",
+    expensesHistoryEmpty:"Dépense moko te tii sik'oyo."
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -946,7 +969,11 @@ const dict = {
     limitDescExpenses:"Umefikia kikomo cha matumizi 3 ya toleo la bure. Kufungua ongezeko lisilo na kikomo la matumizi, wasiliana na msanidi kwenye WhatsApp.",
     limitDescHistory:"Unataka kuona matokeo ya kazi yako kwa siku nyingi ? Wasiliana na msanidi kwenye WhatsApp kufungua historia kamili (wiki, mwezi, kipindi maalum).",
     limitWhatsappMsgExpenses:"Habari, nataka kufungua ongezeko lisilo na kikomo la matumizi kwenye Mombongo.",
-    limitWhatsappMsgHistory:"Habari, nataka kufungua historia kamili (wiki/mwezi) kwenye Mombongo."
+    limitWhatsappMsgHistory:"Habari, nataka kufungua historia kamili (wiki/mwezi) kwenye Mombongo.",
+    limitNeedsLoginDesc:"Lazima kwanza uingie na Google ili uweze kuzungumza na msanidi au kuwa Premium. Bila akaunti, hatuwezi kukutafuta ili kukuwezesha ufikiaji.",
+    limitLoginBtn:"Ingia na Google",
+    expensesHistoryTitle:"Historia ya matumizi",
+    expensesHistoryEmpty:"Hakuna matumizi yaliyohifadhiwa bado."
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -1246,8 +1273,8 @@ function applyTranslations(){
   document.getElementById('t-confirm-expense').textContent = t.confirmExpenseBtn;
   document.getElementById('t-cancel7').textContent = t.cancel;
   document.getElementById('t-limit-title').textContent = t.limitTitle;
-  document.getElementById('t-limit-desc').textContent = t.limitDesc;
-  document.getElementById('limit-whatsapp-link').textContent = t.limitUnlockBtn;
+  document.getElementById('t-limit-desc').textContent = currentUser ? t.limitDesc : t.limitNeedsLoginDesc;
+  document.getElementById('limit-whatsapp-link').textContent = currentUser ? t.limitUnlockBtn : t.limitLoginBtn;
   document.getElementById('t-cancel8').textContent = t.cancel;
   document.getElementById('t-period-day').textContent = t.periodDay;
   document.getElementById('t-period-week').textContent = t.periodWeek;
@@ -1259,6 +1286,9 @@ function applyTranslations(){
   document.getElementById('t-summary-revenue').textContent = t.summaryRevenue;
   document.getElementById('t-summary-expenses').textContent = t.summaryExpenses;
   document.getElementById('t-summary-net').textContent = t.summaryNet;
+  document.getElementById('t-expenses-history-title').textContent = t.expensesHistoryTitle;
+  document.getElementById('t-expenses-history-empty').textContent = t.expensesHistoryEmpty;
+  document.getElementById('t-cancel9').textContent = t.close;
 }
 
 /* ---------- Données ---------- */
@@ -1443,17 +1473,75 @@ function canAddMoreExpenses(){
 function openLimitSheet(reason){
   const t = dict[currentLang];
   reason = reason || 'products';
-  const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory' }[reason];
-  const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory' }[reason];
-  document.getElementById('t-limit-desc').textContent = t[descKey];
-  const msg = encodeURIComponent(t[msgKey]);
-  document.getElementById('limit-whatsapp-link').href = `https://wa.me/${DEV_WHATSAPP}?text=${msg}`;
+  const link = document.getElementById('limit-whatsapp-link');
+  if(!currentUser){
+    document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
+    link.textContent = t.limitLoginBtn;
+    link.href = '#';
+    link.onclick = function(e){
+      e.preventDefault();
+      closeLimitSheet();
+      openAccountSheet();
+    };
+  } else {
+    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory' }[reason];
+    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory' }[reason];
+    document.getElementById('t-limit-desc').textContent = t[descKey];
+    const msg = encodeURIComponent(t[msgKey]);
+    link.textContent = t.limitUnlockBtn;
+    link.href = `https://wa.me/${DEV_WHATSAPP}?text=${msg}`;
+    link.onclick = null;
+  }
   document.getElementById('add-overlay').classList.remove('open');
   document.getElementById('expense-overlay').classList.remove('open');
   document.getElementById('limit-overlay').classList.add('open');
 }
 function closeLimitSheet(){
   document.getElementById('limit-overlay').classList.remove('open');
+}
+
+function openExpensesHistorySheet(){
+  renderExpensesHistory();
+  document.getElementById('expenses-history-overlay').classList.add('open');
+}
+function closeExpensesHistorySheet(){
+  document.getElementById('expenses-history-overlay').classList.remove('open');
+}
+function renderExpensesHistory(){
+  const t = dict[currentLang];
+  const list = document.getElementById('expenses-history-list');
+  const empty = document.getElementById('expenses-history-empty');
+  const sorted = [...expenses].sort((a,b)=>b.date-a.date);
+  list.innerHTML = '';
+  if(sorted.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  sorted.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="info">
+        <div class="name">${e.desc}</div>
+        <div class="meta">${formatDateTime(e.date)}</div>
+      </div>
+      <div class="amounts">
+        <div class="total negative">-${formatMoney(e.amount)}</div>
+      </div>
+      <button class="del-entry" onclick="deleteExpenseHistoryEntry('${e.id}')" aria-label="Supprimer">🗑</button>
+    `;
+    list.appendChild(div);
+  });
+}
+async function deleteExpenseHistoryEntry(id){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmDeleteEntry);
+  if(!ok) return;
+  expenses = expenses.filter(e=>e.id!==id);
+  await saveExpenses();
+  renderExpensesHistory();
+  showToast(t.entryDeleted);
 }
 
 async function handleAddSave(){
