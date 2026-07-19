@@ -284,6 +284,22 @@
 
   #add-sheet-inner{ min-height:75vh; }
   .mode-row{display:flex; gap:8px; margin-bottom:18px;}
+  .period-row{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+  .period-btn{
+    flex:1; min-width:70px; padding:9px 4px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:11.5px; font-weight:700; cursor:pointer; font-family:'Inter';
+    color:var(--charcoal-soft);
+  }
+  .period-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+  .summary-card{
+    display:flex; background:var(--ok-bg); border-radius:12px; padding:13px 8px; margin-bottom:16px;
+  }
+  .summary-col{flex:1; text-align:center; border-left:1px solid var(--paper-2);}
+  .summary-col:first-child{border-left:none;}
+  .summary-lbl{font-size:10px; text-transform:uppercase; color:var(--charcoal-soft); font-weight:700; letter-spacing:.03em;}
+  .summary-val{font-family:'Sora'; font-size:14px; font-weight:800; margin-top:4px;}
+  .summary-val.money{color:var(--emerald);}
+  .summary-val.alert{color:var(--alert);}
   .mode-btn{
     flex:1; padding:11px 6px; border-radius:11px; border:1.5px solid var(--paper-2);
     background:var(--card-bg); font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Inter';
@@ -579,6 +595,7 @@
           <img id="account-photo" src="" alt="">
           <div>
             <div class="name" id="account-name"></div>
+            <span id="account-vip-badge" style="display:none; background:var(--marigold); color:var(--charcoal); font-size:10px; font-weight:800; padding:2px 7px; border-radius:999px; margin-left:6px;">⭐ VIP</span>
             <div class="email" id="account-email"></div>
           </div>
         </div>
@@ -596,6 +613,43 @@
         <h3 id="t-history-title" style="margin:0;">Historique des ventes</h3>
         <button onclick="closeHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
       </div>
+
+      <div class="period-row">
+        <button class="period-btn active" data-period="day" onclick="setHistoryPeriod('day')" id="t-period-day">Aujourd'hui</button>
+        <button class="period-btn" data-period="week" onclick="setHistoryPeriod('week')" id="t-period-week">Semaine</button>
+        <button class="period-btn" data-period="month" onclick="setHistoryPeriod('month')" id="t-period-month">Mois</button>
+        <button class="period-btn" data-period="custom" onclick="setHistoryPeriod('custom')" id="t-period-custom">Personnalisé</button>
+      </div>
+
+      <div id="custom-range-fields" style="display:none;">
+        <div class="two-col">
+          <div class="field">
+            <label id="t-period-from">Du</label>
+            <input id="in-period-from" type="date">
+          </div>
+          <div class="field">
+            <label id="t-period-to">Au</label>
+            <input id="in-period-to" type="date">
+          </div>
+        </div>
+        <button class="btn-secondary" style="margin-top:0;" onclick="applyCustomRange()" id="t-period-apply">Appliquer</button>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-revenue">Ventes</div>
+          <div class="summary-val money" id="summary-revenue">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-expenses">Dépenses</div>
+          <div class="summary-val alert" id="summary-expenses">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-net">Gain net</div>
+          <div class="summary-val money" id="summary-net">0 $</div>
+        </div>
+      </div>
+
       <div id="history-list"></div>
       <div id="history-empty" class="empty" style="display:none;">
         <span id="t-history-empty">Aucune vente enregistrée pour l'instant.</span>
@@ -651,6 +705,17 @@
     </div>
   </div>
 
+  <div class="sheet-overlay" id="limit-overlay">
+    <div class="sheet">
+      <h3 id="t-limit-title">Limite atteinte</h3>
+      <p id="t-limit-desc" style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6;">
+        Tu as atteint la limite de 10 produits de la version gratuite. Pour débloquer l'ajout illimité de produits, contacte directement le développeur sur WhatsApp.
+      </p>
+      <a id="limit-whatsapp-link" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Débloquer sur WhatsApp</a>
+      <button class="btn-secondary" onclick="closeLimitSheet()" id="t-cancel8">Annuler</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -675,6 +740,11 @@ const firebaseConfig = {
 let cloudEnabled = true;
 let db = null;
 let currentUser = null;
+let isVip = false;
+let vipUntil = null;
+const FREE_PRODUCT_LIMIT = 10;
+const FREE_EXPENSE_LIMIT = 3;
+const DEV_WHATSAPP = '243980979141';
 
 try{
   firebase.initializeApp(firebaseConfig);
@@ -738,7 +808,19 @@ const dict = {
     repayTitle:"Enregistrer un remboursement", repayClientLabel:"Client",
     repayAmountLabel:"Montant reçu", confirmRepayBtn:"Confirmer le remboursement",
     expenseTitle:"Nouvelle dépense", expenseDescLabel:"Description",
-    expenseAmountLabel:"Montant", confirmExpenseBtn:"Enregistrer la dépense"
+    expenseAmountLabel:"Montant", confirmExpenseBtn:"Enregistrer la dépense",
+    limitTitle:"Limite atteinte",
+    limitDesc:"Tu as atteint la limite de 10 produits de la version gratuite. Pour débloquer l'ajout illimité de produits, contacte directement le développeur sur WhatsApp.",
+    limitUnlockBtn:"Débloquer sur WhatsApp",
+    limitWhatsappMsg:"Bonjour, je veux débloquer l'ajout illimité de produits sur Mombongo.",
+    vipUntilLabel:"jusqu'au",
+    periodDay:"Aujourd'hui", periodWeek:"Semaine", periodMonth:"Mois", periodCustom:"Personnalisé",
+    periodFrom:"Du", periodTo:"Au", periodApply:"Appliquer",
+    summaryRevenue:"Ventes", summaryExpenses:"Dépenses", summaryNet:"Gain net",
+    limitDescExpenses:"Tu as atteint la limite de 3 dépenses de la version gratuite. Pour débloquer l'ajout illimité de dépenses, contacte directement le développeur sur WhatsApp.",
+    limitDescHistory:"Tu veux voir les résultats de ton travail sur plusieurs jours ? Contacte le développeur sur WhatsApp pour débloquer l'historique complet (semaine, mois, période personnalisée).",
+    limitWhatsappMsgExpenses:"Bonjour, je veux débloquer l'ajout illimité de dépenses sur Mombongo.",
+    limitWhatsappMsgHistory:"Bonjour, je veux débloquer l'historique complet (semaine/mois) sur Mombongo."
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -789,7 +871,19 @@ const dict = {
     repayTitle:"Koleka kofuta", repayClientLabel:"Client",
     repayAmountLabel:"Motángo eyaki", confirmRepayBtn:"Kokitisa kofuta",
     expenseTitle:"Dépense ya sika", expenseDescLabel:"Botángi",
-    expenseAmountLabel:"Motángo", confirmExpenseBtn:"Bomba dépense"
+    expenseAmountLabel:"Motángo", confirmExpenseBtn:"Bomba dépense",
+    limitTitle:"Ndelo ekómi",
+    limitDesc:"Okómi na ndelo ya biloko 10 ya version ya ofele. Mpo na kolongola ndelo, benga développeur na WhatsApp.",
+    limitUnlockBtn:"Longola ndelo na WhatsApp",
+    limitWhatsappMsg:"Mbote, nalingi kolongola ndelo ya kobakisa biloko na Mombongo.",
+    vipUntilLabel:"tii na",
+    periodDay:"Lelo", periodWeek:"Poso", periodMonth:"Sanza", periodCustom:"Poná moko",
+    periodFrom:"Banda", periodTo:"Tii", periodApply:"Kokitisa",
+    summaryRevenue:"Kotéka", summaryExpenses:"Ba dépenses", summaryNet:"Litomba ya sikisiki",
+    limitDescExpenses:"Okómi na ndelo ya ba dépenses 3 ya version ya ofele. Mpo na kolongola ndelo, benga développeur na WhatsApp.",
+    limitDescHistory:"Olingi koyeba misala na yo ya mikolo mingi ? Benga développeur na WhatsApp mpo na kolongola istwaru mobimba (poso, sanza, mokolo oyo oponi).",
+    limitWhatsappMsgExpenses:"Mbote, nalingi kolongola ndelo ya ba dépenses na Mombongo.",
+    limitWhatsappMsgHistory:"Mbote, nalingi kolongola istwaru mobimba (poso/sanza) na Mombongo."
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -840,7 +934,19 @@ const dict = {
     repayTitle:"Andika malipo", repayClientLabel:"Mteja",
     repayAmountLabel:"Kiasi kilichopokelewa", confirmRepayBtn:"Thibitisha malipo",
     expenseTitle:"Matumizi mapya", expenseDescLabel:"Maelezo",
-    expenseAmountLabel:"Kiasi", confirmExpenseBtn:"Hifadhi matumizi"
+    expenseAmountLabel:"Kiasi", confirmExpenseBtn:"Hifadhi matumizi",
+    limitTitle:"Kikomo kimefikiwa",
+    limitDesc:"Umefikia kikomo cha bidhaa 10 za toleo la bure. Kufungua ongezeko lisilo na kikomo la bidhaa, wasiliana moja kwa moja na msanidi kwenye WhatsApp.",
+    limitUnlockBtn:"Fungua kwenye WhatsApp",
+    limitWhatsappMsg:"Habari, nataka kufungua ongezeko lisilo na kikomo la bidhaa kwenye Mombongo.",
+    vipUntilLabel:"hadi",
+    periodDay:"Leo", periodWeek:"Wiki", periodMonth:"Mwezi", periodCustom:"Chagua",
+    periodFrom:"Kutoka", periodTo:"Hadi", periodApply:"Tumia",
+    summaryRevenue:"Mauzo", summaryExpenses:"Matumizi", summaryNet:"Faida halisi",
+    limitDescExpenses:"Umefikia kikomo cha matumizi 3 ya toleo la bure. Kufungua ongezeko lisilo na kikomo la matumizi, wasiliana na msanidi kwenye WhatsApp.",
+    limitDescHistory:"Unataka kuona matokeo ya kazi yako kwa siku nyingi ? Wasiliana na msanidi kwenye WhatsApp kufungua historia kamili (wiki, mwezi, kipindi maalum).",
+    limitWhatsappMsgExpenses:"Habari, nataka kufungua ongezeko lisilo na kikomo la matumizi kwenye Mombongo.",
+    limitWhatsappMsgHistory:"Habari, nataka kufungua historia kamili (wiki/mwezi) kwenye Mombongo."
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -902,6 +1008,8 @@ function signOutGoogle(){
     lots = [];
     debts = [];
     expenses = [];
+    isVip = false;
+    vipUntil = null;
     stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
@@ -925,6 +1033,11 @@ function renderAccountUI(){
     document.getElementById('account-photo').src = currentUser.photoURL || '';
     document.getElementById('account-name').textContent = currentUser.displayName || '';
     document.getElementById('account-email').textContent = currentUser.email || '';
+    const vipBadge = document.getElementById('account-vip-badge');
+    if(vipBadge){
+      vipBadge.style.display = isVip ? 'inline' : 'none';
+      vipBadge.textContent = isVip ? `⭐ VIP · ${dict[currentLang].vipUntilLabel} ${vipUntil}` : '⭐ VIP';
+    }
     btnLabel.textContent = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Compte';
   } else {
     loggedOut.style.display = 'block';
@@ -937,7 +1050,8 @@ async function pushToCloud(){
   if(!cloudEnabled || !db || !currentUser) return;
   try{
     await db.collection('mombongo_users').doc(currentUser.uid).set({
-      products, sales, lots, debts, expenses, stats, rate: exchangeRate, currency: currentCurrency, updatedAt: Date.now()
+      products, sales, lots, debts, expenses, stats, rate: exchangeRate, currency: currentCurrency,
+      email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now()
     }, { merge: true });
   }catch(e){ console.error('Erreur synchronisation cloud', e); }
 }
@@ -955,6 +1069,8 @@ async function handlePostLogin(){
       expenses = data.expenses || [];
       stats = data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
       if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
+      vipUntil = data.vipUntil || null;
+      isVip = !!(vipUntil && new Date(vipUntil + 'T23:59:59').getTime() > Date.now());
       if(data.rate) exchangeRate = data.rate;
       if(data.currency) currentCurrency = data.currency;
       localSet('mombongo:products', JSON.stringify(products));
@@ -967,15 +1083,23 @@ async function handlePostLogin(){
       localSet('mombongo:currency', currentCurrency);
       document.getElementById('in-rate').value = exchangeRate;
       setCurrency(currentCurrency);
+      await pushToCloud();
       showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
     } else {
-      await pushToCloud();
+      isVip = false;
+      vipUntil = null;
+      await db.collection('mombongo_users').doc(currentUser.uid).set({
+        products, sales, lots, debts, expenses, stats, rate: exchangeRate, currency: currentCurrency,
+        email: currentUser.email || '', displayName: currentUser.displayName || '',
+        updatedAt: Date.now()
+      }, { merge: true });
       showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
     }
   }catch(e){
     console.error('Erreur récupération cloud', e);
     showToast('Erreur données : ' + (e.code || e.message || e));
   }
+  renderAccountUI();
   render();
 }
 
@@ -1121,6 +1245,20 @@ function applyTranslations(){
   document.getElementById('t-expense-amount').textContent = t.expenseAmountLabel;
   document.getElementById('t-confirm-expense').textContent = t.confirmExpenseBtn;
   document.getElementById('t-cancel7').textContent = t.cancel;
+  document.getElementById('t-limit-title').textContent = t.limitTitle;
+  document.getElementById('t-limit-desc').textContent = t.limitDesc;
+  document.getElementById('limit-whatsapp-link').textContent = t.limitUnlockBtn;
+  document.getElementById('t-cancel8').textContent = t.cancel;
+  document.getElementById('t-period-day').textContent = t.periodDay;
+  document.getElementById('t-period-week').textContent = t.periodWeek;
+  document.getElementById('t-period-month').textContent = t.periodMonth;
+  document.getElementById('t-period-custom').textContent = t.periodCustom;
+  document.getElementById('t-period-from').textContent = t.periodFrom;
+  document.getElementById('t-period-to').textContent = t.periodTo;
+  document.getElementById('t-period-apply').textContent = t.periodApply;
+  document.getElementById('t-summary-revenue').textContent = t.summaryRevenue;
+  document.getElementById('t-summary-expenses').textContent = t.summaryExpenses;
+  document.getElementById('t-summary-net').textContent = t.summaryNet;
 }
 
 /* ---------- Données ---------- */
@@ -1245,7 +1383,8 @@ function addMesuretteRow(){
 function removeMesuretteRow(idx){
   const el = document.getElementById('mesurette-row-'+idx);
   if(el) el.remove();
-}resetMesurettes(){
+}
+function resetMesurettes(){
   document.getElementById('mesurettes-list').innerHTML = '';
   mesuretteCount = 0;
 }
@@ -1293,6 +1432,30 @@ function toInternal(raw){
   return currentCurrency === 'cdf' ? raw / exchangeRate : raw;
 }
 
+function canAddMoreProducts(countToAdd){
+  if(isVip) return true;
+  return (products.length + countToAdd) <= FREE_PRODUCT_LIMIT;
+}
+function canAddMoreExpenses(){
+  if(isVip) return true;
+  return expenses.length < FREE_EXPENSE_LIMIT;
+}
+function openLimitSheet(reason){
+  const t = dict[currentLang];
+  reason = reason || 'products';
+  const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory' }[reason];
+  const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory' }[reason];
+  document.getElementById('t-limit-desc').textContent = t[descKey];
+  const msg = encodeURIComponent(t[msgKey]);
+  document.getElementById('limit-whatsapp-link').href = `https://wa.me/${DEV_WHATSAPP}?text=${msg}`;
+  document.getElementById('add-overlay').classList.remove('open');
+  document.getElementById('expense-overlay').classList.remove('open');
+  document.getElementById('limit-overlay').classList.add('open');
+}
+function closeLimitSheet(){
+  document.getElementById('limit-overlay').classList.remove('open');
+}
+
 async function handleAddSave(){
   if(addMode === 'simple'){ await addProduct(); return; }
   if(addMode === 'carton'){ await addCartonProduct(); return; }
@@ -1319,6 +1482,7 @@ async function addProduct(){
       product.qty = qty; product.threshold = threshold;
     }
   } else {
+    if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
     products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, lastSoldAt: null, createdAt: Date.now() });
   }
   const wasEditing = !!editingProductId;
@@ -1338,6 +1502,7 @@ async function addCartonProduct(){
     showToast(currentLang==='fr' ? "Remplis le nom, le nombre de pièces et le prix de vente" : "Pesa nkombo, motángo na ntalo ya kotéka");
     return;
   }
+  if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
   const cartonBuyInternal = toInternal(rawCartonBuy);
   const buyPerPiece = cartonBuyInternal / cartonQty;
   const sell = toInternal(rawSell);
@@ -1361,15 +1526,22 @@ async function addSacProduct(){
   }
   const sacBuyInternal = toInternal(rawSacBuy);
   const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
-  const lotId = 'lot' + Date.now().toString();
-  let createdCount = 0;
-  let offset = 0;
+  const validRows = [];
   rows.forEach((row)=>{
     const idx = row.id.replace('mesurette-row-','');
     const mName = document.getElementById('mesurette-name-'+idx).value.trim();
     const rawMSell = parseFloat(document.getElementById('mesurette-sell-'+idx).value) || 0;
     const mQty = parseInt(document.getElementById('mesurette-qty-'+idx).value) || 0;
-    if(!mName || !rawMSell || !mQty) return;
+    if(mName && rawMSell && mQty) validRows.push({ mName, rawMSell, mQty });
+  });
+  if(validRows.length === 0){
+    showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
+    return;
+  }
+  if(!canAddMoreProducts(validRows.length)){ openLimitSheet(); return; }
+  const lotId = 'lot' + Date.now().toString();
+  let offset = 0;
+  validRows.forEach(({mName, rawMSell, mQty})=>{
     const mSell = toInternal(rawMSell);
     const buyPerUnit = sacBuyInternal / mQty;
     offset++;
@@ -1378,12 +1550,7 @@ async function addSacProduct(){
       qty: mQty, threshold, lastSoldAt: null, createdAt: Date.now(),
       lotId: lotId, yieldPerSac: mQty
     });
-    createdCount++;
   });
-  if(createdCount === 0){
-    showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
-    return;
-  }
   lots.push({ id: lotId, name, remainingFraction: 1, createdAt: Date.now() });
   await saveProducts();
   saveLots();
@@ -1642,7 +1809,18 @@ async function resetExpenses(){
 }
 
 /* ---------- Historique des ventes ---------- */
+let historyPeriod = 'day';
+let historyCustomFrom = null;
+let historyCustomTo = null;
+
 function openHistorySheet(){
+  historyPeriod = 'day';
+  historyCustomFrom = null;
+  historyCustomTo = null;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period==='day'));
+  document.getElementById('custom-range-fields').style.display = 'none';
+  document.getElementById('in-period-from').value = '';
+  document.getElementById('in-period-to').value = '';
   renderHistory();
   document.getElementById('history-overlay').classList.add('open');
   try{ history.pushState({ mombongoHistoryOpen: true }, ''); }catch(e){}
@@ -1660,6 +1838,78 @@ function formatDateTime(ts){
   const d = new Date(ts);
   return d.toLocaleDateString('fr-FR') + ' — ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 }
+
+function setHistoryPeriod(period){
+  if(period !== 'day' && !isVip){
+    openLimitSheet('history');
+    return;
+  }
+  historyPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period===period));
+  document.getElementById('custom-range-fields').style.display = period==='custom' ? 'block' : 'none';
+  if(period !== 'custom'){
+    renderHistory();
+  } else if(historyCustomFrom && historyCustomTo){
+    renderHistory();
+  }
+}
+function applyCustomRange(){
+  const from = document.getElementById('in-period-from').value;
+  const to = document.getElementById('in-period-to').value;
+  if(!from || !to){
+    showToast(currentLang==='fr' ? "Choisis les deux dates" : "Poná ba dates mibale");
+    return;
+  }
+  historyCustomFrom = from;
+  historyCustomTo = to;
+  renderHistory();
+}
+
+function getPeriodRange(){
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  if(historyPeriod === 'day'){
+    return { start: startOfToday.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'week'){
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 6);
+    return { start: start.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'month'){
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 29);
+    return { start: start.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'custom' && historyCustomFrom && historyCustomTo){
+    const start = new Date(historyCustomFrom + 'T00:00:00');
+    const end = new Date(historyCustomTo + 'T23:59:59');
+    return { start: start.getTime(), end: end.getTime() };
+  }
+  return { start: startOfToday.getTime(), end: endOfToday.getTime() };
+}
+
+function computePeriodSummary(start, end){
+  let revenue = 0, profit = 0, expensesTotal = 0;
+  sales.forEach(s=>{
+    if(s.isCredit) return;
+    if(s.date >= start && s.date <= end){ revenue += s.total; profit += s.profit; }
+  });
+  debts.forEach(d=>{
+    (d.payments||[]).forEach(p=>{
+      if(p.date >= start && p.date <= end){
+        revenue += p.amount;
+        profit += (typeof p.profit === 'number') ? p.profit : 0;
+      }
+    });
+  });
+  expenses.forEach(e=>{
+    if(e.date >= start && e.date <= end) expensesTotal += e.amount;
+  });
+  return { revenue, expensesTotal, netGain: profit - expensesTotal };
+}
+
 function buildUnifiedHistory(){
   const t = dict[currentLang];
   const entries = [];
@@ -1694,7 +1944,14 @@ function renderHistory(){
   const t = dict[currentLang];
   const list = document.getElementById('history-list');
   const empty = document.getElementById('history-empty');
-  const sorted = buildUnifiedHistory();
+  const { start, end } = getPeriodRange();
+
+  const summary = computePeriodSummary(start, end);
+  document.getElementById('summary-revenue').textContent = formatMoney(summary.revenue);
+  document.getElementById('summary-expenses').textContent = formatMoney(summary.expensesTotal);
+  document.getElementById('summary-net').textContent = formatMoney(summary.netGain);
+
+  const sorted = buildUnifiedHistory().filter(e => e.date >= start && e.date <= end);
   list.innerHTML = '';
   if(sorted.length === 0){
     empty.style.display = 'block';
@@ -1816,7 +2073,7 @@ async function confirmRepay(){
   if(amount > remaining + 0.01) amount = remaining;
   const profitPortion = debt.totalOwed > 0 ? amount * (debt.totalProfit / debt.totalOwed) : 0;
   debt.amountPaid += amount;
-  debt.payments.push({ amount, date: Date.now() });
+  debt.payments.push({ amount, profit: profitPortion, date: Date.now() });
   if(debt.totalOwed - debt.amountPaid <= 0.01){
     debt.status = 'réglé';
   }
@@ -1847,6 +2104,7 @@ async function confirmExpense(){
     showToast(currentLang==='fr' ? "Indique une description et un montant" : "Pesa description na motángo");
     return;
   }
+  if(!canAddMoreExpenses()){ openLimitSheet('expenses'); return; }
   const amount = toInternal(rawAmount);
   expenses.push({ id: Date.now().toString(), desc, amount, date: Date.now() });
   stats.totalExpenses += amount;
@@ -1875,4 +2133,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-function 
