@@ -400,10 +400,10 @@
         <button class="expense-reset" onclick="event.stopPropagation(); resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
       </div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card clickable" onclick="openAlertsSheet()">
       <div class="label" id="t-alerts">Alertes stock</div>
       <div class="value alert" id="stat-alerts">0</div>
-      <div class="sub-expense sub-debt" onclick="openDebtsSheet()">
+      <div class="sub-expense sub-debt" onclick="event.stopPropagation(); openDebtsSheet()">
         <span id="t-debts-label">💳 Dettes en cours</span> :
         <span id="stat-debts">0 $</span>
       </div>
@@ -412,8 +412,9 @@
 
   <main>
     <section id="alerts-section" style="display:none;">
-      <h2 id="t-alerts-title">Alertes</h2>
-      <div id="alerts-list"></div>
+      <div class="alert-banner" style="cursor:pointer;" onclick="openAlertsSheet()">
+        ⚠️ <span id="t-alerts-prompt">Vérifie les alertes pour connaître les stocks faibles</span>
+      </div>
     </section>
 
     <section>
@@ -428,7 +429,7 @@
       </div>
       <div id="no-results" class="empty" style="display:none;">
         <span id="t-no-results">Aucun produit ne correspond à ta recherche.</span>
-      </div>
+      </div
     </section>
   </main>
 
@@ -475,6 +476,19 @@
             <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
           </div>
         </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-has-expiry" onchange="toggleExpiryField('simple')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-simple" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date">Date de péremption</label>
+            <input id="in-expiry-date" type="date">
+          </div>
+        </div>
       </div>
 
       <div id="mode-carton-fields" style="display:none;">
@@ -505,6 +519,19 @@
         <div class="field">
           <span id="t-carton-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Le prix d'achat d'une pièce sera calculé automatiquement.</span>
         </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle-carton">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="carton-has-expiry" onchange="toggleExpiryField('carton')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-carton" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date-carton">Date de péremption</label>
+            <input id="carton-expiry-date" type="date">
+          </div>
+        </div>
       </div>
 
       <div id="mode-sac-fields" style="display:none;">
@@ -526,6 +553,19 @@
         <button type="button" class="btn-add-mesurette" onclick="addMesuretteRow()" id="t-add-mesurette">+ Ajouter une mesurette</button>
         <div class="field" style="margin-top:10px;">
           <span id="t-sac-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.</span>
+        </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle-sac">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="sac-has-expiry" onchange="toggleExpiryField('sac')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-sac" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date-sac">Date de péremption (s'applique à toutes les mesurettes)</label>
+            <input id="sac-expiry-date" type="date">
+          </div>
         </div>
       </div>
 
@@ -731,6 +771,24 @@
     </div>
   </div>
 
+  <div class="sheet-overlay" id="alerts-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-alerts-sheet-title" style="margin:0;">Alertes</h3>
+        <button onclick="closeAlertsSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div class="mode-row">
+        <button class="mode-btn active" data-alertstab="stock" onclick="setAlertsTab('stock')" id="t-alerts-tab-stock">Stock faible</button>
+        <button class="mode-btn" data-alertstab="expired" onclick="setAlertsTab('expired')" id="t-alerts-tab-expired">Produits périmés</button>
+      </div>
+      <div id="alerts-sheet-list"></div>
+      <div id="alerts-sheet-empty" class="empty" style="display:none;">
+        <span id="t-alerts-sheet-empty">Aucune alerte ici pour l'instant. 🎉</span>
+      </div>
+      <button class="btn-secondary" onclick="closeAlertsSheet()" id="t-cancel10">Fermer</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -810,7 +868,7 @@ const dict = {
     historyDeletedProduct:"Produit supprimé",
     clearHistory:"Effacer tout l'historique", close:"Fermer",
     confirmDeleteEntry:"Supprimer cette vente de l'historique ?", entryDeleted:"Vente supprimée",
-    confirmClearHistory:"Effacer tout l'historique des ventes ? Cette action est irréversible et n'affecte pas les compteurs de bénéfices.",
+    confirmClearHistory:"Effacer tout l'historique des ventes et dépenses ? Cette action est irréversible. Les compteurs de bénéfice ne changent pas, mais le total des dépenses sera remis à zéro.",
     historyCleared:"Historique effacé",
     addBtnShort:"➕ Produit", expenseBtnShort:"💸 Dépense",
     expensesLabel:"Dépenses", debtsLabel:"Dettes en cours",
@@ -839,7 +897,14 @@ const dict = {
     limitNeedsLoginDesc:"Tu dois d'abord te connecter avec Google pour pouvoir discuter avec le développeur ou devenir Premium. Sans compte, on ne peut pas te retrouver pour activer ton accès.",
     limitLoginBtn:"Se connecter avec Google",
     expensesHistoryTitle:"Historique des dépenses",
-    expensesHistoryEmpty:"Aucune dépense enregistrée pour l'instant."
+    expensesHistoryEmpty:"Aucune dépense enregistrée pour l'instant.",
+    expiryToggle:"Date de péremption ?", expiryDateLabel:"Date de péremption",
+    expiryDateLabelSac:"Date de péremption (s'applique à toutes les mesurettes)",
+    expiredAlert:"expiré le",
+    alertsPrompt:"Vérifie les alertes pour connaître les stocks faibles",
+    alertsPromptWithExpired:"Vérifie les alertes pour connaître les stocks faibles et produits périmés",
+    alertsTabStock:"Stock faible", alertsTabExpired:"Produits périmés",
+    alertsSheetEmpty:"Aucune alerte ici pour l'instant. 🎉"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -877,7 +942,7 @@ const dict = {
     historyDeletedProduct:"Eloko elongolámi",
     clearHistory:"Longola istwaru nyonso", close:"Kanga",
     confirmDeleteEntry:"Olingi kolongola kotéka oyo na istwaru ?", entryDeleted:"Kotéka elongolámi",
-    confirmClearHistory:"Olingi kolongola istwaru nyonso ya kotéka ? Ekozonga te, mpe ekosimba te ba statistique ya litomba.",
+    confirmClearHistory:"Olingi kolongola istwaru nyonso ya kotéka na ba dépenses ? Ekozonga te. Litomba ekobongwana te, kasi motángo ya ba dépenses ekozonga na zéro.",
     historyCleared:"Istwaru elongwami",
     addBtnShort:"➕ Eloko", expenseBtnShort:"💸 Dépense",
     expensesLabel:"Ba dépenses", debtsLabel:"Ba dettes ezali",
@@ -906,7 +971,14 @@ const dict = {
     limitNeedsLoginDesc:"Osengeli liboso kokota na Google mpo okoka kosolola na développeur to kokóma Premium. Soki compte te, tokoki koluka yo te mpo na kofungola yo.",
     limitLoginBtn:"Kokota na Google",
     expensesHistoryTitle:"Istwaru ya ba dépenses",
-    expensesHistoryEmpty:"Dépense moko te tii sik'oyo."
+    expensesHistoryEmpty:"Dépense moko te tii sik'oyo.",
+    expiryToggle:"Date ya kobola ?", expiryDateLabel:"Date ya kobola",
+    expiryDateLabelSac:"Date ya kobola (ekosimba ba mesurette nyonso)",
+    expiredAlert:"ebolá na",
+    alertsPrompt:"Talá ba alertes mpo na koyeba stock oyo ekómi moke",
+    alertsPromptWithExpired:"Talá ba alertes mpo na koyeba stock oyo ekómi moke na biloko oyo ebolá",
+    alertsTabStock:"Stock ekómi moke", alertsTabExpired:"Biloko ebolá",
+    alertsSheetEmpty:"Alerte moko te sik'oyo. 🎉"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -944,7 +1016,7 @@ const dict = {
     historyDeletedProduct:"Bidhaa imefutwa",
     clearHistory:"Futa historia yote", close:"Funga",
     confirmDeleteEntry:"Futa uuzaji huu kutoka kwenye historia ?", entryDeleted:"Uuzaji umefutwa",
-    confirmClearHistory:"Futa historia yote ya mauzo ? Hatua hii haiwezi kurudishwa na haiathiri takwimu za faida.",
+    confirmClearHistory:"Futa historia yote ya mauzo na matumizi ? Hatua hii haiwezi kurudishwa. Faida haitabadilika, lakini jumla ya matumizi itarudi sifuri.",
     historyCleared:"Historia imefutwa",
     addBtnShort:"➕ Bidhaa", expenseBtnShort:"💸 Matumizi",
     expensesLabel:"Matumizi", debtsLabel:"Madeni yaliyopo",
@@ -973,7 +1045,14 @@ const dict = {
     limitNeedsLoginDesc:"Lazima kwanza uingie na Google ili uweze kuzungumza na msanidi au kuwa Premium. Bila akaunti, hatuwezi kukutafuta ili kukuwezesha ufikiaji.",
     limitLoginBtn:"Ingia na Google",
     expensesHistoryTitle:"Historia ya matumizi",
-    expensesHistoryEmpty:"Hakuna matumizi yaliyohifadhiwa bado."
+    expensesHistoryEmpty:"Hakuna matumizi yaliyohifadhiwa bado.",
+    expiryToggle:"Tarehe ya mwisho wa matumizi ?", expiryDateLabel:"Tarehe ya mwisho wa matumizi",
+    expiryDateLabelSac:"Tarehe ya mwisho wa matumizi (itatumika kwa vipimo vyote)",
+    expiredAlert:"imeisha muda tarehe",
+    alertsPrompt:"Angalia maonyo kujua bidhaa zinazoisha",
+    alertsPromptWithExpired:"Angalia maonyo kujua bidhaa zinazoisha na bidhaa zilizoisha muda",
+    alertsTabStock:"Bidhaa zinazoisha", alertsTabExpired:"Bidhaa zilizoisha muda",
+    alertsSheetEmpty:"Hakuna onyo hapa kwa sasa. 🎉"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -1232,7 +1311,12 @@ function applyTranslations(){
   document.getElementById('t-profit-today').textContent = t.profitToday;
   document.getElementById('t-profit-total').textContent = t.profitTotal;
   document.getElementById('t-alerts').textContent = t.alerts;
-  document.getElementById('t-alerts-title').textContent = t.alertsTitle;
+  document.getElementById('t-alerts-prompt').textContent = t.alertsPrompt;
+  document.getElementById('t-alerts-sheet-title').textContent = t.alertsTitle;
+  document.getElementById('t-alerts-tab-stock').textContent = t.alertsTabStock;
+  document.getElementById('t-alerts-tab-expired').textContent = t.alertsTabExpired;
+  document.getElementById('t-alerts-sheet-empty').textContent = t.alertsSheetEmpty;
+  document.getElementById('t-cancel10').textContent = t.close;
   document.getElementById('t-products-title').textContent = t.productsTitle;
   document.getElementById('t-empty').textContent = t.empty;
   document.getElementById('t-no-results').textContent = t.noResults;
@@ -1290,6 +1374,12 @@ function applyTranslations(){
   document.getElementById('t-expenses-history-title').textContent = t.expensesHistoryTitle;
   document.getElementById('t-expenses-history-empty').textContent = t.expensesHistoryEmpty;
   document.getElementById('t-cancel9').textContent = t.close;
+  document.getElementById('t-expiry-toggle').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date').textContent = t.expiryDateLabel;
+  document.getElementById('t-expiry-toggle-carton').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date-carton').textContent = t.expiryDateLabel;
+  document.getElementById('t-expiry-toggle-sac').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date-sac').textContent = t.expiryDateLabelSac;
 }
 
 /* ---------- Données ---------- */
@@ -1440,6 +1530,11 @@ function resetMesurettes(){
   mesuretteCount = 0;
 }
 
+function toggleExpiryField(mode){
+  const checked = document.getElementById(mode==='simple' ? 'in-has-expiry' : mode+'-has-expiry').checked;
+  document.getElementById('expiry-field-'+mode).style.display = checked ? 'block' : 'none';
+}
+
 function openAddSheet(){
   editingProductId = null;
   updateAddFieldLabels();
@@ -1465,15 +1560,25 @@ function openEditSheet(id){
   document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
   document.getElementById('in-qty').value = product.qty;
   document.getElementById('in-threshold').value = product.threshold;
+  document.getElementById('in-has-expiry').checked = !!product.expiryDate;
+  document.getElementById('in-expiry-date').value = product.expiryDate || '';
+  toggleExpiryField('simple');
   document.getElementById('add-overlay').classList.add('open');
 }
 function closeAddSheet(){
   document.getElementById('add-overlay').classList.remove('open');
-  ['in-name','in-buy','in-sell','in-qty','in-threshold',
-   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold',
-   'sac-name','sac-buy','sac-threshold'].forEach(id=>{
+  ['in-name','in-buy','in-sell','in-qty','in-threshold','in-expiry-date',
+   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold','carton-expiry-date',
+   'sac-name','sac-buy','sac-threshold','sac-expiry-date'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value='';
+  });
+  ['in-has-expiry','carton-has-expiry','sac-has-expiry'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.checked = false;
+  });
+  ['expiry-field-simple','expiry-field-carton','expiry-field-sac'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
   });
   resetMesurettes();
   editingProductId = null;
@@ -1559,9 +1664,15 @@ async function deleteExpenseHistoryEntry(id){
   const t = dict[currentLang];
   const ok = window.confirm(t.confirmDeleteEntry);
   if(!ok) return;
+  const expense = expenses.find(e=>e.id===id);
   expenses = expenses.filter(e=>e.id!==id);
   await saveExpenses();
+  if(expense){
+    stats.totalExpenses = Math.max(0, stats.totalExpenses - expense.amount);
+    saveStats();
+  }
   renderExpensesHistory();
+  render();
   showToast(t.entryDeleted);
 }
 
@@ -1580,6 +1691,8 @@ async function addProduct(){
   const sell = toInternal(rawSell);
   const qty = parseInt(document.getElementById('in-qty').value) || 0;
   const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
+  const hasExpiry = document.getElementById('in-has-expiry').checked;
+  const expiryDate = hasExpiry ? (document.getElementById('in-expiry-date').value || null) : null;
   if(!name || !sell){
     showToast(currentLang==='fr' ? "Donne au moins un nom et un prix de vente" : "Pesa nkombo na ntalo ya kotéka");
     return;
@@ -1588,11 +1701,11 @@ async function addProduct(){
     const product = products.find(p=>p.id===editingProductId);
     if(product){
       product.name = name; product.buy = buy; product.sell = sell;
-      product.qty = qty; product.threshold = threshold;
+      product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
     }
   } else {
     if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
-    products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, lastSoldAt: null, createdAt: Date.now() });
+    products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now() });
   }
   const wasEditing = !!editingProductId;
   await saveProducts();
@@ -1615,9 +1728,11 @@ async function addCartonProduct(){
   const cartonBuyInternal = toInternal(rawCartonBuy);
   const buyPerPiece = cartonBuyInternal / cartonQty;
   const sell = toInternal(rawSell);
+  const hasExpiry = document.getElementById('carton-has-expiry').checked;
+  const expiryDate = hasExpiry ? (document.getElementById('carton-expiry-date').value || null) : null;
   products.push({
     id: Date.now().toString(), name, buy: buyPerPiece, sell,
-    qty: cartonQty, threshold, lastSoldAt: null, createdAt: Date.now()
+    qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now()
   });
   await saveProducts();
   closeAddSheet();
@@ -1648,6 +1763,8 @@ async function addSacProduct(){
     return;
   }
   if(!canAddMoreProducts(validRows.length)){ openLimitSheet(); return; }
+  const hasExpiry = document.getElementById('sac-has-expiry').checked;
+  const expiryDate = hasExpiry ? (document.getElementById('sac-expiry-date').value || null) : null;
   const lotId = 'lot' + Date.now().toString();
   let offset = 0;
   validRows.forEach(({mName, rawMSell, mQty})=>{
@@ -1656,7 +1773,7 @@ async function addSacProduct(){
     offset++;
     products.push({
       id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell,
-      qty: mQty, threshold, lastSoldAt: null, createdAt: Date.now(),
+      qty: mQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
       lotId: lotId, yieldPerSac: mQty
     });
   });
@@ -1823,29 +1940,14 @@ function render(){
     const ref = p.lastSoldAt || p.createdAt;
     return daysSince(ref) >= 14;
   });
-  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id)]).size;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
+  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id), ...expired.map(p=>p.id)]).size;
   document.getElementById('stat-alerts').textContent = alertCount;
 
   const alertsSection = document.getElementById('alerts-section');
-  const alertsList = document.getElementById('alerts-list');
-  alertsList.innerHTML = '';
-  if(alertCount > 0){
-    alertsSection.style.display = 'block';
-    lowStock.forEach(p=>{
-      const div = document.createElement('div');
-      div.className = 'alert-banner';
-      div.innerHTML = `<b>${p.name}</b> — ${t.lowStock} (${p.qty} ${t.stockUnit})`;
-      alertsList.appendChild(div);
-    });
-    dormant.forEach(p=>{
-      const div = document.createElement('div');
-      div.className = 'alert-banner';
-      div.innerHTML = `<b>${p.name}</b> — ${t.dormant}`;
-      alertsList.appendChild(div);
-    });
-  } else {
-    alertsSection.style.display = 'none';
-  }
+  alertsSection.style.display = alertCount > 0 ? 'block' : 'none';
+  document.getElementById('t-alerts-prompt').textContent = expired.length > 0 ? t.alertsPromptWithExpired : t.alertsPrompt;
 
   const list = document.getElementById('products-list');
   const empty = document.getElementById('empty-state');
@@ -2096,13 +2198,47 @@ async function deleteHistoryEntry(type, id){
   const ok = window.confirm(t.confirmDeleteEntry);
   if(!ok) return;
   if(type==='sale'){
+    const sale = sales.find(s=>s.id===id);
     sales = sales.filter(s=>s.id!==id);
     await saveSales();
+    if(sale){
+      // Restaurer le stock du produit concerné
+      const product = products.find(p=>p.id===sale.productId);
+      if(product){
+        if(product.lotId){
+          const lot = lots.find(l=>l.id===product.lotId);
+          if(lot){
+            lot.remainingFraction = Math.min(1, lot.remainingFraction + (sale.qty / product.yieldPerSac));
+            recalcLotQuantities(product.lotId);
+            saveLots();
+          }
+        } else {
+          product.qty += sale.qty;
+        }
+        await saveProducts();
+      }
+      // Annuler l'impact sur les compteurs (seulement si ce n'était pas une vente à crédit,
+      // puisque les ventes à crédit non réglées n'ont jamais été comptées dans les compteurs)
+      if(!sale.isCredit){
+        stats.totalProfit = Math.max(0, stats.totalProfit - sale.profit);
+        if(isToday(sale.date)){
+          stats.todaySales = Math.max(0, stats.todaySales - sale.total);
+          stats.todayProfit = Math.max(0, stats.todayProfit - sale.profit);
+        }
+        saveStats();
+      }
+    }
   } else if(type==='expense'){
+    const expense = expenses.find(e=>e.id===id);
     expenses = expenses.filter(e=>e.id!==id);
     await saveExpenses();
+    if(expense){
+      stats.totalExpenses = Math.max(0, stats.totalExpenses - expense.amount);
+      saveStats();
+    }
   }
   renderHistory();
+  render();
   showToast(t.entryDeleted);
 }
 async function clearAllHistory(){
@@ -2111,9 +2247,12 @@ async function clearAllHistory(){
   if(!ok) return;
   sales = [];
   expenses = [];
+  stats.totalExpenses = 0;
   await saveSales();
   await saveExpenses();
+  saveStats();
   renderHistory();
+  render();
   showToast(t.historyCleared);
 }
 
@@ -2225,6 +2364,56 @@ async function confirmExpense(){
   closeExpenseSheet();
   showToast(dict[currentLang].expenseSaved);
   render();
+}
+
+/* ---------- Alertes (stock faible / produits périmés) ---------- */
+let alertsTab = 'stock';
+function openAlertsSheet(){
+  alertsTab = 'stock';
+  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab==='stock'));
+  renderAlertsSheet();
+  document.getElementById('alerts-overlay').classList.add('open');
+}
+function closeAlertsSheet(){
+  document.getElementById('alerts-overlay').classList.remove('open');
+}
+function setAlertsTab(tab){
+  alertsTab = tab;
+  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab===tab));
+  renderAlertsSheet();
+}
+function renderAlertsSheet(){
+  const t = dict[currentLang];
+  const list = document.getElementById('alerts-sheet-list');
+  const empty = document.getElementById('alerts-sheet-empty');
+  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  const dormant = products.filter(p=>{
+    const ref = p.lastSoldAt || p.createdAt;
+    return daysSince(ref) >= 14;
+  });
+  const todayStr = new Date().toISOString().slice(0,10);
+  const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
+
+  list.innerHTML = '';
+  let items = [];
+  if(alertsTab === 'stock'){
+    lowStock.forEach(p=>items.push(`<b>${p.name}</b> — ${t.lowStock} (${p.qty} ${t.stockUnit})`));
+    dormant.forEach(p=>items.push(`<b>${p.name}</b> — ${t.dormant}`));
+  } else {
+    expired.forEach(p=>items.push(`⏰ <b>${p.name}</b> — ${t.expiredAlert} (${p.expiryDate})`));
+  }
+
+  if(items.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  items.forEach(html=>{
+    const div = document.createElement('div');
+    div.className = 'alert-banner';
+    div.innerHTML = html;
+    list.appendChild(div);
+  });
 }
 
 function showToast(msg){
