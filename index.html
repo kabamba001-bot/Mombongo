@@ -171,6 +171,8 @@
   }
   .debt-item .top-row{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
   .debt-item .name{font-weight:700; font-size:14px;}
+  .client-call-link{color:var(--emerald); text-decoration:none;}
+  .client-call-link:active{opacity:.7;}
   .debt-item .phone{font-size:11.5px; color:var(--charcoal-soft); margin-top:1px;}
   .debt-item .owed{font-family:'Sora'; font-weight:800; font-size:15px; color:var(--alert); white-space:nowrap;}
   .debt-item .items-list{font-size:11.5px; color:var(--charcoal-soft); margin-top:6px; line-height:1.5;}
@@ -268,6 +270,13 @@
   }
   .field input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .date-group{display:flex; gap:6px;}
+  .date-part, .date-part-year{
+    text-align:center; padding:12px 4px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:15px; font-family:'Inter'; color:var(--charcoal);
+  }
+  .date-part{width:0; flex:1;}
+  .date-part-year{width:0; flex:1.4;}
   .btn-primary{
     width:100%; background:var(--emerald); color:#fff; border:none; border-radius:12px;
     padding:14px; font-size:15px; font-weight:700; font-family:'Sora'; cursor:pointer; margin-top:6px;
@@ -429,7 +438,7 @@
       </div>
       <div id="no-results" class="empty" style="display:none;">
         <span id="t-no-results">Aucun produit ne correspond à ta recherche.</span>
-      </div
+      </div>
     </section>
   </main>
 
@@ -486,7 +495,11 @@
         <div id="expiry-field-simple" style="display:none;">
           <div class="field">
             <label id="t-expiry-date">Date de péremption</label>
-            <input id="in-expiry-date" type="date">
+            <div class="date-group">
+              <input id="in-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="in-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="in-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
           </div>
         </div>
       </div>
@@ -529,7 +542,11 @@
         <div id="expiry-field-carton" style="display:none;">
           <div class="field">
             <label id="t-expiry-date-carton">Date de péremption</label>
-            <input id="carton-expiry-date" type="date">
+            <div class="date-group">
+              <input id="carton-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="carton-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="carton-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
           </div>
         </div>
       </div>
@@ -564,7 +581,11 @@
         <div id="expiry-field-sac" style="display:none;">
           <div class="field">
             <label id="t-expiry-date-sac">Date de péremption (s'applique à toutes les mesurettes)</label>
-            <input id="sac-expiry-date" type="date">
+            <div class="date-group">
+              <input id="sac-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="sac-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="sac-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
           </div>
         </div>
       </div>
@@ -611,7 +632,11 @@
           </div>
           <div class="field">
             <label id="t-due-date">Date limite (optionnel)</label>
-            <input id="in-due-date" type="date">
+            <div class="date-group">
+              <input id="in-due-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="in-due-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="in-due-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
           </div>
         </div>
       </div>
@@ -663,14 +688,20 @@
       </div>
 
       <div id="custom-range-fields" style="display:none;">
-        <div class="two-col">
-          <div class="field">
-            <label id="t-period-from">Du</label>
-            <input id="in-period-from" type="date">
+        <div class="field">
+          <label id="t-period-from">Du</label>
+          <div class="date-group">
+            <input id="in-period-from-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-period-from-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-period-from-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
           </div>
-          <div class="field">
-            <label id="t-period-to">Au</label>
-            <input id="in-period-to" type="date">
+        </div>
+        <div class="field">
+          <label id="t-period-to">Au</label>
+          <div class="date-group">
+            <input id="in-period-to-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-period-to-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-period-to-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
           </div>
         </div>
         <button class="btn-secondary" style="margin-top:0;" onclick="applyCustomRange()" id="t-period-apply">Appliquer</button>
@@ -903,6 +934,7 @@ const dict = {
     expiredAlert:"expiré le",
     alertsPrompt:"Vérifie les alertes pour connaître les stocks faibles",
     alertsPromptWithExpired:"Vérifie les alertes pour connaître les stocks faibles et produits périmés",
+    dateTooOld:"Cette date dépasse la limite de 13 mois d'historique conservé.",
     alertsTabStock:"Stock faible", alertsTabExpired:"Produits périmés",
     alertsSheetEmpty:"Aucune alerte ici pour l'instant. 🎉"
   },
@@ -977,6 +1009,7 @@ const dict = {
     expiredAlert:"ebolá na",
     alertsPrompt:"Talá ba alertes mpo na koyeba stock oyo ekómi moke",
     alertsPromptWithExpired:"Talá ba alertes mpo na koyeba stock oyo ekómi moke na biloko oyo ebolá",
+    dateTooOld:"Date oyo eleki ndelo ya sanza 13 ya istwaru oyo ebombami.",
     alertsTabStock:"Stock ekómi moke", alertsTabExpired:"Biloko ebolá",
     alertsSheetEmpty:"Alerte moko te sik'oyo. 🎉"
   },
@@ -1051,6 +1084,7 @@ const dict = {
     expiredAlert:"imeisha muda tarehe",
     alertsPrompt:"Angalia maonyo kujua bidhaa zinazoisha",
     alertsPromptWithExpired:"Angalia maonyo kujua bidhaa zinazoisha na bidhaa zilizoisha muda",
+    dateTooOld:"Tarehe hii inazidi kikomo cha miezi 13 ya historia iliyohifadhiwa.",
     alertsTabStock:"Bidhaa zinazoisha", alertsTabExpired:"Bidhaa zilizoisha muda",
     alertsSheetEmpty:"Hakuna onyo hapa kwa sasa. 🎉"
   }
@@ -1561,18 +1595,21 @@ function openEditSheet(id){
   document.getElementById('in-qty').value = product.qty;
   document.getElementById('in-threshold').value = product.threshold;
   document.getElementById('in-has-expiry').checked = !!product.expiryDate;
-  document.getElementById('in-expiry-date').value = product.expiryDate || '';
+  setDateValue('in-expiry-date', product.expiryDate || '');
   toggleExpiryField('simple');
   document.getElementById('add-overlay').classList.add('open');
 }
 function closeAddSheet(){
   document.getElementById('add-overlay').classList.remove('open');
-  ['in-name','in-buy','in-sell','in-qty','in-threshold','in-expiry-date',
-   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold','carton-expiry-date',
-   'sac-name','sac-buy','sac-threshold','sac-expiry-date'].forEach(id=>{
+  ['in-name','in-buy','in-sell','in-qty','in-threshold',
+   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold',
+   'sac-name','sac-buy','sac-threshold'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value='';
   });
+  setDateValue('in-expiry-date', '');
+  setDateValue('carton-expiry-date', '');
+  setDateValue('sac-expiry-date', '');
   ['in-has-expiry','carton-has-expiry','sac-has-expiry'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.checked = false;
@@ -1692,7 +1729,7 @@ async function addProduct(){
   const qty = parseInt(document.getElementById('in-qty').value) || 0;
   const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
   const hasExpiry = document.getElementById('in-has-expiry').checked;
-  const expiryDate = hasExpiry ? (document.getElementById('in-expiry-date').value || null) : null;
+  const expiryDate = hasExpiry ? (getDateValue('in-expiry-date') || null) : null;
   if(!name || !sell){
     showToast(currentLang==='fr' ? "Donne au moins un nom et un prix de vente" : "Pesa nkombo na ntalo ya kotéka");
     return;
@@ -1729,7 +1766,7 @@ async function addCartonProduct(){
   const buyPerPiece = cartonBuyInternal / cartonQty;
   const sell = toInternal(rawSell);
   const hasExpiry = document.getElementById('carton-has-expiry').checked;
-  const expiryDate = hasExpiry ? (document.getElementById('carton-expiry-date').value || null) : null;
+  const expiryDate = hasExpiry ? (getDateValue('carton-expiry-date') || null) : null;
   products.push({
     id: Date.now().toString(), name, buy: buyPerPiece, sell,
     qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now()
@@ -1764,7 +1801,7 @@ async function addSacProduct(){
   }
   if(!canAddMoreProducts(validRows.length)){ openLimitSheet(); return; }
   const hasExpiry = document.getElementById('sac-has-expiry').checked;
-  const expiryDate = hasExpiry ? (document.getElementById('sac-expiry-date').value || null) : null;
+  const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
   const lotId = 'lot' + Date.now().toString();
   let offset = 0;
   validRows.forEach(({mName, rawMSell, mQty})=>{
@@ -1811,7 +1848,7 @@ function openSellSheet(id){
   document.getElementById('in-is-credit').checked = false;
   document.getElementById('in-client-name').value = '';
   document.getElementById('in-client-phone').value = '';
-  document.getElementById('in-due-date').value = '';
+  setDateValue('in-due-date', '');
   document.getElementById('credit-fields').style.display = 'none';
   document.getElementById('sell-overlay').classList.add('open');
   updateSellPreview();
@@ -1848,7 +1885,7 @@ async function confirmSale(){
     return;
   }
   const clientPhone = document.getElementById('in-client-phone').value.trim();
-  const dueDate = document.getElementById('in-due-date').value;
+  const dueDate = getDateValue('in-due-date');
 
   if(product.lotId){
     const lot = lots.find(l=>l.id===product.lotId);
@@ -1910,6 +1947,25 @@ async function confirmSale(){
 }
 
 /* ---------- Rendu ---------- */
+function getDateValue(prefix){
+  const dEl = document.getElementById(prefix+'-d');
+  const mEl = document.getElementById(prefix+'-m');
+  const yEl = document.getElementById(prefix+'-y');
+  if(!dEl || !mEl || !yEl) return '';
+  const d = dEl.value, m = mEl.value, y = yEl.value;
+  if(!d || !m || !y || String(y).length < 4) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function setDateValue(prefix, iso){
+  const dEl = document.getElementById(prefix+'-d');
+  const mEl = document.getElementById(prefix+'-m');
+  const yEl = document.getElementById(prefix+'-y');
+  if(!dEl || !mEl || !yEl) return;
+  if(!iso){ dEl.value = ''; mEl.value = ''; yEl.value = ''; return; }
+  const [y,m,d] = iso.split('-');
+  yEl.value = y; mEl.value = parseInt(m,10); dEl.value = parseInt(d,10);
+}
+
 function isToday(ts){
   const d = new Date(ts), now = new Date();
   return d.toDateString() === now.toDateString();
@@ -2030,11 +2086,8 @@ function openHistorySheet(){
   historyCustomTo = null;
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period==='day'));
   document.getElementById('custom-range-fields').style.display = 'none';
-  document.getElementById('in-period-from').value = '';
-  document.getElementById('in-period-to').value = '';
-  const minDate = new Date(getHistoryRetentionCutoff()).toISOString().slice(0,10);
-  document.getElementById('in-period-from').min = minDate;
-  document.getElementById('in-period-to').min = minDate;
+  setDateValue('in-period-from', '');
+  setDateValue('in-period-to', '');
   renderHistory();
   document.getElementById('history-overlay').classList.add('open');
   try{ history.pushState({ mombongoHistoryOpen: true }, ''); }catch(e){}
@@ -2068,10 +2121,16 @@ function setHistoryPeriod(period){
   }
 }
 function applyCustomRange(){
-  const from = document.getElementById('in-period-from').value;
-  const to = document.getElementById('in-period-to').value;
+  const from = getDateValue('in-period-from');
+  const to = getDateValue('in-period-to');
   if(!from || !to){
     showToast(currentLang==='fr' ? "Choisis les deux dates" : "Poná ba dates mibale");
+    return;
+  }
+  const cutoff = getHistoryRetentionCutoff();
+  const fromTs = new Date(from + 'T00:00:00').getTime();
+  if(fromTs < cutoff){
+    showToast(dict[currentLang].dateTooOld);
     return;
   }
   historyCustomFrom = from;
@@ -2284,8 +2343,8 @@ function renderDebtsList(){
     div.innerHTML = `
       <div class="top-row">
         <div>
-          <div class="name">${d.clientName}</div>
-          ${d.phone ? `<div class="phone">📞 ${d.phone}</div>` : ''}
+          <div class="name">${d.phone ? `<a href="tel:${d.phone}" class="client-call-link">📞 ${d.clientName}</a>` : d.clientName}</div>
+          ${d.phone ? `<div class="phone">${d.phone}</div>` : ''}
         </div>
         <div class="owed">${formatMoney(remaining)}</div>
       </div>
