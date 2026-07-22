@@ -1,5 +1,6 @@
-const CACHE_NAME = 'mombongo-v4';
+const CACHE_NAME = 'mombongo-v5';
 const FILES_TO_CACHE = [
+  './',
   './index.html',
   './manifest.json',
   './icon-192.png',
@@ -13,8 +14,6 @@ const FILES_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // On met en cache chaque fichier séparément : si un seul échoue (ex: police
-      // externe injoignable), les autres restent quand même sauvegardés.
       return Promise.allSettled(
         FILES_TO_CACHE.map((url) => cache.add(url).catch(() => null))
       );
@@ -32,10 +31,6 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Stratégie "cache d'abord" : l'app s'ouvre TOUJOURS instantanément avec la
-// dernière version enregistrée, même hors ligne ou avec un réseau très lent.
-// En parallèle, on va chercher une version plus récente en arrière-plan pour
-// la prochaine ouverture — sans jamais bloquer l'ouverture actuelle.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -51,9 +46,16 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => null);
 
-      // Si on a une version en cache, on la sert tout de suite.
-      // Sinon (premier chargement), on attend le réseau.
-      return cached || networkFetch;
+      // Si on a le fichier en cache, on le sert. 
+      // Sinon on attend le réseau, ET si le réseau échoue pour une page HTML, 
+      // on renvoie index.html par défaut pour éviter le blocage (Splash Screen infini).
+      return cached || networkFetch.then((response) => {
+        if (response) return response;
+        // Secours ultime si hors-ligne et non mis en cache :
+        if (event.request.headers.get('accept').includes('text/html')) {
+          return caches.match('./index.html');
+        }
+      });
     })
   );
 });
