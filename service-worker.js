@@ -14,6 +14,8 @@ const FILES_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      // Chaque fichier est mis en cache séparément : si un seul échoue
+      // (ex: réseau coupé pile à ce moment), les autres restent quand même sauvegardés.
       return Promise.allSettled(
         FILES_TO_CACHE.map((url) => cache.add(url).catch(() => null))
       );
@@ -34,6 +36,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const isNavigation = event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networkFetch = fetch(event.request)
@@ -46,15 +51,16 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => null);
 
-      // Si on a le fichier en cache, on le sert. 
-      // Sinon on attend le réseau, ET si le réseau échoue pour une page HTML, 
-      // on renvoie index.html par défaut pour éviter le blocage (Splash Screen infini).
+      // 1. Si le fichier demandé est déjà en cache, on le sert tout de suite.
+      // 2. Sinon on essaie le réseau.
+      // 3. Si le réseau échoue ET que c'est une page (navigation), on retombe
+      //    sur index.html en dernier recours, pour éviter l'écran bloqué.
       return cached || networkFetch.then((response) => {
         if (response) return response;
-        // Secours ultime si hors-ligne et non mis en cache :
-        if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('./index.html');
+        if (isNavigation) {
+          return caches.match('./index.html').then((fallback) => fallback || Response.error());
         }
+        return Response.error();
       });
     })
   );
