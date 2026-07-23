@@ -1561,8 +1561,7 @@ async function pushToCloud(){
   if(!storeId) return;
   storesDataCache[storeId] = { products, sales, lots, debts, expenses, stats };
   try{
-    const update = { updatedAt: Date.now() };
-    update['storesData.' + storeId] = storesDataCache[storeId];
+    const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
     if(!isEmployeeMode){
       update.stores = stores;
       update.activeStoreId = activeStoreId;
@@ -1581,6 +1580,18 @@ function applyDocData(data){
   if(data.rate) exchangeRate = data.rate;
   if(data.currency) currentCurrency = data.currency;
   storesDataCache = data.storesData || {};
+
+  // Récupération : les versions précédentes de l'app pouvaient écrire par erreur
+  // un champ littéral "storesData.<id>" (avec un point dans le nom) au lieu d'un
+  // objet imbriqué. On récupère ces données si elles existent, pour ne rien perdre.
+  Object.keys(data).forEach(key=>{
+    if(key.indexOf('storesData.') === 0){
+      const legacyStoreId = key.slice('storesData.'.length);
+      if(!storesDataCache[legacyStoreId]){
+        storesDataCache[legacyStoreId] = data[key];
+      }
+    }
+  });
 
   if(data.stores && data.stores.length){
     stores = data.stores;
