@@ -1,0 +1,3873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
+<title>Mombongo — Gestion de commerce</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#146356">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --emerald:#146356;
+    --emerald-light:#1c8a76;
+    --marigold:#e8a23b;
+    --paper:#f7f3e8;
+    --paper-2:#efe8d6;
+    --charcoal:#26221d;
+    --charcoal-soft:#5b564c;
+    --alert:#c0392b;
+    --alert-bg:#fbeae7;
+    --ok-bg:#e9f3ee;
+    --card-bg:#ffffff;
+    --slate:#5a7268;
+    --radius:14px;
+    --shadow:0 2px 10px rgba(38,34,29,0.08);
+  }
+  body.dark-mode{
+    --paper:#151a17;
+    --paper-2:#20271f;
+    --charcoal:#eae7de;
+    --charcoal-soft:#a39d90;
+    --alert-bg:#3a1f1c;
+    --ok-bg:#16332a;
+    --card-bg:#1e2521;
+    --slate:#6b8a7e;
+    --shadow:0 2px 10px rgba(0,0,0,0.35);
+  }
+  body.dark-mode .stat-reset, body.dark-mode .del-entry, body.dark-mode button.del, body.dark-mode button.edit{
+    opacity:.65;
+  }
+  *{box-sizing:border-box;}
+  body{
+    transition:background-color .2s ease, color .2s ease;
+    margin:0; background:var(--paper); color:var(--charcoal);
+    font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,h3,.display{ font-family:'Sora',sans-serif; }
+  #app{
+    max-width:480px; margin:0 auto; min-height:100vh;
+    background:var(--paper); display:flex; flex-direction:column;
+  }
+  header.top{
+    background:var(--emerald); color:var(--paper);
+    padding:20px 20px 28px; position:relative; overflow:hidden;
+  }
+  header.top::after{
+    content:""; position:absolute; right:-30px; top:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:var(--emerald-light); opacity:.5;
+  }
+  header.top .row{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  header.top h1{font-size:22px; font-weight:800; margin:0 0 4px;}
+  header.top p{margin:0; font-size:13px; opacity:.85;}
+  .toggles{display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+  .mini-toggle{display:flex; background:rgba(0,0,0,0.18); border-radius:999px; padding:3px;}
+  .mini-toggle button{
+    border:none; background:transparent; color:var(--paper);
+    font-family:'Inter'; font-size:12px; font-weight:600;
+    padding:6px 10px; border-radius:999px; cursor:pointer;
+  }
+  .mini-toggle button.active{background:var(--paper); color:var(--emerald);}
+  .field-currency-toggle{display:inline-flex; background:var(--paper-2); border-radius:999px; padding:2px; margin-left:6px; vertical-align:middle;}
+  .field-currency-toggle button{border:none; background:transparent; color:var(--charcoal-soft); font-family:'Inter'; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; cursor:pointer;}
+  .field-currency-toggle button.active{background:var(--emerald); color:#fff;}
+  #rate-row{display:none; margin-top:12px; position:relative; z-index:1;}
+  #rate-row label{font-size:11px; opacity:.85; display:block; margin-bottom:4px;}
+  #rate-row input{
+    width:110px; padding:7px 9px; border-radius:8px; border:none;
+    font-size:13px; font-family:'Inter'; font-weight:600;
+  }
+  #rate-row span{font-size:12px; margin-left:6px;}
+  #account-row{margin-top:10px; position:relative; z-index:1;}
+  #account-btn, #history-btn{
+    display:flex; align-items:center; gap:6px;
+    background:rgba(0,0,0,0.18); border:none; border-radius:999px;
+    color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
+    padding:7px 13px; cursor:pointer;
+  }
+  #theme-btn{
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.18); border:none; border-radius:999px;
+    color:var(--paper); font-size:14px; width:34px; height:34px; cursor:pointer; flex-shrink:0;
+  }
+  .history-item{
+    background:var(--card-bg); border-radius:12px; padding:12px 14px; margin-bottom:8px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .history-item .info{flex:1; min-width:0;}
+  .history-item .info .name{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .history-item .info .meta{font-size:11.5px; color:var(--charcoal-soft); margin-top:2px;}
+  .history-item .amounts{text-align:right; white-space:nowrap;}
+  .history-item .amounts .total{font-family:'Sora'; font-weight:700; font-size:13.5px; color:var(--emerald);}
+  .history-item .amounts .total.negative{color:var(--alert);}
+  .history-item .amounts .profit{font-size:11px; color:var(--charcoal-soft);}
+  .history-item button.del-entry{
+    background:none; border:none; color:var(--charcoal-soft); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0;
+  }
+  .history-item button.del-entry:active{color:var(--alert);}
+  .btn-danger-outline{
+    width:100%; background:var(--card-bg); border:1.5px solid var(--alert); color:var(--alert);
+    border-radius:12px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
+    cursor:pointer; margin-top:6px; margin-bottom:6px;
+  }
+  .account-status{
+    display:flex; align-items:center; gap:10px; background:var(--ok-bg);
+    border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .account-status img{width:36px; height:36px; border-radius:50%;}
+  .account-status .name{font-weight:700; font-size:13.5px;}
+  .account-status .email{font-size:11.5px; color:var(--charcoal-soft);}
+
+  .stats-row{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    padding:0 16px; margin-top:-18px; position:relative; z-index:2;
+  }
+  .stat-card{
+    background:var(--paper); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px;
+    position:relative;
+  }
+  .stat-reset{
+    position:absolute; top:8px; right:8px; background:none; border:none;
+    font-size:13px; opacity:.45; cursor:pointer; padding:4px; line-height:1;
+  }
+  .stat-reset:active{opacity:.9;}
+  .stat-card .label{font-size:10.5px; color:var(--charcoal-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  .stat-card .value{font-family:'Sora'; font-size:17px; font-weight:700; margin-top:4px;}
+  .stat-card .value.money{color:var(--emerald);}
+  .stat-card .value.alert{color:var(--alert);}
+  .stat-card.clickable{cursor:pointer;}
+  .sub-expense{
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--paper-2);
+    font-size:11px; color:var(--alert); display:flex; align-items:center; gap:5px; cursor:pointer;
+  }
+  .sub-expense:active{opacity:.7;}
+  .expense-reset{
+    background:none; border:none; font-size:11px; opacity:.5; cursor:pointer; padding:2px; margin-left:auto;
+  }
+  .sub-debt{cursor:pointer;}
+  .sub-debt:active{opacity:.7;}
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--paper-2); border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .toggle-row span{font-size:13.5px; font-weight:600;}
+  .switch{position:relative; width:44px; height:25px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .switch-track{
+    position:absolute; inset:0; background:var(--charcoal-soft); opacity:.35;
+    border-radius:999px; cursor:pointer; transition:background .2s ease;
+  }
+  .switch-track::before{
+    content:""; position:absolute; width:19px; height:19px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:transform .2s ease;
+  }
+  .switch input:checked + .switch-track{background:var(--emerald); opacity:1;}
+  .switch input:checked + .switch-track::before{transform:translateX(19px);}
+
+  .debt-item{
+    background:var(--card-bg); border-radius:12px; padding:13px 14px; margin-bottom:10px;
+  }
+  .debt-item .top-row{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .debt-item .name{font-weight:700; font-size:14px;}
+  .client-call-link{color:var(--emerald); text-decoration:none;}
+  .client-call-link:active{opacity:.7;}
+  .debt-item .phone{font-size:11.5px; color:var(--charcoal-soft); margin-top:1px;}
+  .debt-item .owed{font-family:'Sora'; font-weight:800; font-size:15px; color:var(--alert); white-space:nowrap;}
+  .debt-item .items-list{font-size:11.5px; color:var(--charcoal-soft); margin-top:6px; line-height:1.5;}
+  .debt-item .due{font-size:11px; color:var(--marigold); margin-top:4px; font-weight:600;}
+  .debt-item .pay-btn{
+    width:100%; margin-top:10px; background:var(--emerald); color:#fff; border:none;
+    border-radius:9px; padding:9px; font-size:12.5px; font-weight:700; font-family:'Inter'; cursor:pointer;
+  }
+
+  main{flex:1; padding:20px 16px 100px;}
+  section{margin-bottom:22px;}
+  section h2{font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft); margin:0 0 10px; font-weight:700;}
+
+  .alert-banner{
+    background:var(--alert-bg); border-left:4px solid var(--alert);
+    border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:13.5px;
+  }
+  .alert-banner b{color:var(--alert);}
+  .empty{
+    text-align:center; color:var(--charcoal-soft); font-size:13.5px;
+    padding:26px 10px; border:1.5px dashed var(--paper-2); border-radius:var(--radius);
+  }
+
+  .search-wrap{position:relative; margin-bottom:12px;}
+  .search-wrap input{
+    width:100%; padding:12px 14px 12px 38px; border-radius:12px;
+    border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:14px;
+    font-family:'Inter'; color:var(--charcoal);
+  }
+  .search-wrap input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+  .search-wrap .icon{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-size:15px; opacity:.5; pointer-events:none;
+  }
+
+  .product-card{
+    background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:10px;
+  }
+  .product-card .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .dot.green{background:var(--emerald-light);}
+  .dot.amber{background:var(--marigold);}
+  .dot.red{background:var(--alert);}
+  .product-card .info{flex:1; min-width:0;}
+  .product-card .info .name{font-weight:700; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .product-card .info .meta{font-size:12px; color:var(--charcoal-soft); margin-top:2px;}
+  .product-card .price{font-family:'Sora'; font-weight:700; font-size:13px; color:var(--emerald); white-space:nowrap; text-align:right;}
+  .product-card button.sell{
+    background:var(--emerald); color:#fff; border:none; border-radius:9px;
+    padding:8px 11px; font-size:12px; font-weight:700; font-family:'Inter'; cursor:pointer; white-space:nowrap;
+  }
+  .product-card button.del{
+    background:transparent; border:none; color:var(--charcoal-soft);
+    font-size:16px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
+  }
+  .product-card button.del:active{color:var(--alert);}
+  .product-card button.edit{
+    background:transparent; border:none; color:var(--charcoal-soft);
+    font-size:15px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
+  }
+  .product-card button.edit:active{color:var(--emerald);}
+
+  .fab-row{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:20px;
+    width:calc(100% - 32px); max-width:448px; display:flex; gap:10px; z-index:20;
+  }
+  .fab{
+    flex:1; border:none; border-radius:14px; padding:15px; font-size:14.5px; font-weight:800;
+    font-family:'Sora'; cursor:pointer;
+  }
+  .fab-left{
+    background:var(--marigold); color:var(--charcoal);
+    box-shadow:0 6px 18px rgba(232,162,59,0.4);
+  }
+  .fab-right{
+    background:var(--slate); color:#fff;
+    box-shadow:0 6px 18px rgba(90,107,107,0.35);
+  }
+
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(38,34,29,0.45);
+    display:none; align-items:flex-end; z-index:30;
+  }
+  .sheet-overlay.open{display:flex;}
+  .sheet{
+    background:var(--paper); width:100%; max-width:480px; margin:0 auto;
+    border-radius:20px 20px 0 0; padding:20px 20px 26px; max-height:88vh; overflow-y:auto;
+  }
+  .sheet h3{margin:0 0 16px; font-size:17px; font-weight:700;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--charcoal-soft); margin-bottom:6px;}
+  .field input{
+    width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:15px; font-family:'Inter'; color:var(--charcoal);
+  }
+  .field input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .date-group{display:flex; gap:6px;}
+  .date-part, .date-part-year{
+    text-align:center; padding:12px 4px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:15px; font-family:'Inter'; color:var(--charcoal);
+  }
+  .date-part{width:0; flex:1;}
+  .date-part-year{width:0; flex:1.4;}
+  .btn-primary{
+    width:100%; background:var(--emerald); color:#fff; border:none; border-radius:12px;
+    padding:14px; font-size:15px; font-weight:700; font-family:'Sora'; cursor:pointer; margin-top:6px;
+  }
+  .btn-secondary{
+    width:100%; background:transparent; color:var(--charcoal-soft); border:none;
+    padding:10px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .method-row{display:flex; gap:8px;}
+  .method-row button{
+    flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter';
+  }
+  .method-row button.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+
+  #add-sheet-inner{ min-height:75vh; }
+  .mode-row{display:flex; gap:8px; margin-bottom:18px;}
+  .period-row{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+  .period-btn{
+    flex:1; min-width:70px; padding:9px 4px; border-radius:10px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:11.5px; font-weight:700; cursor:pointer; font-family:'Inter';
+    color:var(--charcoal-soft);
+  }
+  .period-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+  .summary-card{
+    display:flex; background:var(--ok-bg); border-radius:12px; padding:13px 8px; margin-bottom:16px;
+  }
+  .summary-col{flex:1; text-align:center; border-left:1px solid var(--paper-2);}
+  .summary-col:first-child{border-left:none;}
+  .summary-lbl{font-size:10px; text-transform:uppercase; color:var(--charcoal-soft); font-weight:700; letter-spacing:.03em;}
+  .summary-val{font-family:'Sora'; font-size:14px; font-weight:800; margin-top:4px;}
+  .summary-val.money{color:var(--emerald);}
+  .summary-val.alert{color:var(--alert);}
+  .mode-btn{
+    flex:1; padding:11px 6px; border-radius:11px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Inter';
+    color:var(--charcoal-soft);
+  }
+  .mode-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+  .mesurette-row{
+    background:var(--ok-bg); border-radius:12px; padding:12px 12px 4px; margin-bottom:12px;
+  }
+  .btn-add-mesurette{
+    width:100%; background:var(--card-bg); border:1.5px dashed var(--paper-2); color:var(--emerald);
+    border-radius:10px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
+    cursor:pointer; margin-bottom:6px;
+  }
+  .remove-mesurette{
+    background:none; border:none; color:var(--alert); font-size:12px; font-weight:600;
+    cursor:pointer; padding:0 0 10px; font-family:'Inter';
+  }
+
+  .sell-preview{
+    background:var(--ok-bg); border-radius:12px; padding:14px; margin-bottom:14px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .sell-preview .col{text-align:center; flex:1;}
+  .sell-preview .col .lbl{font-size:10.5px; text-transform:uppercase; color:var(--charcoal-soft); font-weight:700; letter-spacing:.03em;}
+  .sell-preview .col .val{font-family:'Sora'; font-size:16px; font-weight:800; margin-top:3px; color:var(--emerald);}
+  .sell-preview .divider{width:1px; height:30px; background:var(--paper-2);}
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background:var(--charcoal); color:var(--paper); padding:11px 18px; border-radius:999px;
+    font-size:13px; font-weight:600; z-index:50; box-shadow:0 4px 14px rgba(0,0,0,0.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <div class="row">
+      <div>
+        <h1 id="t-appname">Mombongo</h1>
+        <p id="t-tagline">Suivi de ton commerce, simplement</p>
+      </div>
+      <div class="toggles">
+        <div class="mini-toggle">
+          <button id="btn-fr" class="active" onclick="setLang('fr')">FR</button>
+          <button id="btn-ln" onclick="setLang('ln')">LN</button>
+          <button id="btn-sw" onclick="setLang('sw')">SW</button>
+        </div>
+        <div class="mini-toggle">
+          <button id="btn-usd" class="active" onclick="setCurrency('usd')">USD</button>
+          <button id="btn-cdf" onclick="setCurrency('cdf')">FC</button>
+        </div>
+      </div>
+    </div>
+    <div id="rate-row">
+      <label id="t-rate-label">Taux de change : 1 $ =</label>
+      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
+      <span>FC</span>
+    </div>
+    <div id="account-row" style="display:flex; gap:8px;">
+      <button id="account-btn" onclick="openAccountSheet()">
+        <span id="account-btn-icon">👤</span>
+        <span id="account-btn-label">Compte</span>
+      </button>
+      <button id="history-btn" onclick="openHistorySheet()">
+        <span>🧾</span>
+        <span id="t-history-btn">Historique</span>
+      </button>
+      <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
+        <span id="theme-btn-icon">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <button class="stat-reset" id="reset-today-sales-btn" onclick="resetStat('todaySales')" aria-label="Réinitialiser">🗑</button>
+      <div class="label" id="t-today">Ventes aujourd'hui</div>
+      <div class="value money" id="stat-today">0 $</div>
+    </div>
+    <div class="stat-card">
+      <button class="stat-reset" id="reset-today-profit-btn" onclick="resetStat('todayProfit')" aria-label="Réinitialiser">🗑</button>
+      <div class="label" id="t-profit-today">Bénéfice aujourd'hui</div>
+      <div class="value money" id="stat-profit-today">0 $</div>
+    </div>
+    <div class="stat-card">
+      <button class="stat-reset" id="reset-total-profit-btn" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
+      <div class="label" id="t-profit-total">Bénéfice total</div>
+      <div class="value money" id="stat-profit-total">0 $</div>
+      <div class="sub-expense" onclick="openExpensesHistorySheet()">
+        <span id="t-expenses-label">Dépenses</span> :
+        <span id="stat-expenses">0 $</span>
+        <button class="expense-reset" id="reset-expenses-btn" onclick="event.stopPropagation(); resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
+      </div>
+    </div>
+    <div class="stat-card clickable" onclick="openAlertsSheet()">
+      <div class="label" id="t-alerts">Alertes stock</div>
+      <div class="value alert" id="stat-alerts">0</div>
+      <div class="sub-expense sub-debt" onclick="event.stopPropagation(); openDebtsSheet()">
+        <span id="t-debts-label">💳 Dettes en cours</span> :
+        <span id="stat-debts">0 $</span>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section id="alerts-section" style="display:none;">
+      <div class="alert-banner" style="cursor:pointer;" onclick="openAlertsSheet()">
+        ⚠️ <span id="t-alerts-prompt">Vérifie les alertes pour connaître les stocks faibles</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 id="t-products-title">Mes produits</h2>
+      <div class="search-wrap">
+        <span class="icon">🔍</span>
+        <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit..." id="t-search-input">
+      </div>
+      <div id="products-list"></div>
+      <div id="empty-state" class="empty" style="display:none;">
+        <span id="t-empty">Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.</span>
+      </div>
+      <div id="no-results" class="empty" style="display:none;">
+        <span id="t-no-results">Aucun produit ne correspond à ta recherche.</span>
+      </div>
+    </section>
+  </main>
+
+  <div class="fab-row">
+    <button class="fab fab-left" onclick="openAddSheet()" id="t-add-btn">➕ Produit</button>
+    <button class="fab fab-right" onclick="openExpenseSheet()" id="t-expense-btn">💸 Dépense</button>
+  </div>
+
+  <div class="sheet-overlay" id="add-overlay">
+    <div class="sheet" id="add-sheet-inner">
+      <h3 id="t-add-title">Nouveau produit</h3>
+
+      <div class="mode-row" id="add-mode-row">
+        <button class="mode-btn active" data-mode="simple" onclick="setAddMode('simple')" id="t-mode-simple">Produit simple</button>
+        <button class="mode-btn" data-mode="carton" onclick="setAddMode('carton')" id="t-mode-carton">📦 Carton</button>
+        <button class="mode-btn" data-mode="sac" onclick="setAddMode('sac')" id="t-mode-sac">🌾 Sac</button>
+      </div>
+
+      <div id="mode-simple-fields">
+        <div class="field">
+          <label id="t-name">Nom du produit</label>
+          <input id="in-name" type="text" placeholder="Ex : Savon Jabon">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-buy">Prix d'achat ($)</label><span class="field-currency-toggle" id="fc-toggle-buy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('buy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('buy','cdf')">FC</button></span>
+            <input id="in-buy" type="number" inputmode="decimal" placeholder="0.5">
+          </div>
+          <div class="field">
+            <label id="t-sell">Prix de vente ($)</label><span class="field-currency-toggle" id="fc-toggle-sell"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sell','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sell','cdf')">FC</button></span>
+            <input id="in-sell" type="number" inputmode="decimal" placeholder="1">
+          </div>
+          <div class="field" style="grid-column:1/-1; margin-bottom:0;">
+            <span id="t-currency-hint" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-qty">Quantité en stock</label>
+            <input id="in-qty" type="number" inputmode="numeric" placeholder="20">
+          </div>
+          <div class="field">
+            <label id="t-threshold">Seuil d'alerte</label>
+            <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-has-expiry" onchange="toggleExpiryField('simple')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-simple" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date">Date de péremption</label>
+            <div class="date-group">
+              <input id="in-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="in-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="in-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mode-carton-fields" style="display:none;">
+        <div class="field">
+          <label id="t-carton-name">Nom du produit</label>
+          <input id="carton-name" type="text" placeholder="Ex : Savon en carton">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-carton-qty">Nombre de pièces dans le carton</label>
+            <input id="carton-qty" type="number" inputmode="numeric" placeholder="24">
+          </div>
+          <div class="field">
+            <label id="t-carton-buy">Prix d'achat du carton</label><span class="field-currency-toggle" id="fc-toggle-cartonBuy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('cartonBuy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('cartonBuy','cdf')">FC</button></span>
+            <input id="carton-buy" type="number" inputmode="decimal" placeholder="12">
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-carton-sell">Prix de vente d'une pièce</label><span class="field-currency-toggle" id="fc-toggle-cartonSell"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('cartonSell','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('cartonSell','cdf')">FC</button></span>
+            <input id="carton-sell" type="number" inputmode="decimal" placeholder="1">
+          </div>
+          <div class="field">
+            <label id="t-carton-threshold">Seuil d'alerte</label>
+            <input id="carton-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
+        </div>
+        <div class="field">
+          <span id="t-carton-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Le prix d'achat d'une pièce sera calculé automatiquement.</span>
+        </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle-carton">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="carton-has-expiry" onchange="toggleExpiryField('carton')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-carton" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date-carton">Date de péremption</label>
+            <div class="date-group">
+              <input id="carton-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="carton-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="carton-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mode-sac-fields" style="display:none;">
+        <div class="field">
+          <label id="t-sac-name">Nom du produit</label>
+          <input id="sac-name" type="text" placeholder="Ex : Riz">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-sac-buy">Prix d'achat du sac</label><span class="field-currency-toggle" id="fc-toggle-sacBuy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sacBuy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sacBuy','cdf')">FC</button></span>
+            <input id="sac-buy" type="number" inputmode="decimal" placeholder="45">
+          </div>
+          <div class="field">
+            <label id="t-sac-threshold">Seuil d'alerte (par mesurette)</label>
+            <input id="sac-threshold" type="number" inputmode="numeric" placeholder="5">
+          </div>
+        </div>
+        <div id="mesurettes-list"></div>
+        <button type="button" class="btn-add-mesurette" onclick="addMesuretteRow()" id="t-add-mesurette">+ Ajouter une mesurette</button>
+        <div class="field" style="margin-top:10px;">
+          <span id="t-sac-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.</span>
+        </div>
+        <div class="toggle-row">
+          <span id="t-expiry-toggle-sac">Date de péremption ?</span>
+          <label class="switch">
+            <input type="checkbox" id="sac-has-expiry" onchange="toggleExpiryField('sac')">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="expiry-field-sac" style="display:none;">
+          <div class="field">
+            <label id="t-expiry-date-sac">Date de péremption (s'applique à toutes les mesurettes)</label>
+            <div class="date-group">
+              <input id="sac-expiry-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="sac-expiry-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="sac-expiry-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="handleAddSave()" id="t-save">Enregistrer le produit</button>
+      <button class="btn-secondary" onclick="closeAddSheet()" id="t-cancel">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="sell-overlay">
+    <div class="sheet">
+      <h3 id="sell-title">Vendre</h3>
+      <div class="field">
+        <label id="t-sell-qty">Quantité vendue</label>
+        <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()" onfocus="scrollConfirmIntoView()">
+      </div>
+      <div class="sell-preview">
+        <div class="col">
+          <div class="lbl" id="t-total-label">Total</div>
+          <div class="val" id="preview-total">0 $</div>
+        </div>
+        <div class="divider"></div>
+        <div class="col">
+          <div class="lbl" id="t-profit-label">Bénéfice</div>
+          <div class="val" id="preview-profit">0 $</div>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span id="t-credit-toggle">Vente à crédit ?</span>
+        <label class="switch">
+          <input type="checkbox" id="in-is-credit" onchange="toggleCreditFields()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="credit-fields" style="display:none;">
+        <div class="field">
+          <label id="t-client-name">Nom du client</label>
+          <input id="in-client-name" type="text" placeholder="Ex : Maman Marie">
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label id="t-client-phone">Numéro de téléphone (optionnel)</label>
+            <input id="in-client-phone" type="tel" placeholder="09xxxxxxxx">
+          </div>
+          <div class="field">
+            <label id="t-due-date">Date limite (optionnel)</label>
+            <div class="date-group">
+              <input id="in-due-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+              <input id="in-due-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+              <input id="in-due-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
+      <button class="btn-secondary" onclick="closeSellSheet()" id="t-cancel2">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="account-overlay">
+    <div class="sheet">
+      <h3 id="t-account-title">Compte</h3>
+
+      <div id="account-logged-out">
+        <p style="font-size:13.5px; color:var(--charcoal-soft); margin-top:0;" id="t-account-desc">
+          Connecte-toi avec Google pour sauvegarder tes données en ligne et les récupérer même si tu changes de téléphone.
+        </p>
+        <button class="btn-primary" onclick="signInWithGoogle()" id="t-signin-btn">Se connecter avec Google</button>
+        <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:8px;" onclick="openJoinWithCodeSheet()" id="t-join-with-code-btn">Rejoindre avec un code</button>
+      </div>
+
+      <div id="account-logged-in" style="display:none;">
+        <div class="account-status">
+          <img id="account-photo" src="" alt="">
+          <div>
+            <div class="name" id="account-name"></div>
+            <span id="account-vip-badge" style="display:none; background:var(--marigold); color:var(--charcoal); font-size:10px; font-weight:800; padding:2px 7px; border-radius:999px; margin-left:6px;">⭐ VIP</span>
+            <div class="email" id="account-email"></div>
+          </div>
+        </div>
+        <p style="font-size:12.5px; color:var(--charcoal-soft);" id="t-sync-status">Tes données sont synchronisées.</p>
+
+        <div style="margin-top:16px;">
+          <h3 style="font-size:14px; margin:0 0 10px;" id="t-stores-title">Mes boutiques</h3>
+          <div id="stores-list"></div>
+          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:2px;" onclick="openNewStoreSheet()" id="t-add-store-btn">+ Ajouter une boutique ou pharmacie</button>
+        </div>
+
+        <div style="margin-top:16px;">
+          <h3 style="font-size:14px; margin:0 0 10px;" id="t-devices-title">Appareils connectés</h3>
+          <p style="font-size:12px; color:var(--charcoal-soft); margin-top:0;" id="t-devices-desc">Relie 2 ou 3 téléphones à ce compte pour ton caissier ou ton magasinier.</p>
+          <div id="devices-list-inline"></div>
+          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openGeneratePinSheet()" id="t-add-device-btn">+ Connecter un autre appareil</button>
+        </div>
+
+        <button class="btn-secondary" onclick="signOutGoogle()" style="color:var(--alert); margin-top:10px;" id="t-signout-btn">Se déconnecter</button>
+        <button class="btn-danger-outline" onclick="confirmDeleteAccount()" id="t-delete-account-btn">Supprimer mon compte</button>
+      </div>
+
+      <div id="account-employee-mode" style="display:none;">
+        <div class="account-status">
+          <div>
+            <div class="name" id="t-employee-connected-as">Connecté en tant que</div>
+            <div class="email" id="employee-role-display"></div>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="confirmLeaveDevice()" style="color:var(--alert);" id="t-leave-device-btn">Quitter cette boutique sur cet appareil</button>
+      </div>
+
+      <a href="privacy.html" target="_blank" rel="noopener" style="display:block; text-align:center; font-size:12px; color:var(--charcoal-soft); margin-top:14px; text-decoration:underline;" id="t-privacy-link">Politique de confidentialité</a>
+      <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="new-store-overlay">
+    <div class="sheet">
+      <h3 id="t-new-store-title">Nouvelle boutique</h3>
+      <div class="field">
+        <label id="t-store-name">Nom de la boutique</label>
+        <input id="in-store-name" type="text" placeholder="Ex : Boutique Matonge">
+      </div>
+      <button class="btn-primary" onclick="confirmAddStore()" id="t-save-store">Créer la boutique</button>
+      <button class="btn-secondary" onclick="closeNewStoreSheet()" id="t-cancel-new-store">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="devices-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;" id="t-devices-title2">Appareils connectés</h3>
+        <button onclick="closeDevicesSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="devices-list"></div>
+      <button class="btn-primary" onclick="openGeneratePinSheet()" id="t-generate-device-btn2">+ Connecter un autre appareil</button>
+      <button class="btn-secondary" onclick="closeDevicesSheet()" id="t-cancel-devices">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="generate-pin-overlay">
+    <div class="sheet">
+      <h3 id="t-generate-pin-title">Connecter un appareil</h3>
+      <p style="font-size:13px; color:var(--charcoal-soft); line-height:1.6;" id="t-generate-pin-desc">
+        Sur le nouvel appareil, ouvre Mombongo, appuie sur « Rejoindre avec un code » et entre ce code avant qu'il n'expire :
+      </p>
+      <div style="text-align:center; background:var(--ok-bg); border-radius:14px; padding:22px 10px; margin:14px 0;">
+        <div id="pin-display" style="font-family:'Sora'; font-size:34px; font-weight:800; letter-spacing:6px; color:var(--emerald);">-----</div>
+        <div id="pin-countdown" style="font-size:12px; color:var(--charcoal-soft); margin-top:8px;"></div>
+      </div>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="generateNewPin()" id="t-pin-regenerate">Générer un nouveau code</button>
+      <button class="btn-secondary" onclick="closeGeneratePinSheet()" id="t-cancel-pin">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="join-with-code-overlay">
+    <div class="sheet">
+      <h3 id="t-enter-pin-title">Rejoindre une boutique</h3>
+      <p style="font-size:13px; color:var(--charcoal-soft); line-height:1.6;" id="t-enter-pin-desc">
+        Entre le code à 5 chiffres affiché sur le téléphone du patron.
+      </p>
+      <div class="field">
+        <input id="in-join-pin" type="text" inputmode="numeric" maxlength="5" placeholder="Code à 5 chiffres" style="width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:20px; text-align:center; letter-spacing:6px; font-family:'Sora'; font-weight:700;">
+      </div>
+      <div class="field">
+        <label id="t-choose-role-title">Quel est ton rôle sur cet appareil ?</label>
+        <div class="method-row">
+          <button type="button" class="join-role-btn active" data-role="patron" onclick="selectJoinRole('patron', this)" id="t-role-patron">Patron</button>
+          <button type="button" class="join-role-btn" data-role="caissier" onclick="selectJoinRole('caissier', this)" id="t-role-caissier">Caissier</button>
+          <button type="button" class="join-role-btn" data-role="magasinier" onclick="selectJoinRole('magasinier', this)" id="t-role-magasinier">Magasinier</button>
+        </div>
+      </div>
+      <div class="field">
+        <label id="t-device-name">Nom de cet appareil (optionnel)</label>
+        <input id="in-join-device-name" type="text" placeholder="Ex : Téléphone du caissier">
+      </div>
+      <button class="btn-primary" onclick="confirmJoinWithPin()" id="t-join-confirm-btn">Rejoindre</button>
+      <button class="btn-secondary" onclick="closeJoinWithCodeSheet()" id="t-cancel-join">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="delete-account-overlay">
+    <div class="sheet">
+      <h3 id="t-delete-account-title">Supprimer mon compte ?</h3>
+      <p style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6;" id="t-delete-account-desc">
+        Cette action est irréversible. Toutes tes boutiques, produits, ventes, dépenses, crédits clients et
+        appareils liés seront définitivement supprimés. Pour confirmer, reconnecte-toi ci-dessous.
+      </p>
+      <button class="btn-danger-outline" onclick="doDeleteAccount()" id="t-delete-account-confirm" style="background:var(--alert); color:#fff; border:none;">Confirmer la suppression définitive</button>
+      <button class="btn-secondary" onclick="closeDeleteAccountSheet()" id="t-cancel-delete-account">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="history-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-history-title" style="margin:0;">Historique des ventes</h3>
+        <button onclick="closeHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+
+      <div class="period-row">
+        <button class="period-btn active" data-period="day" onclick="setHistoryPeriod('day')" id="t-period-day">Aujourd'hui</button>
+        <button class="period-btn" data-period="week" onclick="setHistoryPeriod('week')" id="t-period-week">Semaine</button>
+        <button class="period-btn" data-period="month" onclick="setHistoryPeriod('month')" id="t-period-month">Mois</button>
+        <button class="period-btn" data-period="custom" onclick="setHistoryPeriod('custom')" id="t-period-custom">Personnalisé</button>
+      </div>
+
+      <div id="custom-range-fields" style="display:none;">
+        <div class="field">
+          <label id="t-period-from">Du</label>
+          <div class="date-group">
+            <input id="in-period-from-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-period-from-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-period-from-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+          </div>
+        </div>
+        <div class="field">
+          <label id="t-period-to">Au</label>
+          <div class="date-group">
+            <input id="in-period-to-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-period-to-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-period-to-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+          </div>
+        </div>
+        <button class="btn-secondary" style="margin-top:0;" onclick="applyCustomRange()" id="t-period-apply">Appliquer</button>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-revenue">Ventes</div>
+          <div class="summary-val money" id="summary-revenue">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-expenses">Dépenses</div>
+          <div class="summary-val alert" id="summary-expenses">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-summary-net">Gain net</div>
+          <div class="summary-val money" id="summary-net">0 $</div>
+        </div>
+      </div>
+
+      <div id="history-list"></div>
+      <div id="history-empty" class="empty" style="display:none;">
+        <span id="t-history-empty">Aucune vente enregistrée pour l'instant.</span>
+      </div>
+
+      <div class="toggle-row">
+        <span id="t-export-label">Exporter en PDF ou Excel ?</span>
+        <label class="switch">
+          <input type="checkbox" id="in-export-toggle" onchange="toggleExportFields()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="export-fields" style="display:none; margin-bottom:14px;">
+        <div class="method-row" style="margin-bottom:10px;">
+          <button type="button" class="export-format-btn active" data-format="pdf" onclick="selectExportFormat('pdf', this)" id="t-export-format-pdf">PDF</button>
+          <button type="button" class="export-format-btn" data-format="excel" onclick="selectExportFormat('excel', this)" id="t-export-format-excel">Excel</button>
+        </div>
+        <button class="btn-primary" style="margin-top:0;" onclick="exportHistory()" id="t-export-btn">Exporter</button>
+      </div>
+
+      <button class="btn-danger-outline" onclick="clearAllHistory()" id="t-clear-history">Effacer tout l'historique</button>
+      <button class="btn-secondary" onclick="closeHistorySheet()" id="t-cancel4">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="debts-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-debts-title" style="margin:0;">Crédits &amp; Dettes</h3>
+        <button onclick="closeDebtsSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="debts-list"></div>
+      <div id="debts-empty" class="empty" style="display:none;">
+        <span id="t-debts-empty">Aucune dette en cours. 🎉</span>
+      </div>
+      <button class="btn-secondary" onclick="closeDebtsSheet()" id="t-cancel5">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="repay-overlay">
+    <div class="sheet">
+      <h3 id="t-repay-title">Enregistrer un remboursement</h3>
+      <div class="field">
+        <label id="t-repay-client">Client</label>
+        <input id="repay-client-display" type="text" disabled style="opacity:.7;">
+      </div>
+      <div class="field">
+        <label id="t-repay-amount">Montant reçu</label>
+        <input id="in-repay-amount" type="number" inputmode="decimal">
+      </div>
+      <button class="btn-primary" onclick="confirmRepay()" id="t-confirm-repay">Confirmer le remboursement</button>
+      <button class="btn-secondary" onclick="closeRepaySheet()" id="t-cancel6">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="expense-overlay">
+    <div class="sheet">
+      <h3 id="t-expense-title">Nouvelle dépense</h3>
+      <div class="field">
+        <label id="t-expense-desc">Description</label>
+        <input id="in-expense-desc" type="text" placeholder="Ex : Transport, loyer, sacs...">
+      </div>
+      <div class="field">
+        <label id="t-expense-amount">Montant</label>
+        <input id="in-expense-amount" type="number" inputmode="decimal">
+      </div>
+      <button class="btn-primary" onclick="confirmExpense()" id="t-confirm-expense">Enregistrer la dépense</button>
+      <button class="btn-secondary" onclick="closeExpenseSheet()" id="t-cancel7">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="limit-overlay">
+    <div class="sheet">
+      <h3 id="t-limit-title">Limite atteinte</h3>
+      <p id="t-limit-desc" style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6;">
+        Tu as atteint la limite de 30 produits de la version gratuite. Pour débloquer l'ajout illimité de produits, contacte directement le développeur sur WhatsApp.
+      </p>
+      <a id="limit-whatsapp-link" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Débloquer sur WhatsApp</a>
+      <button class="btn-secondary" onclick="closeLimitSheet()" id="t-cancel8">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="expenses-history-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-expenses-history-title" style="margin:0;">Historique des dépenses</h3>
+        <button onclick="closeExpensesHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="expenses-history-list"></div>
+      <div id="expenses-history-empty" class="empty" style="display:none;">
+        <span id="t-expenses-history-empty">Aucune dépense enregistrée pour l'instant.</span>
+      </div>
+      <button class="btn-secondary" onclick="closeExpensesHistorySheet()" id="t-cancel9">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="alerts-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-alerts-sheet-title" style="margin:0;">Alertes</h3>
+        <button onclick="closeAlertsSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div class="mode-row">
+        <button class="mode-btn active" data-alertstab="stock" onclick="setAlertsTab('stock')" id="t-alerts-tab-stock">Stock faible</button>
+        <button class="mode-btn" data-alertstab="expired" onclick="setAlertsTab('expired')" id="t-alerts-tab-expired">Produits périmés</button>
+      </div>
+      <div id="alerts-sheet-list"></div>
+      <div id="alerts-sheet-empty" class="empty" style="display:none;">
+        <span id="t-alerts-sheet-empty">Aucune alerte ici pour l'instant. 🎉</span>
+      </div>
+      <button class="btn-secondary" onclick="closeAlertsSheet()" id="t-cancel10">Fermer</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =========================================================================
+   ZONE À PERSONNALISER : remplace les valeurs ci-dessous par celles de TON
+   propre projet Firebase gratuit (Réglages du projet > Tes applications).
+   Tant que ce n'est pas fait, la connexion Google ne fonctionnera pas.
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAwVvxkSekMU0mXpR1A5lGcplJNwXcU9F4",
+  authDomain: "mombongo-15323.firebaseapp.com",
+  projectId: "mombongo-15323",
+  storageBucket: "mombongo-15323.firebasestorage.app",
+  messagingSenderId: "212073636592",
+  appId: "1:212073636592:web:a15328ff9389c6b8ebd835"
+};
+
+let cloudEnabled = true;
+let db = null;
+let currentUser = null;
+let isVip = false;
+let vipUntil = null;
+let currentLang = 'fr';
+let currentCurrency = 'usd';
+let exchangeRate = 2800;
+const FREE_PRODUCT_LIMIT = 30;
+const FREE_EXPENSE_LIMIT = 3;
+const DEV_WHATSAPP = '243980979141';
+
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  db.enablePersistence().catch(()=>{});
+}catch(e){
+  cloudEnabled = false;
+  console.error('Firebase non configuré :', e);
+}
+</script>
+<script>
+
+/* ---------- Dictionnaire FR / Lingala (traductions de base, à faire vérifier par un locuteur natif) ---------- */
+const dict = {
+  fr: {
+    appname:"Mombongo", tagline:"Suivi de ton commerce, simplement",
+    today:"Ventes aujourd'hui", profitToday:"Bénéfice aujourd'hui", profitTotal:"Bénéfice total",
+    alerts:"Alertes stock", alertsTitle:"Alertes", productsTitle:"Mes produits",
+    empty:"Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.",
+    noResults:"Aucun produit ne correspond à ta recherche.",
+    searchPlaceholder:"Rechercher un produit...",
+    addBtn:"+ Ajouter un produit", addTitle:"Nouveau produit",
+    name:"Nom du produit", buy:"Prix d'achat", sell:"Prix de vente",
+    qty:"Quantité en stock", threshold:"Seuil d'alerte",
+    save:"Enregistrer le produit", cancel:"Annuler",
+    sellTitle:"Vendre", sellQty:"Quantité vendue", method:"Moyen de paiement",
+    cash:"Cash", confirmSale:"Confirmer la vente",
+    lowStock:"stock faible", dormant:"pas vendu depuis 14 jours",
+    saved:"Produit enregistré", sold:"Vente enregistrée", stockUnit:"en stock",
+    total:"Total", profit:"Bénéfice", rateLabel:"Taux de change : 1 $ =",
+    confirmDelete:"Supprimer ce produit ?", deleted:"Produit supprimé",
+    currencyHint:"Les montants seront enregistrés en", account:"Compte",
+    resetBtn:"Réinitialiser les ventes et bénéfices",
+    confirmResetStats:"Réinitialiser cette statistique ? Cette action est irréversible.",
+    statsReset:"Statistique réinitialisée",
+    editTitle:"Modifier le produit", saveEdit:"Enregistrer les modifications", updated:"Produit mis à jour",
+    modeSimple:"Produit simple", modeCarton:"📦 Carton", modeSac:"🌾 Sac",
+    cartonName:"Nom du produit", cartonQty:"Nombre de pièces dans le carton",
+    cartonBuy:"Prix d'achat du carton", cartonSell:"Prix de vente d'une pièce",
+    cartonThreshold:"Seuil d'alerte", cartonHint:"Le prix d'achat d'une pièce sera calculé automatiquement.",
+    sacName:"Nom du produit", sacBuy:"Prix d'achat du sac", sacThreshold:"Seuil d'alerte (par mesurette)",
+    sacHint:"Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.",
+    addMesurette:"+ Ajouter une mesurette",
+    mesuretteName:"Nom de la mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Prix de vente",
+    mesuretteQty:"Quantité obtenue du sac", mesuretteRemove:"Retirer cette mesurette",
+    historyBtn:"Historique", historyTitle:"Historique des ventes",
+    historyEmpty:"Aucune vente enregistrée pour l'instant.",
+    historyDeletedProduct:"Produit supprimé",
+    clearHistory:"Effacer tout l'historique", close:"Fermer",
+    confirmDeleteEntry:"Supprimer cette vente de l'historique ?", entryDeleted:"Vente supprimée",
+    confirmClearHistory:"Effacer tout l'historique des ventes et dépenses ? Cette action est irréversible. Les compteurs de bénéfice ne changent pas, mais le total des dépenses sera remis à zéro.",
+    historyCleared:"Historique effacé",
+    addBtnShort:"➕ Produit", expenseBtnShort:"💸 Dépense",
+    expensesLabel:"Dépenses", debtsLabel:"Dettes en cours",
+    creditToggle:"Vente à crédit ?", clientName:"Nom du client",
+    clientPhone:"Numéro de téléphone (optionnel)", dueDateField:"Date limite (optionnel)",
+    debtsTitle:"Crédits & Dettes", debtsEmpty:"Aucune dette en cours. 🎉",
+    dueLabel:"Échéance", payBtn:"Régler", owedSuffix:"dû(s)",
+    creditTag:"à crédit", repayLabel:"Remboursement",
+    repaySaved:"Remboursement enregistré", expenseSaved:"Dépense enregistrée",
+    repayTitle:"Enregistrer un remboursement", repayClientLabel:"Client",
+    repayAmountLabel:"Montant reçu", confirmRepayBtn:"Confirmer le remboursement",
+    expenseTitle:"Nouvelle dépense", expenseDescLabel:"Description",
+    expenseAmountLabel:"Montant", confirmExpenseBtn:"Enregistrer la dépense",
+    limitTitle:"Limite atteinte",
+    limitDesc:"Tu as atteint la limite de 30 produits de la version gratuite. Pour débloquer l'ajout illimité de produits, contacte directement le développeur sur WhatsApp.",
+    limitUnlockBtn:"Débloquer sur WhatsApp",
+    limitWhatsappMsg:"Bonjour, je veux débloquer l'ajout illimité de produits sur Mombongo.",
+    vipUntilLabel:"jusqu'au",
+    periodDay:"Aujourd'hui", periodWeek:"Semaine", periodMonth:"Mois", periodCustom:"Personnalisé",
+    periodFrom:"Du", periodTo:"Au", periodApply:"Appliquer",
+    summaryRevenue:"Ventes", summaryExpenses:"Dépenses", summaryNet:"Gain net",
+    limitDescExpenses:"Tu as atteint la limite de 3 dépenses de la version gratuite. Pour débloquer l'ajout illimité de dépenses, contacte directement le développeur sur WhatsApp.",
+    limitDescHistory:"Tu veux voir les résultats de ton travail sur plusieurs jours ? Contacte le développeur sur WhatsApp pour débloquer l'historique complet (semaine, mois, période personnalisée).",
+    limitWhatsappMsgExpenses:"Bonjour, je veux débloquer l'ajout illimité de dépenses sur Mombongo.",
+    limitWhatsappMsgHistory:"Bonjour, je veux débloquer l'historique complet (semaine/mois) sur Mombongo.",
+    limitDescStores:"Ajouter une autre boutique ou pharmacie est une fonctionnalité VIP. Contacte le développeur sur WhatsApp pour débloquer le multi-boutiques.",
+    limitWhatsappMsgStores:"Bonjour, je veux débloquer l'ajout de plusieurs boutiques sur Mombongo.",
+    limitDescDevices:"Connecter plusieurs appareils (caissier, magasinier) est une fonctionnalité VIP. Contacte le développeur sur WhatsApp pour la débloquer.",
+    limitWhatsappMsgDevices:"Bonjour, je veux débloquer la connexion de plusieurs appareils sur Mombongo.",
+    limitNeedsLoginDesc:"Tu dois d'abord te connecter avec Google pour pouvoir discuter avec le développeur ou devenir Premium. Sans compte, on ne peut pas te retrouver pour activer ton accès.",
+    limitLoginBtn:"Se connecter avec Google",
+    expensesHistoryTitle:"Historique des dépenses",
+    expensesHistoryEmpty:"Aucune dépense enregistrée pour l'instant.",
+    expiryToggle:"Date de péremption ?", expiryDateLabel:"Date de péremption",
+    expiryDateLabelSac:"Date de péremption (s'applique à toutes les mesurettes)",
+    expiredAlert:"expiré le",
+    alertsPrompt:"Vérifie les alertes pour connaître les stocks faibles",
+    alertsPromptWithExpired:"Vérifie les alertes pour connaître les stocks faibles et produits périmés",
+    dateTooOld:"Cette date dépasse la limite de 13 mois d'historique conservé.",
+    alertsTabStock:"Stock faible", alertsTabExpired:"Produits périmés",
+    alertsSheetEmpty:"Aucune alerte ici pour l'instant. 🎉",
+
+    deleteAccountBtn:"Supprimer mon compte",
+    deleteAccountTitle:"Supprimer mon compte ?",
+    deleteAccountDesc:"Cette action est irréversible. Toutes tes boutiques, produits, ventes, dépenses, crédits clients et appareils liés seront définitivement supprimés.",
+    deleteAccountConfirm:"Confirmer la suppression définitive",
+    deletingAccount:"Suppression en cours...",
+    accountDeleted:"Compte supprimé",
+    privacyLink:"Politique de confidentialité",
+
+    storesTitle:"Mes boutiques", addStoreBtn:"+ Ajouter une boutique ou pharmacie",
+    storeNameLabel:"Nom de la boutique", storeNamePlaceholder:"Ex : Boutique Matonge",
+    storeAdded:"Boutique ajoutée", storeSwitched:"Boutique active changée",
+    newStoreTitle:"Nouvelle boutique", activeStoreTag:"active",
+    confirmDeleteStore:"Supprimer cette boutique et toutes ses données ? Cette action est irréversible.",
+    storeDeleted:"Boutique supprimée", cantDeleteLastStore:"Tu dois garder au moins une boutique.",
+    saveStoreBtn:"Créer la boutique",
+
+    devicesTitle:"Appareils connectés",
+    devicesDesc:"Relie 2 ou 3 téléphones à ce compte pour ton caissier ou ton magasinier.",
+    addDeviceBtn:"+ Connecter un autre appareil",
+    generatePinTitle:"Connecter un appareil",
+    generatePinDesc:"Sur le nouvel appareil, ouvre Mombongo, appuie sur « Rejoindre avec un code » et entre ce code avant qu'il n'expire :",
+    pinExpiresIn:"Expire dans", pinRegenerate:"Générer un nouveau code",
+    joinWithCodeBtn:"Rejoindre avec un code",
+    enterPinTitle:"Rejoindre une boutique",
+    enterPinDesc:"Entre le code à 5 chiffres affiché sur le téléphone du patron.",
+    enterPinPlaceholder:"Code à 5 chiffres",
+    chooseRoleTitle:"Quel est ton rôle sur cet appareil ?",
+    roleLabel:"Rôle", rolePatron:"Patron", roleCaissier:"Caissier", roleMagasinier:"Magasinier",
+    deviceNameLabel:"Nom de cet appareil (optionnel)", deviceNamePlaceholder:"Ex : Téléphone du caissier",
+    joinConfirmBtn:"Rejoindre", deviceLinked:"Appareil connecté avec succès",
+    deviceLinkError:"Code invalide ou expiré", pinExpired:"Ce code a expiré, génère-en un nouveau",
+    removeDeviceBtn:"Retirer", confirmRemoveDevice:"Retirer cet appareil ? Il perdra l'accès aux données.",
+    deviceRemoved:"Appareil retiré", youAreHere:"(cet appareil)",
+    leaveDeviceBtn:"Quitter cette boutique sur cet appareil",
+    confirmLeaveDevice:"Quitter cette boutique sur cet appareil ?",
+    restrictedFeature:"Cette action est réservée au patron",
+    employeeConnectedAs:"Connecté en tant que", noDevices:"Aucun appareil supplémentaire connecté.",
+    cancelJoin:"Annuler",
+
+    exportLabel:"Exporter en PDF ou Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
+    exportBtn:"Exporter", exportSuccess:"Export généré", exportEmpty:"Rien à exporter pour cette période.",
+    syncOk:"Tes données sont synchronisées.", syncError:"⚠️ Échec de synchronisation :",
+    logProductDeleted:"Produit supprimé", logProductEdited:"Produit modifié", logSaleDeleted:"Vente supprimée"
+  },
+  ln: {
+    appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
+    today:"Kotéka ya lelo", profitToday:"Litomba ya lelo", profitTotal:"Litomba nyonso",
+    alerts:"Bikebisi ya stock", alertsTitle:"Bikebisi", productsTitle:"Biloko na ngai",
+    empty:"Eloko moko te tii sik'oyo. Bakisá eloko ya liboso na esika ya nse.",
+    noResults:"Eloko moko te ekokani na oyo olukí.",
+    searchPlaceholder:"Luká eloko...",
+    addBtn:"+ Bakisá eloko", addTitle:"Eloko ya sika",
+    name:"Nkombo ya eloko", buy:"Ntalo ya kosomba ($)", sell:"Ntalo ya kotéka ($)",
+    qty:"Motángo ya stock", threshold:"Ndelo ya likebisi",
+    save:"Bomba eloko", cancel:"Boya",
+    sellTitle:"Kotéka", sellQty:"Motángo etékami", method:"Ndenge ya kofuta",
+    cash:"Mbongo ya lóboko", confirmSale:"Kokitisa kotéka",
+    lowStock:"stock ekómi moke", dormant:"etékami te banda mikolo 14",
+    saved:"Eloko ebombami", sold:"Kotéka ekómi", stockUnit:"ezali na stock",
+    total:"Motúya", profit:"Litomba", rateLabel:"Motángo ya kobongola : 1 $ =",
+    confirmDelete:"Olingi kolongola eloko oyo ?", deleted:"Eloko elongolámi",
+    currencyHint:"Mbongo ekobombama na", account:"Compte",
+    resetBtn:"Longola ba kotéka na litomba ya kala",
+    confirmResetStats:"Olingi kolongola statistique oyo ? Ekozonga te.",
+    statsReset:"Statistique elongwami",
+    editTitle:"Bongisa eloko", saveEdit:"Bomba ba mbongwana", updated:"Eloko ebongisami",
+    modeSimple:"Eloko ya pete", modeCarton:"📦 Carton", modeSac:"🌾 Sac",
+    cartonName:"Nkombo ya eloko", cartonQty:"Motángo ya biloko na carton",
+    cartonBuy:"Ntalo ya kosomba carton", cartonSell:"Ntalo ya kotéka eloko moko",
+    cartonThreshold:"Ndelo ya likebisi", cartonHint:"Ntalo ya kosomba eloko moko ekotángama yango moko.",
+    sacName:"Nkombo ya eloko", sacBuy:"Ntalo ya kosomba sac", sacThreshold:"Ndelo ya likebisi (mesurette moko moko)",
+    sacHint:"Opesa motángo ya mbala okoki kotondisa mesurette na sac mobimba.",
+    addMesurette:"+ Bakisá mesurette",
+    mesuretteName:"Nkombo ya mesurette", mesuretteDefault:"Mesurette", mesuretteSell:"Ntalo ya kotéka",
+    mesuretteQty:"Motángo ekobima na sac", mesuretteRemove:"Longola mesurette oyo",
+    historyBtn:"Istwaru", historyTitle:"Istwaru ya kotéka",
+    historyEmpty:"Kotéka moko te tii sik'oyo.",
+    historyDeletedProduct:"Eloko elongolámi",
+    clearHistory:"Longola istwaru nyonso", close:"Kanga",
+    confirmDeleteEntry:"Olingi kolongola kotéka oyo na istwaru ?", entryDeleted:"Kotéka elongolámi",
+    confirmClearHistory:"Olingi kolongola istwaru nyonso ya kotéka na ba dépenses ? Ekozonga te. Litomba ekobongwana te, kasi motángo ya ba dépenses ekozonga na zéro.",
+    historyCleared:"Istwaru elongwami",
+    addBtnShort:"➕ Eloko", expenseBtnShort:"💸 Dépense",
+    expensesLabel:"Ba dépenses", debtsLabel:"Ba dettes ezali",
+    creditToggle:"Kotéka na crédit ?", clientName:"Nkombo ya client",
+    clientPhone:"Numéro ya téléphone (na esengo te)", dueDateField:"Mokolo ya suka (na esengo te)",
+    debtsTitle:"Crédits & Dettes", debtsEmpty:"Dette moko te sik'oyo. 🎉",
+    dueLabel:"Suka", payBtn:"Futa", owedSuffix:"esengeli",
+    creditTag:"na crédit", repayLabel:"Kofuta",
+    repaySaved:"Kofuta ekómi", expenseSaved:"Dépense ekómi",
+    repayTitle:"Koleka kofuta", repayClientLabel:"Client",
+    repayAmountLabel:"Motángo eyaki", confirmRepayBtn:"Kokitisa kofuta",
+    expenseTitle:"Dépense ya sika", expenseDescLabel:"Botángi",
+    expenseAmountLabel:"Motángo", confirmExpenseBtn:"Bomba dépense",
+    limitTitle:"Ndelo ekómi",
+    limitDesc:"Okómi na ndelo ya biloko 30 ya version ya ofele. Mpo na kolongola ndelo, benga développeur na WhatsApp.",
+    limitUnlockBtn:"Longola ndelo na WhatsApp",
+    limitWhatsappMsg:"Mbote, nalingi kolongola ndelo ya kobakisa biloko na Mombongo.",
+    vipUntilLabel:"tii na",
+    periodDay:"Lelo", periodWeek:"Poso", periodMonth:"Sanza", periodCustom:"Poná moko",
+    periodFrom:"Banda", periodTo:"Tii", periodApply:"Kokitisa",
+    summaryRevenue:"Kotéka", summaryExpenses:"Ba dépenses", summaryNet:"Litomba ya sikisiki",
+    limitDescExpenses:"Okómi na ndelo ya ba dépenses 3 ya version ya ofele. Mpo na kolongola ndelo, benga développeur na WhatsApp.",
+    limitDescHistory:"Olingi koyeba misala na yo ya mikolo mingi ? Benga développeur na WhatsApp mpo na kolongola istwaru mobimba (poso, sanza, mokolo oyo oponi).",
+    limitWhatsappMsgExpenses:"Mbote, nalingi kolongola ndelo ya ba dépenses na Mombongo.",
+    limitWhatsappMsgHistory:"Mbote, nalingi kolongola istwaru mobimba (poso/sanza) na Mombongo.",
+    limitDescStores:"Kobakisa boutique to pharmacie mosusu ezali likambo ya VIP. Benga développeur na WhatsApp mpo na kolongola yango.",
+    limitWhatsappMsgStores:"Mbote, nalingi kolongola kobakisa ba boutiques ebele na Mombongo.",
+    limitDescDevices:"Kokangisa ba appareils ebele (caissier, magasinier) ezali likambo ya VIP. Benga développeur na WhatsApp mpo na kolongola yango.",
+    limitWhatsappMsgDevices:"Mbote, nalingi kolongola kokangisa ba appareils ebele na Mombongo.",
+    limitNeedsLoginDesc:"Osengeli liboso kokota na Google mpo okoka kosolola na développeur to kokóma Premium. Soki compte te, tokoki koluka yo te mpo na kofungola yo.",
+    limitLoginBtn:"Kokota na Google",
+    expensesHistoryTitle:"Istwaru ya ba dépenses",
+    expensesHistoryEmpty:"Dépense moko te tii sik'oyo.",
+    expiryToggle:"Date ya kobola ?", expiryDateLabel:"Date ya kobola",
+    expiryDateLabelSac:"Date ya kobola (ekosimba ba mesurette nyonso)",
+    expiredAlert:"ebolá na",
+    alertsPrompt:"Talá ba alertes mpo na koyeba stock oyo ekómi moke",
+    alertsPromptWithExpired:"Talá ba alertes mpo na koyeba stock oyo ekómi moke na biloko oyo ebolá",
+    dateTooOld:"Date oyo eleki ndelo ya sanza 13 ya istwaru oyo ebombami.",
+    alertsTabStock:"Stock ekómi moke", alertsTabExpired:"Biloko ebolá",
+    alertsSheetEmpty:"Alerte moko te sik'oyo. 🎉",
+
+    deleteAccountBtn:"Longola compte na ngai",
+    deleteAccountTitle:"Olingi kolongola compte na yo ?",
+    deleteAccountDesc:"Ekozonga te. Ba boutiques nyonso, biloko, kotéka, ba dépenses, ba crédits ya ba clients na ba appareils ekolongwa mpo na libela.",
+    deleteAccountConfirm:"Kokitisa kolongola mpo na libela",
+    deletingAccount:"Kolongola ezali kosalema...",
+    accountDeleted:"Compte elongwami",
+    privacyLink:"Politique ya sekele",
+
+    storesTitle:"Ba boutiques na ngai", addStoreBtn:"+ Bakisá boutique to pharmacie",
+    storeNameLabel:"Nkombo ya boutique", storeNamePlaceholder:"Ex : Boutique Matonge",
+    storeAdded:"Boutique ebakisami", storeSwitched:"Boutique ya sika eponami",
+    newStoreTitle:"Boutique ya sika", activeStoreTag:"eponami",
+    confirmDeleteStore:"Olingi kolongola boutique oyo na biloko na yango nyonso ? Ekozonga te.",
+    storeDeleted:"Boutique elongolámi", cantDeleteLastStore:"Osengeli kotíka boutique moko ata moko.",
+    saveStoreBtn:"Kela boutique",
+
+    devicesTitle:"Ba appareils ekangami",
+    devicesDesc:"Kangisa téléphone 2 to 3 na compte oyo mpo na caissier to magasinier na yo.",
+    addDeviceBtn:"+ Kangisa appareil mosusu",
+    generatePinTitle:"Kangisa appareil",
+    generatePinDesc:"Na téléphone ya sika, fungola Mombongo, tobola « Kokota na code » mpe tia code oyo yambo etánga :",
+    pinExpiresIn:"Ekosila na", pinRegenerate:"Sala code ya sika",
+    joinWithCodeBtn:"Kokota na code",
+    enterPinTitle:"Kokota na boutique",
+    enterPinDesc:"Tia code ya ba chiffres 5 oyo emonani na téléphone ya patron.",
+    enterPinPlaceholder:"Code ya ba chiffres 5",
+    chooseRoleTitle:"Rôle na yo na appareil oyo ezali nini ?",
+    roleLabel:"Rôle", rolePatron:"Patron", roleCaissier:"Caissier", roleMagasinier:"Magasinier",
+    deviceNameLabel:"Nkombo ya appareil oyo (na esengo te)", deviceNamePlaceholder:"Ex : Téléphone ya caissier",
+    joinConfirmBtn:"Kokota", deviceLinked:"Appareil ekangami malamu",
+    deviceLinkError:"Code ezali malamu te to esili ntango",
+    pinExpired:"Code oyo esili ntango, sala mosusu",
+    removeDeviceBtn:"Longola", confirmRemoveDevice:"Longola appareil oyo ? Ekozala lisusu na accès te.",
+    deviceRemoved:"Appareil elongolámi", youAreHere:"(appareil oyo)",
+    leaveDeviceBtn:"Bima na boutique oyo na appareil oyo",
+    confirmLeaveDevice:"Bima na boutique oyo na appareil oyo ?",
+    restrictedFeature:"Likambo oyo ezali kaka mpo na patron",
+    employeeConnectedAs:"Okangami lokola", noDevices:"Appareil mosusu ekangami te.",
+    cancelJoin:"Boya",
+
+    exportLabel:"Kobimisa na PDF to Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
+    exportBtn:"Kobimisa", exportSuccess:"Export esalémi", exportEmpty:"Eloko te ya kobimisa mpo na ntango oyo.",
+    syncOk:"Ba données na yo ekangami malamu.", syncError:"⚠️ Synchronisation elongi te :",
+    logProductDeleted:"Produit elongolámi", logProductEdited:"Produit ebongwani", logSaleDeleted:"Kotéka elongolámi"
+  },
+  sw: {
+    appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
+    today:"Mauzo ya leo", profitToday:"Faida ya leo", profitTotal:"Faida yote",
+    alerts:"Onyo za bidhaa", alertsTitle:"Maonyo", productsTitle:"Bidhaa zangu",
+    empty:"Hakuna bidhaa bado. Ongeza bidhaa yako ya kwanza na kitufe kilicho chini.",
+    noResults:"Hakuna bidhaa inayolingana na utafutaji wako.",
+    searchPlaceholder:"Tafuta bidhaa...",
+    addBtn:"+ Ongeza bidhaa", addTitle:"Bidhaa mpya",
+    name:"Jina la bidhaa", buy:"Bei ya ununuzi", sell:"Bei ya mauzo",
+    qty:"Idadi iliyopo", threshold:"Kiwango cha onyo",
+    save:"Hifadhi bidhaa", cancel:"Ghairi",
+    sellTitle:"Uza", sellQty:"Idadi iliyouzwa", method:"Njia ya malipo",
+    cash:"Fedha taslimu", confirmSale:"Thibitisha uuzaji",
+    lowStock:"bidhaa inaisha", dormant:"haijauzwa kwa siku 14",
+    saved:"Bidhaa imehifadhiwa", sold:"Uuzaji umehifadhiwa", stockUnit:"zilizopo",
+    total:"Jumla", profit:"Faida", rateLabel:"Kiwango cha ubadilishaji : 1 $ =",
+    confirmDelete:"Futa bidhaa hii ?", deleted:"Bidhaa imefutwa",
+    currencyHint:"Kiasi kitahifadhiwa kwa", account:"Akaunti",
+    resetBtn:"Rudisha mauzo na faida kwa sifuri",
+    confirmResetStats:"Rudisha takwimu hii kwa sifuri ? Hatua hii haiwezi kurudishwa.",
+    statsReset:"Takwimu imerudishwa",
+    editTitle:"Hariri bidhaa", saveEdit:"Hifadhi mabadiliko", updated:"Bidhaa imesasishwa",
+    modeSimple:"Bidhaa rahisi", modeCarton:"📦 Katoni", modeSac:"🌾 Gunia",
+    cartonName:"Jina la bidhaa", cartonQty:"Idadi ya vipande kwenye katoni",
+    cartonBuy:"Bei ya ununuzi wa katoni", cartonSell:"Bei ya mauzo ya kipande kimoja",
+    cartonThreshold:"Kiwango cha onyo", cartonHint:"Bei ya ununuzi ya kipande kimoja itahesabiwa kiotomatiki.",
+    sacName:"Jina la bidhaa", sacBuy:"Bei ya ununuzi wa gunia", sacThreshold:"Kiwango cha onyo (kwa kipimo kimoja)",
+    sacHint:"Hakuna haja ya kupima : eleza tu mara ngapi unajaza kipimo hiki na gunia zima.",
+    addMesurette:"+ Ongeza kipimo",
+    mesuretteName:"Jina la kipimo", mesuretteDefault:"Kipimo", mesuretteSell:"Bei ya mauzo",
+    mesuretteQty:"Idadi inayopatikana kwa gunia", mesuretteRemove:"Ondoa kipimo hiki",
+    historyBtn:"Historia", historyTitle:"Historia ya mauzo",
+    historyEmpty:"Hakuna uuzaji uliohifadhiwa bado.",
+    historyDeletedProduct:"Bidhaa imefutwa",
+    clearHistory:"Futa historia yote", close:"Funga",
+    confirmDeleteEntry:"Futa uuzaji huu kutoka kwenye historia ?", entryDeleted:"Uuzaji umefutwa",
+    confirmClearHistory:"Futa historia yote ya mauzo na matumizi ? Hatua hii haiwezi kurudishwa. Faida haitabadilika, lakini jumla ya matumizi itarudi sifuri.",
+    historyCleared:"Historia imefutwa",
+    addBtnShort:"➕ Bidhaa", expenseBtnShort:"💸 Matumizi",
+    expensesLabel:"Matumizi", debtsLabel:"Madeni yaliyopo",
+    creditToggle:"Uuzaji wa mkopo ?", clientName:"Jina la mteja",
+    clientPhone:"Namba ya simu (si lazima)", dueDateField:"Tarehe ya mwisho (si lazima)",
+    debtsTitle:"Mikopo na Madeni", debtsEmpty:"Hakuna deni kwa sasa. 🎉",
+    dueLabel:"Mwisho", payBtn:"Lipa", owedSuffix:"inadaiwa",
+    creditTag:"kwa mkopo", repayLabel:"Malipo",
+    repaySaved:"Malipo yamehifadhiwa", expenseSaved:"Matumizi yamehifadhiwa",
+    repayTitle:"Andika malipo", repayClientLabel:"Mteja",
+    repayAmountLabel:"Kiasi kilichopokelewa", confirmRepayBtn:"Thibitisha malipo",
+    expenseTitle:"Matumizi mapya", expenseDescLabel:"Maelezo",
+    expenseAmountLabel:"Kiasi", confirmExpenseBtn:"Hifadhi matumizi",
+    limitTitle:"Kikomo kimefikiwa",
+    limitDesc:"Umefikia kikomo cha bidhaa 30 za toleo la bure. Kufungua ongezeko lisilo na kikomo la bidhaa, wasiliana moja kwa moja na msanidi kwenye WhatsApp.",
+    limitUnlockBtn:"Fungua kwenye WhatsApp",
+    limitWhatsappMsg:"Habari, nataka kufungua ongezeko lisilo na kikomo la bidhaa kwenye Mombongo.",
+    vipUntilLabel:"hadi",
+    periodDay:"Leo", periodWeek:"Wiki", periodMonth:"Mwezi", periodCustom:"Chagua",
+    periodFrom:"Kutoka", periodTo:"Hadi", periodApply:"Tumia",
+    summaryRevenue:"Mauzo", summaryExpenses:"Matumizi", summaryNet:"Faida halisi",
+    limitDescExpenses:"Umefikia kikomo cha matumizi 3 ya toleo la bure. Kufungua ongezeko lisilo na kikomo la matumizi, wasiliana na msanidi kwenye WhatsApp.",
+    limitDescHistory:"Unataka kuona matokeo ya kazi yako kwa siku nyingi ? Wasiliana na msanidi kwenye WhatsApp kufungua historia kamili (wiki, mwezi, kipindi maalum).",
+    limitWhatsappMsgExpenses:"Habari, nataka kufungua ongezeko lisilo na kikomo la matumizi kwenye Mombongo.",
+    limitWhatsappMsgHistory:"Habari, nataka kufungua historia kamili (wiki/mwezi) kwenye Mombongo.",
+    limitDescStores:"Kuongeza duka au famasi nyingine ni kipengele cha VIP. Wasiliana na msanidi kwenye WhatsApp kukifungua.",
+    limitWhatsappMsgStores:"Habari, nataka kufungua uongezaji wa maduka mengi kwenye Mombongo.",
+    limitDescDevices:"Kuunganisha vifaa vingi (mhasibu, msimamizi wa bidhaa) ni kipengele cha VIP. Wasiliana na msanidi kwenye WhatsApp kukifungua.",
+    limitWhatsappMsgDevices:"Habari, nataka kufungua uunganishaji wa vifaa vingi kwenye Mombongo.",
+    limitNeedsLoginDesc:"Lazima kwanza uingie na Google ili uweze kuzungumza na msanidi au kuwa Premium. Bila akaunti, hatuwezi kukutafuta ili kukuwezesha ufikiaji.",
+    limitLoginBtn:"Ingia na Google",
+    expensesHistoryTitle:"Historia ya matumizi",
+    expensesHistoryEmpty:"Hakuna matumizi yaliyohifadhiwa bado.",
+    expiryToggle:"Tarehe ya mwisho wa matumizi ?", expiryDateLabel:"Tarehe ya mwisho wa matumizi",
+    expiryDateLabelSac:"Tarehe ya mwisho wa matumizi (itatumika kwa vipimo vyote)",
+    expiredAlert:"imeisha muda tarehe",
+    alertsPrompt:"Angalia maonyo kujua bidhaa zinazoisha",
+    alertsPromptWithExpired:"Angalia maonyo kujua bidhaa zinazoisha na bidhaa zilizoisha muda",
+    dateTooOld:"Tarehe hii inazidi kikomo cha miezi 13 ya historia iliyohifadhiwa.",
+    alertsTabStock:"Bidhaa zinazoisha", alertsTabExpired:"Bidhaa zilizoisha muda",
+    alertsSheetEmpty:"Hakuna onyo hapa kwa sasa. 🎉",
+
+    deleteAccountBtn:"Futa akaunti yangu",
+    deleteAccountTitle:"Futa akaunti yako ?",
+    deleteAccountDesc:"Hatua hii haiwezi kurudishwa. Maduka yote, bidhaa, mauzo, matumizi, madeni ya wateja na vifaa vilivyounganishwa vitafutwa kabisa.",
+    deleteAccountConfirm:"Thibitisha ufutaji wa kudumu",
+    deletingAccount:"Inafuta...",
+    accountDeleted:"Akaunti imefutwa",
+    privacyLink:"Sera ya faragha",
+
+    storesTitle:"Maduka yangu", addStoreBtn:"+ Ongeza duka au famasi",
+    storeNameLabel:"Jina la duka", storeNamePlaceholder:"Mf : Duka Matonge",
+    storeAdded:"Duka limeongezwa", storeSwitched:"Duka amilifu limebadilishwa",
+    newStoreTitle:"Duka jipya", activeStoreTag:"amilifu",
+    confirmDeleteStore:"Futa duka hili na data zake zote ? Hatua hii haiwezi kurudishwa.",
+    storeDeleted:"Duka limefutwa", cantDeleteLastStore:"Lazima ubaki na duka moja angalau.",
+    saveStoreBtn:"Unda duka",
+
+    devicesTitle:"Vifaa vilivyounganishwa",
+    devicesDesc:"Unganisha simu 2 au 3 kwenye akaunti hii kwa ajili ya mhasibu au msimamizi wa bidhaa.",
+    addDeviceBtn:"+ Unganisha kifaa kingine",
+    generatePinTitle:"Unganisha kifaa",
+    generatePinDesc:"Kwenye kifaa kipya, fungua Mombongo, chagua « Jiunge na msimbo » kisha weka msimbo huu kabla haujaisha muda :",
+    pinExpiresIn:"Muda unaisha baada ya", pinRegenerate:"Tengeneza msimbo mpya",
+    joinWithCodeBtn:"Jiunge na msimbo",
+    enterPinTitle:"Jiunge na duka",
+    enterPinDesc:"Weka msimbo wa tarakimu 5 unaoonekana kwenye simu ya bosi.",
+    enterPinPlaceholder:"Msimbo wa tarakimu 5",
+    chooseRoleTitle:"Nafasi yako kwenye kifaa hiki ni ipi ?",
+    roleLabel:"Nafasi", rolePatron:"Bosi", roleCaissier:"Mhasibu", roleMagasinier:"Msimamizi wa bidhaa",
+    deviceNameLabel:"Jina la kifaa hiki (si lazima)", deviceNamePlaceholder:"Mf : Simu ya mhasibu",
+    joinConfirmBtn:"Jiunge", deviceLinked:"Kifaa kimeunganishwa",
+    deviceLinkError:"Msimbo si sahihi au umeisha muda",
+    pinExpired:"Msimbo huu umeisha muda, tengeneza mpya",
+    removeDeviceBtn:"Ondoa", confirmRemoveDevice:"Ondoa kifaa hiki ? Kitapoteza ufikiaji wa data.",
+    deviceRemoved:"Kifaa kimeondolewa", youAreHere:"(kifaa hiki)",
+    leaveDeviceBtn:"Ondoka kwenye duka hili kwenye kifaa hiki",
+    confirmLeaveDevice:"Ondoka kwenye duka hili kwenye kifaa hiki ?",
+    restrictedFeature:"Kitendo hiki ni cha bosi tu",
+    employeeConnectedAs:"Umeunganishwa kama", noDevices:"Hakuna kifaa kingine kilichounganishwa.",
+    cancelJoin:"Ghairi",
+
+    exportLabel:"Hamisha kwa PDF au Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
+    exportBtn:"Hamisha", exportSuccess:"Hamisho limetengenezwa", exportEmpty:"Hakuna cha kuhamisha kwa kipindi hiki.",
+    syncOk:"Data zako zimehifadhiwa vizuri.", syncError:"⚠️ Usawazishaji umeshindwa :",
+    logProductDeleted:"Bidhaa imefutwa", logProductEdited:"Bidhaa imebadilishwa", logSaleDeleted:"Uuzaji umefutwa"
+  }
+};
+/* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
+function localGet(key){
+  try{
+    const v = localStorage.getItem(key);
+    return v === null ? null : { value: v };
+  }catch(e){ console.error('Erreur lecture stockage', e); return null; }
+}
+function localSet(key, value){
+  try{
+    localStorage.setItem(key, value);
+    return { value };
+  }catch(e){ console.error('Erreur écriture stockage', e); return null; }
+}
+
+/* ---------- Mode nuit ---------- */
+let darkMode = false;
+function toggleTheme(){
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  document.getElementById('theme-btn-icon').textContent = darkMode ? '☀️' : '🌙';
+  localSet('mombongo:theme', darkMode ? 'dark' : 'light');
+}
+(function applyThemeOnLoad(){
+  try{
+    const saved = localGet('mombongo:theme');
+    if(saved && saved.value === 'dark'){
+      darkMode = true;
+      document.body.classList.add('dark-mode');
+      document.getElementById('theme-btn-icon').textContent = '☀️';
+    }
+  }catch(e){}
+})();
+
+/* ---------- Compte Google & synchronisation cloud ---------- */
+function openAccountSheet(){
+  document.getElementById('account-overlay').classList.add('open');
+  renderStoresList();
+  renderDevicesList();
+}
+function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
+
+function signInWithGoogle(){
+  if(!cloudEnabled){
+    showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).then((result)=>{
+    if(result && result.user){
+      showToast(currentLang==='fr' ? "Connexion réussie" : "Ekangami");
+    }
+  }).catch((e)=>{
+    console.error('Erreur de connexion', e);
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
+  });
+}
+function signOutGoogle(){
+  firebase.auth().signOut().then(()=>{
+    if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
+    products = [];
+    sales = [];
+    lots = [];
+    debts = [];
+    expenses = [];
+    activityLog = [];
+    isVip = false;
+    vipUntil = null;
+    stores = [];
+    activeStoreId = null;
+    storesDataCache = {};
+    stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+    localSet('mombongo:products', JSON.stringify(products));
+    localSet('mombongo:sales', JSON.stringify(sales));
+    localSet('mombongo:lots', JSON.stringify(lots));
+    localSet('mombongo:debts', JSON.stringify(debts));
+    localSet('mombongo:expenses', JSON.stringify(expenses));
+    localSet('mombongo:activityLog', JSON.stringify(activityLog));
+    localSet('mombongo:stats', JSON.stringify(stats));
+    renderStoresList();
+    render();
+    showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");
+  });
+  closeAccountSheet();
+}
+
+function confirmDeleteAccount(){
+  if(!currentUser) return;
+  document.getElementById('delete-account-overlay').classList.add('open');
+}
+function closeDeleteAccountSheet(){
+  document.getElementById('delete-account-overlay').classList.remove('open');
+}
+async function doDeleteAccount(){
+  if(!currentUser || !cloudEnabled || !db) return;
+  const t = dict[currentLang];
+  try{
+    showToast(t.deletingAccount || "Suppression en cours...");
+    const uid = currentUser.uid;
+    // Supprime les appareils liés (sous-collection)
+    try{
+      const devicesSnap = await db.collection('mombongo_users').doc(uid).collection('devices').get();
+      const batch = db.batch();
+      devicesSnap.forEach(docu => batch.delete(docu.ref));
+      await batch.commit();
+    }catch(e){ console.error('Erreur suppression appareils liés', e); }
+    // Supprime le document principal (boutiques, produits, ventes, etc.)
+    await db.collection('mombongo_users').doc(uid).delete();
+    // Supprime le compte d'authentification (peut exiger une reconnexion récente)
+    try{
+      await currentUser.delete();
+    }catch(authErr){
+      if(authErr && authErr.code === 'auth/requires-recent-login'){
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await firebase.auth().currentUser.reauthenticateWithPopup(provider);
+        await firebase.auth().currentUser.delete();
+      } else {
+        throw authErr;
+      }
+    }
+    products = []; sales = []; lots = []; debts = []; expenses = [];
+    stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+    stores = []; activeStoreId = null;
+    localStorage.clear();
+    closeDeleteAccountSheet();
+    closeAccountSheet();
+    showToast(t.accountDeleted || "Compte supprimé");
+    render();
+  }catch(e){
+    console.error('Erreur suppression compte', e);
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
+  }
+}
+
+function renderAccountUI(){
+  const t = dict[currentLang];
+  const loggedOut = document.getElementById('account-logged-out');
+  const loggedIn = document.getElementById('account-logged-in');
+  const employeeBox = document.getElementById('account-employee-mode');
+  const btnLabel = document.getElementById('account-btn-label');
+
+  if(isEmployeeMode){
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'none';
+    employeeBox.style.display = 'block';
+    const roleLabel = { patron:t.rolePatron, caissier:t.roleCaissier, magasinier:t.roleMagasinier };
+    document.getElementById('employee-role-display').textContent = roleLabel[employeeRole] || employeeRole;
+    btnLabel.textContent = roleLabel[employeeRole] || t.account;
+  } else if(currentUser){
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    employeeBox.style.display = 'none';
+    document.getElementById('account-photo').src = currentUser.photoURL || '';
+    document.getElementById('account-name').textContent = currentUser.displayName || '';
+    document.getElementById('account-email').textContent = currentUser.email || '';
+    const vipBadge = document.getElementById('account-vip-badge');
+    if(vipBadge){
+      vipBadge.style.display = isVip ? 'inline' : 'none';
+      vipBadge.textContent = isVip ? `⭐ VIP · ${dict[currentLang].vipUntilLabel} ${vipUntil}` : '⭐ VIP';
+    }
+    btnLabel.textContent = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Compte';
+  } else {
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+    employeeBox.style.display = 'none';
+    btnLabel.textContent = dict[currentLang].account || 'Compte';
+  }
+}
+
+/* ---------- Multi-boutiques & multi-appareils/rôles ---------- */
+let stores = [];
+let activeStoreId = null;
+let storesDataCache = {};
+let activityLog = [];
+let isEmployeeMode = false;
+let employeeOwnerUid = null;
+let employeeRole = null;      // 'patron' | 'caissier' | 'magasinier'
+let employeeStoreId = null;
+let employeeDeviceName = '';
+let unsubscribeListener = null;
+let devicesUnsub = null;
+let pinCountdownTimer = null;
+let selectedJoinRole = 'patron';
+
+function currentRole(){
+  if(isEmployeeMode) return employeeRole || 'patron';
+  return 'patron'; // le titulaire du compte Google est toujours patron
+}
+function isPatron(){ return currentRole() === 'patron'; }
+function canSell(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
+function canAddProducts(){ const r = currentRole(); return r==='patron' || r==='magasinier'; }
+function canEditDeleteProducts(){ const r = currentRole(); return r==='patron' || r==='magasinier'; }
+function canManageExpenses(){ return true; } // patron, caissier et magasinier peuvent enregistrer une dépense
+function canDeleteSale(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
+function canRepayDebt(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
+function canDeleteExpense(){ return true; }
+function canManageStoresAndDevices(){ return !isEmployeeMode || currentRole()==='patron'; }
+
+function getDataOwnerUid(){
+  if(isEmployeeMode) return employeeOwnerUid;
+  return currentUser ? currentUser.uid : null;
+}
+function getActiveStoreIdForWrites(){
+  return isEmployeeMode ? employeeStoreId : activeStoreId;
+}
+
+function emptyStoreData(){
+  return {
+    products: [], sales: [], lots: [], debts: [], expenses: [], activityLog: [],
+    stats: { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }
+  };
+}
+
+function loadStoreDataIntoWorkingArrays(storeData){
+  const d = storeData || emptyStoreData();
+  products = d.products || [];
+  sales = d.sales || [];
+  lots = d.lots || [];
+  debts = d.debts || [];
+  expenses = d.expenses || [];
+  activityLog = d.activityLog || [];
+  stats = d.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+  if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
+  localSet('mombongo:products', JSON.stringify(products));
+  localSet('mombongo:sales', JSON.stringify(sales));
+  localSet('mombongo:lots', JSON.stringify(lots));
+  localSet('mombongo:debts', JSON.stringify(debts));
+  localSet('mombongo:expenses', JSON.stringify(expenses));
+  localSet('mombongo:activityLog', JSON.stringify(activityLog));
+  localSet('mombongo:stats', JSON.stringify(stats));
+}
+
+let lastSyncOk = true;
+let lastSyncErrorMsg = '';
+function updateSyncStatusUI(){
+  const el = document.getElementById('t-sync-status');
+  if(!el) return;
+  if(lastSyncOk){
+    el.textContent = dict[currentLang].syncOk || "Tes données sont synchronisées.";
+    el.style.color = '';
+  } else {
+    el.textContent = (dict[currentLang].syncError || "⚠️ Échec de synchronisation :") + ' ' + lastSyncErrorMsg;
+    el.style.color = 'var(--alert)';
+  }
+}
+
+async function pushToCloud(){
+  const ownerUid = getDataOwnerUid();
+  if(!cloudEnabled || !db || !ownerUid) return;
+  const storeId = getActiveStoreIdForWrites();
+  if(!storeId) return;
+  storesDataCache[storeId] = { products, sales, lots, debts, expenses, activityLog, stats };
+  try{
+    const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
+    if(!isEmployeeMode){
+      update.stores = stores;
+      update.activeStoreId = activeStoreId;
+      update.rate = exchangeRate;
+      update.currency = currentCurrency;
+      update.email = currentUser.email || '';
+      update.displayName = currentUser.displayName || '';
+    }
+    await db.collection('mombongo_users').doc(ownerUid).set(update, { merge: true });
+    lastSyncOk = true;
+    updateSyncStatusUI();
+  }catch(e){
+    console.error('Erreur synchronisation cloud', e);
+    lastSyncOk = false;
+    lastSyncErrorMsg = e.code || e.message || String(e);
+    updateSyncStatusUI();
+  }
+}
+
+function applyDocData(data){
+  vipUntil = data.vipUntil || null;
+  isVip = !!(vipUntil && new Date(vipUntil + 'T23:59:59').getTime() > Date.now());
+  if(data.rate) exchangeRate = data.rate;
+  if(data.currency) currentCurrency = data.currency;
+  storesDataCache = data.storesData || {};
+
+  // Récupération : les versions précédentes de l'app pouvaient écrire par erreur
+  // un champ littéral "storesData.<id>" (avec un point dans le nom) au lieu d'un
+  // objet imbriqué. On récupère ces données si elles existent, pour ne rien perdre.
+  Object.keys(data).forEach(key=>{
+    if(key.indexOf('storesData.') === 0){
+      const legacyStoreId = key.slice('storesData.'.length);
+      if(!storesDataCache[legacyStoreId]){
+        storesDataCache[legacyStoreId] = data[key];
+      }
+    }
+  });
+
+  if(data.stores && data.stores.length){
+    stores = data.stores;
+  } else {
+    // Migration d'un ancien compte mono-boutique
+    const legacyId = 'store_default';
+    stores = [{ id: legacyId, name: currentLang==='fr' ? 'Boutique principale' : (dict[currentLang].storesTitle), createdAt: Date.now() }];
+    storesDataCache[legacyId] = {
+      products: data.products || [], sales: data.sales || [], lots: data.lots || [],
+      debts: data.debts || [], expenses: data.expenses || [], activityLog: data.activityLog || [],
+      stats: data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }
+    };
+    data.activeStoreId = legacyId;
+  }
+
+  if(isEmployeeMode){
+    if(!storesDataCache[employeeStoreId]) storesDataCache[employeeStoreId] = emptyStoreData();
+    loadStoreDataIntoWorkingArrays(storesDataCache[employeeStoreId]);
+  } else {
+    activeStoreId = data.activeStoreId && stores.find(s=>s.id===data.activeStoreId) ? data.activeStoreId : stores[0].id;
+    if(!storesDataCache[activeStoreId]) storesDataCache[activeStoreId] = emptyStoreData();
+    loadStoreDataIntoWorkingArrays(storesDataCache[activeStoreId]);
+    localSet('mombongo:rate', String(exchangeRate));
+    localSet('mombongo:currency', currentCurrency);
+    document.getElementById('in-rate').value = exchangeRate;
+    setCurrency(currentCurrency);
+  }
+}
+
+async function handlePostLogin(){
+  if(!cloudEnabled || !db || !currentUser) return;
+  try{
+    const doc = await db.collection('mombongo_users').doc(currentUser.uid).get();
+    if(doc.exists){
+      applyDocData(doc.data());
+      await archiveOldData();
+      await pushToCloud();
+      showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
+    } else {
+      isVip = false; vipUntil = null;
+      const legacyId = 'store_default';
+      stores = [{ id: legacyId, name: dict[currentLang].storesTitle, createdAt: Date.now() }];
+      activeStoreId = legacyId;
+      storesDataCache = { [legacyId]: { products, sales, lots, debts, expenses, stats } };
+      await db.collection('mombongo_users').doc(currentUser.uid).set({
+        stores, activeStoreId, storesData: storesDataCache, rate: exchangeRate, currency: currentCurrency,
+        email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now()
+      }, { merge: true });
+      showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
+    }
+  }catch(e){
+    console.error('Erreur récupération cloud', e);
+    showToast('Erreur données : ' + (e.code || e.message || e));
+  }
+  renderAccountUI();
+  renderStoresList();
+  render();
+  attachRealtimeListener(currentUser.uid);
+}
+
+function attachRealtimeListener(ownerUid){
+  if(!cloudEnabled || !db) return;
+  if(unsubscribeListener) { unsubscribeListener(); unsubscribeListener = null; }
+  unsubscribeListener = db.collection('mombongo_users').doc(ownerUid).onSnapshot((doc)=>{
+    if(!doc.exists) return;
+    applyDocData(doc.data());
+    renderAccountUI();
+    renderStoresList();
+    renderDevicesList();
+    render();
+  }, (e)=>{
+    console.error('Erreur écoute temps réel', e);
+    if(isEmployeeMode && (e.code === 'permission-denied')){
+      // Le patron a retiré cet appareil (ou l'a supprimé de son compte) : on nettoie localement.
+      leaveDeviceCleanup();
+      renderAccountUI();
+      render();
+      showToast(dict[currentLang].deviceRemoved);
+    }
+  });
+}
+
+/* ---------- Boutiques ---------- */
+function renderStoresList(){
+  const container = document.getElementById('stores-list');
+  if(!container) return;
+  container.innerHTML = '';
+  if(isEmployeeMode || !currentUser){
+    return;
+  }
+  stores.forEach(s=>{
+    const row = document.createElement('div');
+    row.className = 'debt-item';
+    row.style.padding = '10px 12px';
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+    const active = s.id === activeStoreId;
+    const delBtn = stores.length > 1
+      ? `<button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0 0 0 6px;" onclick="deleteStore('${s.id}')" aria-label="Supprimer">🗑</button>`
+      : '';
+    row.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:700; font-size:13.5px;">${s.name}${active ? ' <span style="color:var(--emerald); font-size:11px;">● '+dict[currentLang].activeStoreTag+'</span>' : ''}</div>
+      </div>
+      <div style="display:flex; align-items:center;">
+        ${active ? '' : `<button class="btn-secondary" style="width:auto; padding:6px 12px; background:var(--paper-2); border-radius:8px; margin:0;" onclick="switchStore('${s.id}')">${currentLang==='fr'?'Choisir':'Poná'}</button>`}
+        ${delBtn}
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+async function switchStore(storeId){
+  if(!currentUser || storeId === activeStoreId) return;
+  await pushToCloud(); // sauvegarde la boutique quittée
+  activeStoreId = storeId;
+  if(!storesDataCache[storeId]) storesDataCache[storeId] = emptyStoreData();
+  loadStoreDataIntoWorkingArrays(storesDataCache[storeId]);
+  await pushToCloud(); // persiste activeStoreId
+  renderStoresList();
+  render();
+  showToast(dict[currentLang].storeSwitched);
+}
+
+function openNewStoreSheet(){
+  if(!isVip){ closeAccountSheet(); openLimitSheet('stores'); return; }
+  document.getElementById('in-store-name').value = '';
+  document.getElementById('new-store-overlay').classList.add('open');
+}
+function closeNewStoreSheet(){
+  document.getElementById('new-store-overlay').classList.remove('open');
+}
+async function confirmAddStore(){
+  if(!isVip){ closeNewStoreSheet(); openLimitSheet('stores'); return; }
+  const name = document.getElementById('in-store-name').value.trim();
+  if(!name){ showToast(currentLang==='fr' ? "Indique un nom de boutique" : "Tia nkombo ya boutique"); return; }
+  const id = 'store_' + Date.now();
+  stores.push({ id, name, createdAt: Date.now() });
+  storesDataCache[id] = emptyStoreData();
+  await pushToCloud(); // sauvegarde la boutique courante avant de basculer
+  activeStoreId = id;
+  loadStoreDataIntoWorkingArrays(storesDataCache[id]);
+  await pushToCloud();
+  closeNewStoreSheet();
+  renderStoresList();
+  render();
+  showToast(dict[currentLang].storeAdded);
+}
+
+async function deleteStore(storeId){
+  const t = dict[currentLang];
+  if(stores.length <= 1){ showToast(t.cantDeleteLastStore); return; }
+  const store = stores.find(s=>s.id===storeId);
+  if(!store) return;
+  if(!window.confirm(`${t.confirmDeleteStore}\n"${store.name}"`)) return;
+
+  const wasActive = storeId === activeStoreId;
+  stores = stores.filter(s=>s.id!==storeId);
+  delete storesDataCache[storeId];
+
+  if(wasActive){
+    activeStoreId = stores[0].id;
+    if(!storesDataCache[activeStoreId]) storesDataCache[activeStoreId] = emptyStoreData();
+    loadStoreDataIntoWorkingArrays(storesDataCache[activeStoreId]);
+  }
+
+  try{
+    const ownerUid = getDataOwnerUid();
+    if(cloudEnabled && db && ownerUid){
+      await db.collection('mombongo_users').doc(ownerUid).set({
+        stores, activeStoreId,
+        storesData: { [storeId]: firebase.firestore.FieldValue.delete() },
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+  }catch(e){ console.error('Erreur suppression boutique', e); }
+
+  renderStoresList();
+  render();
+  showToast(t.storeDeleted);
+}
+
+/* ---------- Appareils & rôles (PIN de couplage) ---------- */
+function openDevicesSheet(){
+  document.getElementById('devices-overlay').classList.add('open');
+  renderDevicesList();
+}
+function closeDevicesSheet(){
+  document.getElementById('devices-overlay').classList.remove('open');
+}
+function renderDevicesList(){
+  const containers = ['devices-list-inline','devices-list']
+    .map(id=>document.getElementById(id))
+    .filter(Boolean);
+  if(containers.length === 0) return;
+  const ownerUid = getDataOwnerUid();
+  if(!cloudEnabled || !db || !ownerUid || !canManageStoresAndDevices()){
+    containers.forEach(c=>c.innerHTML = '');
+    return;
+  }
+  const t = dict[currentLang];
+  db.collection('mombongo_users').doc(ownerUid).collection('devices').get().then(snap=>{
+    containers.forEach(list=>{
+      list.innerHTML = '';
+      if(snap.empty){
+        const p = document.createElement('div');
+        p.className = 'empty';
+        p.textContent = t.noDevices;
+        list.appendChild(p);
+        return;
+      }
+      const roleLabel = { patron:t.rolePatron, caissier:t.roleCaissier, magasinier:t.roleMagasinier };
+      snap.forEach(docu=>{
+        const dv = docu.data();
+        const row = document.createElement('div');
+        row.className = 'debt-item';
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.innerHTML = `
+          <div>
+            <div style="font-weight:700; font-size:13.5px;">${dv.name || roleLabel[dv.role] || dv.role}</div>
+            <div style="font-size:11.5px; color:var(--charcoal-soft);">${roleLabel[dv.role] || dv.role}</div>
+          </div>
+          <button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0;" onclick="removeDevice('${docu.id}')" aria-label="${t.removeDeviceBtn}">🗑️</button>
+        `;
+        list.appendChild(row);
+      });
+    });
+  }).catch(e=>console.error('Erreur chargement appareils', e));
+}
+async function removeDevice(deviceUid){
+  const t = dict[currentLang];
+  if(!window.confirm(t.confirmRemoveDevice)) return;
+  const ownerUid = getDataOwnerUid();
+  try{
+    await db.collection('mombongo_users').doc(ownerUid).collection('devices').doc(deviceUid).delete();
+    showToast(t.deviceRemoved);
+    renderDevicesList();
+  }catch(e){ console.error('Erreur suppression appareil', e); showToast('Erreur : ' + (e.code || e.message || e), 5000); }
+}
+
+function openGeneratePinSheet(){
+  if(!isVip){ closeAccountSheet(); openLimitSheet('devices'); return; }
+  document.getElementById('generate-pin-overlay').classList.add('open');
+  generateNewPin();
+}
+function closeGeneratePinSheet(){
+  document.getElementById('generate-pin-overlay').classList.remove('open');
+  if(pinCountdownTimer){ clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
+}
+let currentPin = null;
+let currentPinExpiresAt = 0;
+async function generateNewPin(){
+  if(!cloudEnabled || !db || !currentUser) return;
+  if(pinCountdownTimer){ clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
+  const pin = String(Math.floor(10000 + Math.random() * 90000));
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+  try{
+    await db.collection('pairing_codes').doc(pin).set({
+      ownerUid: currentUser.uid, storeId: activeStoreId, createdAt: Date.now(), expiresAt
+    });
+    currentPin = pin;
+    currentPinExpiresAt = expiresAt;
+    document.getElementById('pin-display').textContent = pin;
+    pinCountdownTimer = setInterval(updatePinCountdown, 1000);
+    updatePinCountdown();
+  }catch(e){
+    console.error('Erreur génération code', e);
+    const hint = (e.code === 'permission-denied')
+      ? " — les règles de sécurité Firestore ne sont probablement pas publiées."
+      : "";
+    showToast('Erreur code : ' + (e.code || e.message || e) + hint, 5000);
+  }
+}
+function updatePinCountdown(){
+  const t = dict[currentLang];
+  const remaining = Math.max(0, Math.floor((currentPinExpiresAt - Date.now())/1000));
+  const mm = Math.floor(remaining/60), ss = remaining%60;
+  document.getElementById('pin-countdown').textContent = `${t.pinExpiresIn} ${mm}:${String(ss).padStart(2,'0')}`;
+  if(remaining <= 0 && pinCountdownTimer){ clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
+}
+
+function openJoinWithCodeSheet(){
+  document.getElementById('in-join-pin').value = '';
+  document.getElementById('in-join-device-name').value = '';
+  selectedJoinRole = 'patron';
+  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role==='patron'));
+  document.getElementById('join-with-code-overlay').classList.add('open');
+}
+function closeJoinWithCodeSheet(){
+  document.getElementById('join-with-code-overlay').classList.remove('open');
+}
+function selectJoinRole(role, btn){
+  selectedJoinRole = role;
+  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b===btn));
+}
+async function confirmJoinWithPin(){
+  const t = dict[currentLang];
+  const pin = document.getElementById('in-join-pin').value.trim();
+  const name = document.getElementById('in-join-device-name').value.trim();
+  if(!pin || pin.length < 4){ showToast(t.deviceLinkError); return; }
+  if(!cloudEnabled || !db){ showToast('Erreur de connexion'); return; }
+  try{
+    if(!firebase.auth().currentUser){
+      await firebase.auth().signInAnonymously();
+    }
+    const codeDoc = await db.collection('pairing_codes').doc(pin).get();
+    if(!codeDoc.exists){ showToast(t.deviceLinkError); return; }
+    const codeData = codeDoc.data();
+    if(codeData.expiresAt < Date.now()){ showToast(t.pinExpired); return; }
+    const myUid = firebase.auth().currentUser.uid;
+    await db.collection('mombongo_users').doc(codeData.ownerUid).collection('devices').doc(myUid).set({
+      role: selectedJoinRole, name: name || '', storeId: codeData.storeId, addedAt: Date.now()
+    });
+    try{ await db.collection('pairing_codes').doc(pin).delete(); }catch(e){}
+
+    isEmployeeMode = true;
+    employeeOwnerUid = codeData.ownerUid;
+    employeeRole = selectedJoinRole;
+    employeeStoreId = codeData.storeId;
+    employeeDeviceName = name || '';
+    localSet('mombongo:employeeOwnerUid', employeeOwnerUid);
+    localSet('mombongo:employeeRole', employeeRole);
+    localSet('mombongo:employeeStoreId', employeeStoreId);
+    localSet('mombongo:employeeDeviceName', employeeDeviceName);
+
+    closeJoinWithCodeSheet();
+    closeAccountSheet();
+    showToast(t.deviceLinked);
+    renderAccountUI();
+    attachRealtimeListener(employeeOwnerUid);
+  }catch(e){
+    console.error('Erreur rejoindre', e);
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
+  }
+}
+
+function leaveDeviceCleanup(){
+  if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
+  isEmployeeMode = false;
+  employeeOwnerUid = null; employeeRole = null; employeeStoreId = null; employeeDeviceName = '';
+  localStorage.removeItem('mombongo:employeeOwnerUid');
+  localStorage.removeItem('mombongo:employeeRole');
+  localStorage.removeItem('mombongo:employeeStoreId');
+  localStorage.removeItem('mombongo:employeeDeviceName');
+  products = []; sales = []; lots = []; debts = []; expenses = []; activityLog = [];
+  stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+  localSet('mombongo:products', '[]'); localSet('mombongo:sales', '[]'); localSet('mombongo:lots', '[]');
+  localSet('mombongo:debts', '[]'); localSet('mombongo:expenses', '[]'); localSet('mombongo:activityLog', '[]');
+  localSet('mombongo:stats', JSON.stringify(stats));
+}
+
+function confirmLeaveDevice(){
+  const t = dict[currentLang];
+  if(!window.confirm(t.confirmLeaveDevice)) return;
+  leaveDeviceCleanup();
+  closeAccountSheet();
+  renderAccountUI();
+  render();
+}
+
+function initEmployeeModeIfAny(){
+  const ownerUidResult = localGet('mombongo:employeeOwnerUid');
+  if(!ownerUidResult || !ownerUidResult.value) return false;
+  isEmployeeMode = true;
+  employeeOwnerUid = ownerUidResult.value;
+  const roleResult = localGet('mombongo:employeeRole');
+  employeeRole = (roleResult && roleResult.value) || 'caissier';
+  const storeIdResult = localGet('mombongo:employeeStoreId');
+  employeeStoreId = storeIdResult ? storeIdResult.value : null;
+  const deviceNameResult = localGet('mombongo:employeeDeviceName');
+  employeeDeviceName = (deviceNameResult && deviceNameResult.value) || '';
+  if(cloudEnabled){
+    firebase.auth().signInAnonymously().catch(e=>console.error('Erreur connexion anonyme', e));
+  }
+  renderAccountUI();
+  attachRealtimeListener(employeeOwnerUid);
+  return true;
+}
+
+if(cloudEnabled){
+  firebase.auth().getRedirectResult().then((result)=>{
+    if(result && result.user){
+      showToast(currentLang==='fr' ? "Connexion réussie, chargement..." : "Ekangami, ezali kotia...");
+    }
+  }).catch((e)=>{
+    console.error('Erreur résultat de redirection', e);
+    showToast('Erreur redirection : ' + (e.code || e.message || e));
+  });
+  const wasEmployeeMode = initEmployeeModeIfAny();
+  firebase.auth().onAuthStateChanged((user)=>{
+    if(user && user.isAnonymous){
+      // Appareil employé : ne pas traiter comme un compte Google
+      return;
+    }
+    currentUser = user;
+    renderAccountUI();
+    if(user) handlePostLogin();
+  });
+}
+
+function setLang(lang){
+  currentLang = lang;
+  document.getElementById('btn-fr').classList.toggle('active', lang==='fr');
+  document.getElementById('btn-ln').classList.toggle('active', lang==='ln');
+  document.getElementById('btn-sw').classList.toggle('active', lang==='sw');
+  applyTranslations();
+  render();
+}
+
+function setCurrency(cur){
+  currentCurrency = cur;
+  document.getElementById('btn-usd').classList.toggle('active', cur==='usd');
+  document.getElementById('btn-cdf').classList.toggle('active', cur==='cdf');
+  document.getElementById('rate-row').style.display = (cur==='cdf') ? 'block' : 'none';
+  localSet('mombongo:currency', cur);
+  updateAddFieldLabels();
+  render();
+}
+
+async function updateRate(){
+  const val = parseFloat(document.getElementById('in-rate').value);
+  if(val > 0){
+    exchangeRate = val;
+    localSet('mombongo:rate', String(val));
+    updateAddFieldLabels();
+    render();
+    if(document.getElementById('sell-overlay').classList.contains('open')) updateSellPreview();
+  }
+}
+
+function formatMoney(amount){
+  if(currentCurrency === 'usd'){
+    return amount.toFixed(2) + ' $';
+  } else {
+    return Math.round(amount * exchangeRate).toLocaleString('fr-FR') + ' FC';
+  }
+}
+
+function updateAddFieldLabels(){
+  const t = dict[currentLang];
+  const unit = currentCurrency === 'usd' ? '$' : 'FC';
+  document.getElementById('t-buy').textContent = `${t.buy} (${unit})`;
+  document.getElementById('t-sell').textContent = `${t.sell} (${unit})`;
+  document.getElementById('t-currency-hint').textContent = `${t.currencyHint} ${unit}`;
+  document.getElementById('t-mode-simple').textContent = t.modeSimple;
+  document.getElementById('t-mode-carton').textContent = t.modeCarton;
+  document.getElementById('t-mode-sac').textContent = t.modeSac;
+  document.getElementById('t-carton-name').textContent = t.cartonName;
+  document.getElementById('t-carton-qty').textContent = t.cartonQty;
+  document.getElementById('t-carton-buy').textContent = `${t.cartonBuy} (${unit})`;
+  document.getElementById('t-carton-sell').textContent = `${t.cartonSell} (${unit})`;
+  document.getElementById('t-carton-threshold').textContent = t.cartonThreshold;
+  document.getElementById('t-carton-hint').textContent = t.cartonHint;
+  document.getElementById('t-sac-name').textContent = t.sacName;
+  document.getElementById('t-sac-buy').textContent = `${t.sacBuy} (${unit})`;
+  document.getElementById('t-sac-threshold').textContent = t.sacThreshold;
+  document.getElementById('t-sac-hint').textContent = t.sacHint;
+  document.getElementById('t-add-mesurette').textContent = t.addMesurette;
+  if(currentCurrency === 'usd'){
+    document.getElementById('in-buy').placeholder = '0.5';
+    document.getElementById('in-sell').placeholder = '1';
+  } else {
+    document.getElementById('in-buy').placeholder = String(Math.round(0.5 * exchangeRate));
+    document.getElementById('in-sell').placeholder = String(Math.round(1 * exchangeRate));
+  }
+}
+
+function applyTranslations(){
+  const t = dict[currentLang];
+  updateAddFieldLabels();
+  document.getElementById('t-history-btn').textContent = t.historyBtn;
+  document.getElementById('t-history-title').textContent = t.historyTitle;
+  document.getElementById('t-history-empty').textContent = t.historyEmpty;
+  document.getElementById('t-clear-history').textContent = t.clearHistory;
+  document.getElementById('t-cancel4').textContent = t.close;
+  document.getElementById('t-appname').textContent = t.appname;
+  document.getElementById('t-tagline').textContent = t.tagline;
+  document.getElementById('t-today').textContent = t.today;
+  document.getElementById('t-profit-today').textContent = t.profitToday;
+  document.getElementById('t-profit-total').textContent = t.profitTotal;
+  document.getElementById('t-alerts').textContent = t.alerts;
+  document.getElementById('t-alerts-prompt').textContent = t.alertsPrompt;
+  document.getElementById('t-alerts-sheet-title').textContent = t.alertsTitle;
+  document.getElementById('t-alerts-tab-stock').textContent = t.alertsTabStock;
+  document.getElementById('t-alerts-tab-expired').textContent = t.alertsTabExpired;
+  document.getElementById('t-alerts-sheet-empty').textContent = t.alertsSheetEmpty;
+  document.getElementById('t-cancel10').textContent = t.close;
+  document.getElementById('t-products-title').textContent = t.productsTitle;
+  document.getElementById('t-empty').textContent = t.empty;
+  document.getElementById('t-no-results').textContent = t.noResults;
+  document.getElementById('search-input').placeholder = t.searchPlaceholder;
+  document.getElementById('t-add-btn').textContent = t.addBtnShort;
+  document.getElementById('t-add-title').textContent = t.addTitle;
+  document.getElementById('t-name').textContent = t.name;
+  document.getElementById('t-buy').textContent = t.buy;
+  document.getElementById('t-sell').textContent = t.sell;
+  document.getElementById('t-qty').textContent = t.qty;
+  document.getElementById('t-threshold').textContent = t.threshold;
+  document.getElementById('t-save').textContent = t.save;
+  document.getElementById('t-cancel').textContent = t.cancel;
+  document.getElementById('sell-title').textContent = t.sellTitle;
+  document.getElementById('t-sell-qty').textContent = t.sellQty;
+  document.getElementById('t-total-label').textContent = t.total;
+  document.getElementById('t-profit-label').textContent = t.profit;
+  document.getElementById('t-confirm-sale').textContent = t.confirmSale;
+  document.getElementById('t-cancel2').textContent = t.cancel;
+  document.getElementById('t-rate-label').textContent = t.rateLabel;
+  document.getElementById('t-expense-btn').textContent = t.expenseBtnShort;
+  document.getElementById('t-expenses-label').textContent = t.expensesLabel;
+  document.getElementById('t-debts-label').textContent = '💳 ' + t.debtsLabel;
+  document.getElementById('t-credit-toggle').textContent = t.creditToggle;
+  document.getElementById('t-client-name').textContent = t.clientName;
+  document.getElementById('t-client-phone').textContent = t.clientPhone;
+  document.getElementById('t-due-date').textContent = t.dueDateField;
+  document.getElementById('t-debts-title').textContent = t.debtsTitle;
+  document.getElementById('t-debts-empty').textContent = t.debtsEmpty;
+  document.getElementById('t-cancel5').textContent = t.close;
+  document.getElementById('t-repay-title').textContent = t.repayTitle;
+  document.getElementById('t-repay-client').textContent = t.repayClientLabel;
+  document.getElementById('t-repay-amount').textContent = t.repayAmountLabel;
+  document.getElementById('t-confirm-repay').textContent = t.confirmRepayBtn;
+  document.getElementById('t-cancel6').textContent = t.cancel;
+  document.getElementById('t-expense-title').textContent = t.expenseTitle;
+  document.getElementById('t-expense-desc').textContent = t.expenseDescLabel;
+  document.getElementById('t-expense-amount').textContent = t.expenseAmountLabel;
+  document.getElementById('t-confirm-expense').textContent = t.confirmExpenseBtn;
+  document.getElementById('t-cancel7').textContent = t.cancel;
+  document.getElementById('t-limit-title').textContent = t.limitTitle;
+  document.getElementById('t-limit-desc').textContent = currentUser ? t.limitDesc : t.limitNeedsLoginDesc;
+  document.getElementById('limit-whatsapp-link').textContent = currentUser ? t.limitUnlockBtn : t.limitLoginBtn;
+  document.getElementById('t-cancel8').textContent = t.cancel;
+  document.getElementById('t-period-day').textContent = t.periodDay;
+  document.getElementById('t-period-week').textContent = t.periodWeek;
+  document.getElementById('t-period-month').textContent = t.periodMonth;
+  document.getElementById('t-period-custom').textContent = t.periodCustom;
+  document.getElementById('t-period-from').textContent = t.periodFrom;
+  document.getElementById('t-period-to').textContent = t.periodTo;
+  document.getElementById('t-period-apply').textContent = t.periodApply;
+  document.getElementById('t-summary-revenue').textContent = t.summaryRevenue;
+  document.getElementById('t-summary-expenses').textContent = t.summaryExpenses;
+  document.getElementById('t-summary-net').textContent = t.summaryNet;
+  document.getElementById('t-expenses-history-title').textContent = t.expensesHistoryTitle;
+  document.getElementById('t-expenses-history-empty').textContent = t.expensesHistoryEmpty;
+  document.getElementById('t-cancel9').textContent = t.close;
+  document.getElementById('t-expiry-toggle').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date').textContent = t.expiryDateLabel;
+  document.getElementById('t-expiry-toggle-carton').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date-carton').textContent = t.expiryDateLabel;
+  document.getElementById('t-expiry-toggle-sac').textContent = t.expiryToggle;
+  document.getElementById('t-expiry-date-sac').textContent = t.expiryDateLabelSac;
+
+  document.getElementById('t-delete-account-btn').textContent = t.deleteAccountBtn;
+  document.getElementById('t-delete-account-title').textContent = t.deleteAccountTitle;
+  document.getElementById('t-delete-account-desc').textContent = t.deleteAccountDesc;
+  document.getElementById('t-delete-account-confirm').textContent = t.deleteAccountConfirm;
+  document.getElementById('t-cancel-delete-account').textContent = t.cancel;
+  document.getElementById('t-privacy-link').textContent = t.privacyLink;
+
+  document.getElementById('t-stores-title').textContent = t.storesTitle;
+  document.getElementById('t-add-store-btn').textContent = t.addStoreBtn;
+  document.getElementById('t-new-store-title').textContent = t.newStoreTitle;
+  document.getElementById('t-store-name').textContent = t.storeNameLabel;
+  document.getElementById('in-store-name').placeholder = t.storeNamePlaceholder;
+  document.getElementById('t-save-store').textContent = t.saveStoreBtn;
+  document.getElementById('t-cancel-new-store').textContent = t.cancel;
+
+  document.getElementById('t-devices-title').textContent = t.devicesTitle;
+  document.getElementById('t-devices-title2').textContent = t.devicesTitle;
+  document.getElementById('t-devices-desc').textContent = t.devicesDesc;
+  document.getElementById('t-add-device-btn').textContent = t.addDeviceBtn;
+  document.getElementById('t-generate-device-btn2').textContent = t.addDeviceBtn;
+  document.getElementById('t-join-with-code-btn').textContent = t.joinWithCodeBtn;
+  document.getElementById('t-cancel-devices').textContent = t.close;
+  document.getElementById('t-employee-connected-as').textContent = t.employeeConnectedAs;
+  document.getElementById('t-leave-device-btn').textContent = t.leaveDeviceBtn;
+
+  document.getElementById('t-generate-pin-title').textContent = t.generatePinTitle;
+  document.getElementById('t-generate-pin-desc').textContent = t.generatePinDesc;
+  document.getElementById('t-pin-regenerate').textContent = t.pinRegenerate;
+  document.getElementById('t-cancel-pin').textContent = t.close;
+
+  document.getElementById('t-enter-pin-title').textContent = t.enterPinTitle;
+  document.getElementById('t-enter-pin-desc').textContent = t.enterPinDesc;
+  document.getElementById('in-join-pin').placeholder = t.enterPinPlaceholder;
+  document.getElementById('t-choose-role-title').textContent = t.chooseRoleTitle;
+  document.getElementById('t-role-patron').textContent = t.rolePatron;
+  document.getElementById('t-role-caissier').textContent = t.roleCaissier;
+  document.getElementById('t-role-magasinier').textContent = t.roleMagasinier;
+  document.getElementById('t-device-name').textContent = t.deviceNameLabel;
+  document.getElementById('in-join-device-name').placeholder = t.deviceNamePlaceholder;
+  document.getElementById('t-join-confirm-btn').textContent = t.joinConfirmBtn;
+  document.getElementById('t-cancel-join').textContent = t.cancelJoin;
+
+  document.getElementById('t-export-label').textContent = t.exportLabel;
+  document.getElementById('t-export-format-pdf').textContent = t.exportFormatPdf;
+  document.getElementById('t-export-format-excel').textContent = t.exportFormatExcel;
+  document.getElementById('t-export-btn').textContent = t.exportBtn;
+}
+
+/* ---------- Données ---------- */
+let products = [];
+let sales = [];
+let lots = [];
+let debts = [];
+let expenses = [];
+let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+let sellingProductId = null;
+
+function saveLots(){
+  localSet('mombongo:lots', JSON.stringify(lots));
+  pushToCloud();
+}
+function saveDebts(){
+  localSet('mombongo:debts', JSON.stringify(debts));
+  pushToCloud();
+}
+function saveExpenses(){
+  localSet('mombongo:expenses', JSON.stringify(expenses));
+  pushToCloud();
+}
+
+function recalcLotQuantities(lotId){
+  const lot = lots.find(l=>l.id===lotId);
+  if(!lot) return;
+  products.filter(p=>p.lotId===lotId).forEach(p=>{
+    p.qty = Math.max(0, Math.floor(lot.remainingFraction * p.yieldPerSac + 1e-9));
+  });
+}
+
+const HISTORY_RETENTION_MONTHS = 13;
+function getHistoryRetentionCutoff(){
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - HISTORY_RETENTION_MONTHS, now.getDate());
+  return cutoff.getTime();
+}
+async function archiveOldData(){
+  const cutoff = getHistoryRetentionCutoff();
+  const oldSalesCount = sales.filter(s => s.date < cutoff).length;
+  const oldExpensesCount = expenses.filter(e => e.date < cutoff).length;
+  if(oldSalesCount === 0 && oldExpensesCount === 0) return;
+  // Les compteurs de bénéfices/dépenses (stats) sont indépendants de ces listes détaillées :
+  // les supprimer ici ne change donc rien aux totaux déjà affichés, seule la mémoire est libérée.
+  sales = sales.filter(s => s.date >= cutoff);
+  expenses = expenses.filter(e => e.date >= cutoff);
+  await saveSales();
+  saveExpenses();
+}
+
+async function loadData(){
+  if(isEmployeeMode){
+    // Les données de l'appareil employé proviennent du compte du patron (voir attachRealtimeListener)
+    render();
+    return;
+  }
+  try{
+    const p = localGet('mombongo:products');
+    products = p ? JSON.parse(p.value) : [];
+  }catch(e){ products = []; }
+  try{
+    const s = localGet('mombongo:sales');
+    sales = s ? JSON.parse(s.value) : [];
+  }catch(e){ sales = []; }
+  try{
+    const l = localGet('mombongo:lots');
+    lots = l ? JSON.parse(l.value) : [];
+  }catch(e){ lots = []; }
+  lots.forEach(lot=>recalcLotQuantities(lot.id));
+  try{
+    const d = localGet('mombongo:debts');
+    debts = d ? JSON.parse(d.value) : [];
+  }catch(e){ debts = []; }
+  try{
+    const ex = localGet('mombongo:expenses');
+    expenses = ex ? JSON.parse(ex.value) : [];
+  }catch(e){ expenses = []; }
+  try{
+    const st = localGet('mombongo:stats');
+    stats = st ? JSON.parse(st.value) : { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+    if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
+  }catch(e){ stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }; }
+  try{
+    const r = localGet('mombongo:rate');
+    if(r){ exchangeRate = parseFloat(r.value); document.getElementById('in-rate').value = exchangeRate; }
+  }catch(e){}
+  try{
+    const c = localGet('mombongo:currency');
+    if(c && c.value === 'cdf'){ setCurrency('cdf'); }
+  }catch(e){}
+  await archiveOldData();
+  render();
+}
+
+async function saveProducts(){
+  localSet('mombongo:products', JSON.stringify(products));
+  pushToCloud();
+}
+async function saveSales(){
+  localSet('mombongo:sales', JSON.stringify(sales));
+  pushToCloud();
+}
+
+/* ---------- Ajout / modification produit ---------- */
+let editingProductId = null;
+let addMode = 'simple';
+let mesuretteCount = 0;
+
+function setAddMode(mode){
+  addMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  document.getElementById('mode-simple-fields').style.display = mode==='simple' ? 'block':'none';
+  document.getElementById('mode-carton-fields').style.display = mode==='carton' ? 'block':'none';
+  document.getElementById('mode-sac-fields').style.display = mode==='sac' ? 'block':'none';
+  if(mode==='sac' && mesuretteCount===0){
+    addMesuretteRow(); addMesuretteRow(); addMesuretteRow();
+  }
+}
+
+function addMesuretteRow(){
+  mesuretteCount++;
+  const idx = mesuretteCount;
+  priceFieldCurrency['mesurette'+idx] = 'usd';
+  const wrap = document.createElement('div');
+  wrap.className = 'mesurette-row';
+  wrap.id = 'mesurette-row-'+idx;
+  const t = dict[currentLang];
+  wrap.innerHTML = `
+    <div class="field">
+      <label>${t.mesuretteName}</label>
+      <input id="mesurette-name-${idx}" type="text" value="${t.mesuretteDefault} ${idx}">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>${t.mesuretteSell}</label><span class="field-currency-toggle" id="fc-toggle-mesurette${idx}"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('mesurette${idx}','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('mesurette${idx}','cdf')">FC</button></span>
+        <input id="mesurette-sell-${idx}" type="number" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>${t.mesuretteQty}</label>
+        <input id="mesurette-qty-${idx}" type="number" inputmode="numeric">
+      </div>
+    </div>
+    <button type="button" class="remove-mesurette" onclick="removeMesuretteRow(${idx})">✕ ${t.mesuretteRemove}</button>
+  `;
+  document.getElementById('mesurettes-list').appendChild(wrap);
+}
+function removeMesuretteRow(idx){
+  const el = document.getElementById('mesurette-row-'+idx);
+  if(el) el.remove();
+}
+function resetMesurettes(){
+  document.getElementById('mesurettes-list').innerHTML = '';
+  mesuretteCount = 0;
+}
+
+function toggleExpiryField(mode){
+  const checked = document.getElementById(mode==='simple' ? 'in-has-expiry' : mode+'-has-expiry').checked;
+  document.getElementById('expiry-field-'+mode).style.display = checked ? 'block' : 'none';
+}
+
+function openAddSheet(){
+  if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  editingProductId = null;
+  updateAddFieldLabels();
+  document.getElementById('t-add-title').textContent = dict[currentLang].addTitle;
+  document.getElementById('t-save').textContent = dict[currentLang].save;
+  document.getElementById('add-mode-row').style.display = 'flex';
+  resetMesurettes();
+  setAddMode('simple');
+  resetFieldCurrencies();
+  document.getElementById('add-overlay').classList.add('open');
+}
+function openEditSheet(id){
+  if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const product = products.find(p=>p.id===id);
+  if(!product) return;
+  editingProductId = id;
+  updateAddFieldLabels();
+  document.getElementById('t-add-title').textContent = dict[currentLang].editTitle;
+  document.getElementById('t-save').textContent = dict[currentLang].saveEdit;
+  document.getElementById('add-mode-row').style.display = 'none';
+  resetMesurettes();
+  setAddMode('simple');
+  resetFieldCurrencies();
+  document.getElementById('in-name').value = product.name;
+  document.getElementById('in-buy').value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
+  document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
+  document.getElementById('in-qty').value = product.qty;
+  document.getElementById('in-threshold').value = product.threshold;
+  document.getElementById('in-has-expiry').checked = !!product.expiryDate;
+  setDateValue('in-expiry-date', product.expiryDate || '');
+  toggleExpiryField('simple');
+  document.getElementById('add-overlay').classList.add('open');
+}
+function closeAddSheet(){
+  document.getElementById('add-overlay').classList.remove('open');
+  ['in-name','in-buy','in-sell','in-qty','in-threshold',
+   'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold',
+   'sac-name','sac-buy','sac-threshold'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value='';
+  });
+  setDateValue('in-expiry-date', '');
+  setDateValue('carton-expiry-date', '');
+  setDateValue('sac-expiry-date', '');
+  ['in-has-expiry','carton-has-expiry','sac-has-expiry'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.checked = false;
+  });
+  ['expiry-field-simple','expiry-field-carton','expiry-field-sac'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
+  });
+  resetMesurettes();
+  editingProductId = null;
+}
+
+function toInternal(raw){
+  return currentCurrency === 'cdf' ? raw / exchangeRate : raw;
+}
+
+/* ---------- Devise indépendante par champ de prix ---------- */
+let priceFieldCurrency = {};
+function resetFieldCurrencies(){
+  priceFieldCurrency = { buy: currentCurrency, sell: currentCurrency, cartonBuy: currentCurrency, cartonSell: currentCurrency, sacBuy: currentCurrency };
+  document.querySelectorAll('.field-currency-toggle').forEach(group=>{
+    const key = group.id.replace('fc-toggle-','');
+    const cur = priceFieldCurrency[key] || currentCurrency;
+    group.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cur===cur));
+  });
+}
+function setFieldCurrency(field, cur){
+  priceFieldCurrency[field] = cur;
+  const group = document.getElementById('fc-toggle-'+field);
+  if(group){
+    group.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cur===cur));
+  }
+}
+function toInternalField(raw, field){
+  const cur = priceFieldCurrency[field] || currentCurrency;
+  return cur === 'cdf' ? raw / exchangeRate : raw;
+}
+
+function canAddMoreProducts(countToAdd){
+  if(isVip) return true;
+  return (products.length + countToAdd) <= FREE_PRODUCT_LIMIT;
+}
+function canAddMoreExpenses(){
+  if(isVip) return true;
+  return expenses.length < FREE_EXPENSE_LIMIT;
+}
+function openLimitSheet(reason){
+  const t = dict[currentLang];
+  reason = reason || 'products';
+  const link = document.getElementById('limit-whatsapp-link');
+  if(!currentUser){
+    document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
+    link.textContent = t.limitLoginBtn;
+    link.href = '#';
+    link.onclick = function(e){
+      e.preventDefault();
+      closeLimitSheet();
+      openAccountSheet();
+    };
+  } else {
+    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices' }[reason];
+    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices' }[reason];
+    document.getElementById('t-limit-desc').textContent = t[descKey];
+    const msg = encodeURIComponent(t[msgKey]);
+    link.textContent = t.limitUnlockBtn;
+    link.href = `https://wa.me/${DEV_WHATSAPP}?text=${msg}`;
+    link.onclick = null;
+  }
+  document.getElementById('add-overlay').classList.remove('open');
+  document.getElementById('expense-overlay').classList.remove('open');
+  document.getElementById('limit-overlay').classList.add('open');
+}
+function closeLimitSheet(){
+  document.getElementById('limit-overlay').classList.remove('open');
+}
+
+function openExpensesHistorySheet(){
+  renderExpensesHistory();
+  document.getElementById('expenses-history-overlay').classList.add('open');
+}
+function closeExpensesHistorySheet(){
+  document.getElementById('expenses-history-overlay').classList.remove('open');
+}
+function renderExpensesHistory(){
+  const t = dict[currentLang];
+  const list = document.getElementById('expenses-history-list');
+  const empty = document.getElementById('expenses-history-empty');
+  const sorted = [...expenses].sort((a,b)=>b.date-a.date);
+  list.innerHTML = '';
+  if(sorted.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  sorted.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="info">
+        <div class="name">${e.desc}</div>
+        <div class="meta">${formatDateTime(e.date)}</div>
+      </div>
+      <div class="amounts">
+        <div class="total negative">-${formatMoney(e.amount)}</div>
+      </div>
+      <button class="del-entry" onclick="deleteExpenseHistoryEntry('${e.id}')" aria-label="Supprimer">🗑</button>
+    `;
+    list.appendChild(div);
+  });
+}
+async function deleteExpenseHistoryEntry(id){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmDeleteEntry);
+  if(!ok) return;
+  const expense = expenses.find(e=>e.id===id);
+  expenses = expenses.filter(e=>e.id!==id);
+  await saveExpenses();
+  if(expense){
+    stats.totalExpenses = Math.max(0, stats.totalExpenses - expense.amount);
+    saveStats();
+  }
+  renderExpensesHistory();
+  render();
+  showToast(t.entryDeleted);
+}
+
+async function handleAddSave(){
+  const requiredPermission = editingProductId ? canEditDeleteProducts() : canAddProducts();
+  if(!requiredPermission){ showToast(dict[currentLang].restrictedFeature); closeAddSheet(); return; }
+  if(addMode === 'simple'){ await addProduct(); return; }
+  if(addMode === 'carton'){ await addCartonProduct(); return; }
+  if(addMode === 'sac'){ await addSacProduct(); return; }
+}
+
+async function addProduct(){
+  const name = document.getElementById('in-name').value.trim();
+  const rawBuy = parseFloat(document.getElementById('in-buy').value) || 0;
+  const rawSell = parseFloat(document.getElementById('in-sell').value) || 0;
+  // Chaque champ (achat/vente) convertit selon sa propre devise sélectionnée
+  const buy = toInternalField(rawBuy, 'buy');
+  const sell = toInternalField(rawSell, 'sell');
+  const qty = parseInt(document.getElementById('in-qty').value) || 0;
+  const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
+  const hasExpiry = document.getElementById('in-has-expiry').checked;
+  const expiryDate = hasExpiry ? (getDateValue('in-expiry-date') || null) : null;
+  if(!name || !sell){
+    showToast(currentLang==='fr' ? "Donne au moins un nom et un prix de vente" : "Pesa nkombo na ntalo ya kotéka");
+    return;
+  }
+  if(editingProductId){
+    const product = products.find(p=>p.id===editingProductId);
+    if(product){
+      if(currentRole()==='magasinier'){
+        logActivity('product_edit', dict[currentLang].logProductEdited + ' : ' + product.name);
+      }
+      product.name = name; product.buy = buy; product.sell = sell;
+      product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
+    }
+  } else {
+    if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
+    products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now() });
+  }
+  const wasEditing = !!editingProductId;
+  await saveProducts();
+  closeAddSheet();
+  showToast(wasEditing ? dict[currentLang].updated : dict[currentLang].saved);
+  render();
+}
+
+async function addCartonProduct(){
+  const name = document.getElementById('carton-name').value.trim();
+  const cartonQty = parseInt(document.getElementById('carton-qty').value) || 0;
+  const rawCartonBuy = parseFloat(document.getElementById('carton-buy').value) || 0;
+  const rawSell = parseFloat(document.getElementById('carton-sell').value) || 0;
+  const threshold = parseInt(document.getElementById('carton-threshold').value) || 3;
+  if(!name || !cartonQty || !rawSell){
+    showToast(currentLang==='fr' ? "Remplis le nom, le nombre de pièces et le prix de vente" : "Pesa nkombo, motángo na ntalo ya kotéka");
+    return;
+  }
+  if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
+  const cartonBuyInternal = toInternalField(rawCartonBuy, 'cartonBuy');
+  const buyPerPiece = cartonBuyInternal / cartonQty;
+  const sell = toInternalField(rawSell, 'cartonSell');
+  const hasExpiry = document.getElementById('carton-has-expiry').checked;
+  const expiryDate = hasExpiry ? (getDateValue('carton-expiry-date') || null) : null;
+  products.push({
+    id: Date.now().toString(), name, buy: buyPerPiece, sell,
+    qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now()
+  });
+  await saveProducts();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+}
+
+async function addSacProduct(){
+  const name = document.getElementById('sac-name').value.trim();
+  const rawSacBuy = parseFloat(document.getElementById('sac-buy').value) || 0;
+  const threshold = parseInt(document.getElementById('sac-threshold').value) || 3;
+  if(!name || !rawSacBuy){
+    showToast(currentLang==='fr' ? "Remplis le nom et le prix d'achat du sac" : "Pesa nkombo na ntalo ya sac");
+    return;
+  }
+  const sacBuyInternal = toInternalField(rawSacBuy, 'sacBuy');
+  const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
+  const validRows = [];
+  rows.forEach((row)=>{
+    const idx = row.id.replace('mesurette-row-','');
+    const mName = document.getElementById('mesurette-name-'+idx).value.trim();
+    const rawMSell = parseFloat(document.getElementById('mesurette-sell-'+idx).value) || 0;
+    const mQty = parseInt(document.getElementById('mesurette-qty-'+idx).value) || 0;
+    if(mName && rawMSell && mQty) validRows.push({ mName, rawMSell, mQty, idx });
+  });
+  if(validRows.length === 0){
+    showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
+    return;
+  }
+  if(!canAddMoreProducts(validRows.length)){ openLimitSheet(); return; }
+  const hasExpiry = document.getElementById('sac-has-expiry').checked;
+  const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
+  const lotId = 'lot' + Date.now().toString();
+  let offset = 0;
+  validRows.forEach(({mName, rawMSell, mQty, idx})=>{
+    const mSell = toInternalField(rawMSell, 'mesurette'+idx);
+    const buyPerUnit = sacBuyInternal / mQty;
+    offset++;
+    products.push({
+      id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell,
+      qty: mQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
+      lotId: lotId, yieldPerSac: mQty
+    });
+  });
+  lots.push({ id: lotId, name, remainingFraction: 1, createdAt: Date.now() });
+  await saveProducts();
+  saveLots();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+}
+
+function saveActivityLog(){
+  localSet('mombongo:activityLog', JSON.stringify(activityLog));
+  pushToCloud();
+}
+function logActivity(action, label){
+  const roleLabel = { patron:'Patron', caissier:'Caissier', magasinier:'Magasinier' };
+  const who = employeeDeviceName ? `${roleLabel[currentRole()]} (${employeeDeviceName})` : roleLabel[currentRole()];
+  activityLog.unshift({ id: 'act'+Date.now()+Math.random().toString(36).slice(2,6), action, label, who, date: Date.now() });
+  if(activityLog.length > 300) activityLog = activityLog.slice(0, 300);
+  saveActivityLog();
+}
+
+/* ---------- Suppression produit ---------- */
+async function deleteProduct(id){
+  if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const product = products.find(p=>p.id===id);
+  if(!product) return;
+  const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
+  if(!ok) return;
+  if(currentRole()==='magasinier'){
+    logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name);
+  }
+  products = products.filter(p=>p.id!==id);
+  await saveProducts();
+  showToast(dict[currentLang].deleted);
+  render();
+}
+
+function scrollConfirmIntoView(){
+  setTimeout(()=>{
+    const btn = document.getElementById('t-confirm-sale');
+    if(btn) btn.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 300);
+}
+
+/* ---------- Vente ---------- */
+function openSellSheet(id){
+  if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  sellingProductId = id;
+  document.getElementById('in-sell-qty').value = 1;
+  document.getElementById('in-is-credit').checked = false;
+  document.getElementById('in-client-name').value = '';
+  document.getElementById('in-client-phone').value = '';
+  setDateValue('in-due-date', '');
+  document.getElementById('credit-fields').style.display = 'none';
+  document.getElementById('sell-overlay').classList.add('open');
+  updateSellPreview();
+}
+function closeSellSheet(){
+  document.getElementById('sell-overlay').classList.remove('open');
+  sellingProductId = null;
+}
+function toggleCreditFields(){
+  const isCredit = document.getElementById('in-is-credit').checked;
+  document.getElementById('credit-fields').style.display = isCredit ? 'block' : 'none';
+}
+function updateSellPreview(){
+  const product = products.find(p=>p.id===sellingProductId);
+  if(!product) return;
+  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
+  const total = qty * product.sell;
+  const profit = qty * (product.sell - product.buy);
+  document.getElementById('preview-total').textContent = formatMoney(total);
+  document.getElementById('preview-profit').textContent = formatMoney(profit);
+}
+async function confirmSale(){
+  if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const product = products.find(p=>p.id===sellingProductId);
+  if(!product) return;
+  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
+  if(qty <= 0 || qty > product.qty){
+    showToast(currentLang==='fr' ? "Quantité invalide" : "Motángo ekoki te");
+    return;
+  }
+  const isCredit = document.getElementById('in-is-credit').checked;
+  const clientName = document.getElementById('in-client-name').value.trim();
+  if(isCredit && !clientName){
+    showToast(currentLang==='fr' ? "Indique le nom du client pour une vente à crédit" : "Pesa nkombo ya client");
+    return;
+  }
+  const clientPhone = document.getElementById('in-client-phone').value.trim();
+  const dueDate = getDateValue('in-due-date');
+
+  if(product.lotId){
+    const lot = lots.find(l=>l.id===product.lotId);
+    if(lot){
+      const fractionConsumed = qty / product.yieldPerSac;
+      lot.remainingFraction = Math.max(0, lot.remainingFraction - fractionConsumed);
+      recalcLotQuantities(product.lotId);
+      products.filter(p=>p.lotId===product.lotId).forEach(p=>{ p.lastSoldAt = Date.now(); });
+      saveLots();
+    } else {
+      product.qty -= qty;
+      product.lastSoldAt = Date.now();
+    }
+  } else {
+    product.qty -= qty;
+    product.lastSoldAt = Date.now();
+  }
+  const saleTotal = qty*product.sell;
+  const saleProfit = qty*(product.sell-product.buy);
+  const saleId = Date.now().toString();
+  sales.push({
+    id: saleId, productId: product.id,
+    qty, total: saleTotal, profit: saleProfit,
+    date: Date.now(), isCredit: isCredit
+  });
+  await saveProducts();
+
+  if(isCredit){
+    let debt = debts.find(d=>d.status==='ouvert' && d.clientName.toLowerCase()===clientName.toLowerCase());
+    if(!debt){
+      debt = {
+        id: 'debt'+Date.now().toString(), clientName, phone: clientPhone, dueDate,
+        items: [], totalOwed: 0, totalProfit: 0, amountPaid: 0, payments: [],
+        createdAt: Date.now(), status: 'ouvert'
+      };
+      debts.push(debt);
+    } else {
+      if(clientPhone) debt.phone = clientPhone;
+      if(dueDate) debt.dueDate = dueDate;
+    }
+    debt.items.push({ productName: product.name, qty, total: saleTotal, profit: saleProfit, date: Date.now() });
+    debt.totalOwed += saleTotal;
+    debt.totalProfit += saleProfit;
+    saveDebts();
+    await saveSales();
+    closeSellSheet();
+    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka na crédit ekómi");
+  } else {
+    ensureTodayStats();
+    stats.todaySales += saleTotal;
+    stats.todayProfit += saleProfit;
+    stats.totalProfit += saleProfit;
+    saveStats();
+    await saveSales();
+    closeSellSheet();
+    showToast(dict[currentLang].sold);
+  }
+  render();
+}
+
+/* ---------- Rendu ---------- */
+function getDateValue(prefix){
+  const dEl = document.getElementById(prefix+'-d');
+  const mEl = document.getElementById(prefix+'-m');
+  const yEl = document.getElementById(prefix+'-y');
+  if(!dEl || !mEl || !yEl) return '';
+  const d = dEl.value, m = mEl.value, y = yEl.value;
+  if(!d || !m || !y || String(y).length < 4) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function setDateValue(prefix, iso){
+  const dEl = document.getElementById(prefix+'-d');
+  const mEl = document.getElementById(prefix+'-m');
+  const yEl = document.getElementById(prefix+'-y');
+  if(!dEl || !mEl || !yEl) return;
+  if(!iso){ dEl.value = ''; mEl.value = ''; yEl.value = ''; return; }
+  const [y,m,d] = iso.split('-');
+  yEl.value = y; mEl.value = parseInt(m,10); dEl.value = parseInt(d,10);
+}
+
+function isToday(ts){
+  const d = new Date(ts), now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+function daysSince(ts){ return Math.floor((Date.now()-ts)/86400000); }
+
+function getFilteredProducts(){
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q) return products;
+  return products.filter(p=>p.name.toLowerCase().includes(q));
+}
+
+function render(){
+  const t = dict[currentLang];
+  ensureTodayStats();
+
+  const role = currentRole();
+  const hideProfits = (role === 'caissier' || role === 'magasinier');
+  const hideTodaySales = (role === 'magasinier');
+
+  document.getElementById('stat-today').textContent = hideTodaySales ? '•••' : formatMoney(stats.todaySales);
+  document.getElementById('stat-profit-today').textContent = hideProfits ? '•••' : formatMoney(stats.todayProfit);
+  document.getElementById('stat-profit-total').textContent = hideProfits ? '•••' : formatMoney(stats.totalProfit - stats.totalExpenses);
+  document.getElementById('stat-expenses').textContent = formatMoney(stats.totalExpenses);
+
+  document.getElementById('t-add-btn').style.display = (role==='caissier') ? 'none' : '';
+  document.getElementById('t-expense-btn').style.display = (role==='patron' || role==='caissier' || role==='magasinier') ? '' : 'none';
+  ['reset-today-sales-btn','reset-today-profit-btn','reset-total-profit-btn','reset-expenses-btn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = isPatron() ? '' : 'none';
+  });
+
+  const openDebts = debts.filter(d=>d.status==='ouvert');
+  const totalOwed = openDebts.reduce((sum,d)=>sum + Math.max(0, d.totalOwed - d.amountPaid), 0);
+  document.getElementById('stat-debts').textContent = formatMoney(totalOwed);
+
+  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  const dormant = products.filter(p=>{
+    const ref = p.lastSoldAt || p.createdAt;
+    return daysSince(ref) >= 14;
+  });
+  const todayStr = new Date().toISOString().slice(0,10);
+  const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
+  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id), ...expired.map(p=>p.id)]).size;
+  document.getElementById('stat-alerts').textContent = alertCount;
+
+  const alertsSection = document.getElementById('alerts-section');
+  alertsSection.style.display = alertCount > 0 ? 'block' : 'none';
+  document.getElementById('t-alerts-prompt').textContent = expired.length > 0 ? t.alertsPromptWithExpired : t.alertsPrompt;
+
+  const list = document.getElementById('products-list');
+  const empty = document.getElementById('empty-state');
+  const noResults = document.getElementById('no-results');
+  const filtered = getFilteredProducts();
+  list.innerHTML = '';
+
+  if(products.length === 0){
+    empty.style.display = 'block';
+    noResults.style.display = 'none';
+  } else if(filtered.length === 0){
+    empty.style.display = 'none';
+    noResults.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    noResults.style.display = 'none';
+    filtered.forEach(p=>{
+      const dotClass = p.qty === 0 ? 'red' : (p.qty <= p.threshold ? 'amber' : 'green');
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      const sellBtn = canSell() ? `<button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>` : '';
+      const editBtn = canEditDeleteProducts() ? `<button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>` : '';
+      const delBtn = canEditDeleteProducts() ? `<button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>` : '';
+      card.innerHTML = `
+        <div class="dot ${dotClass}"></div>
+        <div class="info">
+          <div class="name">${p.name}</div>
+          <div class="meta">${p.qty} ${t.stockUnit}</div>
+        </div>
+        <div class="price">${formatMoney(p.sell)}</div>
+        ${sellBtn}${editBtn}${delBtn}
+      `;
+      list.appendChild(card);
+    });
+  }
+}
+
+function ensureTodayStats(){
+  const todayStr = new Date().toDateString();
+  if(stats.todayDate !== todayStr){
+    stats.todayDate = todayStr;
+    stats.todaySales = 0;
+    stats.todayProfit = 0;
+    saveStats();
+  }
+}
+
+function saveStats(){
+  localSet('mombongo:stats', JSON.stringify(stats));
+  pushToCloud();
+}
+
+async function resetStat(field){
+  if(!isPatron()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmResetStats);
+  if(!ok) return;
+  stats[field] = 0;
+  saveStats();
+  render();
+  showToast(t.statsReset);
+}
+
+async function resetExpenses(){
+  if(!isPatron()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmResetStats);
+  if(!ok) return;
+  stats.totalExpenses = 0;
+  saveStats();
+  render();
+  showToast(t.statsReset);
+}
+
+/* ---------- Historique des ventes ---------- */
+let historyPeriod = 'day';
+let historyCustomFrom = null;
+let historyCustomTo = null;
+
+function openHistorySheet(){
+  historyPeriod = 'day';
+  historyCustomFrom = null;
+  historyCustomTo = null;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period==='day'));
+  document.getElementById('custom-range-fields').style.display = 'none';
+  setDateValue('in-period-from', '');
+  setDateValue('in-period-to', '');
+  renderHistory();
+  document.getElementById('history-overlay').classList.add('open');
+  try{ history.pushState({ mombongoHistoryOpen: true }, ''); }catch(e){}
+}
+function closeHistorySheet(){
+  document.getElementById('history-overlay').classList.remove('open');
+}
+window.addEventListener('popstate', function(){
+  document.querySelectorAll('.sheet-overlay.open').forEach(el=>el.classList.remove('open'));
+});
+function formatDateTime(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR') + ' — ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function setHistoryPeriod(period){
+  if(period !== 'day' && !isVip){
+    openLimitSheet('history');
+    return;
+  }
+  historyPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period===period));
+  document.getElementById('custom-range-fields').style.display = period==='custom' ? 'block' : 'none';
+  if(period !== 'custom'){
+    renderHistory();
+  } else if(historyCustomFrom && historyCustomTo){
+    renderHistory();
+  }
+}
+function applyCustomRange(){
+  const from = getDateValue('in-period-from');
+  const to = getDateValue('in-period-to');
+  if(!from || !to){
+    showToast(currentLang==='fr' ? "Choisis les deux dates" : "Poná ba dates mibale");
+    return;
+  }
+  const cutoff = getHistoryRetentionCutoff();
+  const fromTs = new Date(from + 'T00:00:00').getTime();
+  if(fromTs < cutoff){
+    showToast(dict[currentLang].dateTooOld);
+    return;
+  }
+  historyCustomFrom = from;
+  historyCustomTo = to;
+  renderHistory();
+}
+
+function getPeriodRange(){
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  if(historyPeriod === 'day'){
+    return { start: startOfToday.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'week'){
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 6);
+    return { start: start.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'month'){
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 29);
+    return { start: start.getTime(), end: endOfToday.getTime() };
+  }
+  if(historyPeriod === 'custom' && historyCustomFrom && historyCustomTo){
+    const start = new Date(historyCustomFrom + 'T00:00:00');
+    const end = new Date(historyCustomTo + 'T23:59:59');
+    return { start: start.getTime(), end: end.getTime() };
+  }
+  return { start: startOfToday.getTime(), end: endOfToday.getTime() };
+}
+
+function computePeriodSummary(start, end){
+  let revenue = 0, profit = 0, expensesTotal = 0;
+  sales.forEach(s=>{
+    if(s.isCredit) return;
+    if(s.date >= start && s.date <= end){ revenue += s.total; profit += s.profit; }
+  });
+  debts.forEach(d=>{
+    (d.payments||[]).forEach(p=>{
+      if(p.date >= start && p.date <= end){
+        revenue += p.amount;
+        profit += (typeof p.profit === 'number') ? p.profit : 0;
+      }
+    });
+  });
+  expenses.forEach(e=>{
+    if(e.date >= start && e.date <= end) expensesTotal += e.amount;
+  });
+  return { revenue, expensesTotal, netGain: profit - expensesTotal };
+}
+
+function buildUnifiedHistory(){
+  const t = dict[currentLang];
+  const entries = [];
+  sales.forEach(s=>{
+    const product = products.find(p=>p.id===s.productId);
+    const pname = product ? product.name : t.historyDeletedProduct;
+    entries.push({
+      type:'sale', id:s.id, date:s.date,
+      label: pname + ' × ' + s.qty + (s.isCredit ? ' ('+t.creditTag+')' : ''),
+      amount: s.total, sub: '+'+formatMoney(s.profit), deletable:true
+    });
+  });
+  expenses.forEach(e=>{
+    entries.push({
+      type:'expense', id:e.id, date:e.date,
+      label: e.desc, amount: -e.amount, sub:'', deletable:true
+    });
+  });
+  debts.forEach(d=>{
+    (d.payments||[]).forEach((p, idx)=>{
+      entries.push({
+        type:'repay', id: d.id+'_p'+idx, date:p.date,
+        label: t.repayLabel + ' — ' + d.clientName,
+        amount: p.amount, sub:'', deletable:false
+      });
+    });
+  });
+  if(isPatron()){
+    (activityLog||[]).forEach(a=>{
+      entries.push({
+        type:'activity', id:a.id, date:a.date,
+        label: '👁️ ' + a.label + ' — ' + a.who,
+        amount: 0, sub:'', deletable:false
+      });
+    });
+  }
+  return entries.sort((a,b)=>b.date-a.date);
+}
+
+function renderHistory(){
+  const t = dict[currentLang];
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  const { start, end } = getPeriodRange();
+  const role = currentRole();
+
+  const summary = computePeriodSummary(start, end);
+  document.getElementById('summary-revenue').textContent = (role==='magasinier') ? '•••' : formatMoney(summary.revenue);
+  document.getElementById('summary-expenses').textContent = formatMoney(summary.expensesTotal);
+  document.getElementById('summary-net').textContent = (role==='caissier' || role==='magasinier') ? '•••' : formatMoney(summary.netGain);
+
+  const exportRow = document.querySelector('.toggle-row');
+  if(exportRow) exportRow.style.display = isPatron() ? 'flex' : 'none';
+  const exportFields = document.getElementById('export-fields');
+  if(!isPatron() && exportFields) exportFields.style.display = 'none';
+
+  let sorted = buildUnifiedHistory().filter(e => e.date >= start && e.date <= end);
+  if(role === 'magasinier'){
+    sorted = sorted.filter(e => e.type === 'expense');
+  } else if(role === 'caissier'){
+    sorted = sorted.filter(e => e.type !== 'expense' || true); // caissier voit ventes, reprises et dépenses
+    sorted = sorted.map(e => e.type === 'sale' ? { ...e, sub: '' } : e); // masque le bénéfice par vente
+  }
+  list.innerHTML = '';
+  if(sorted.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  sorted.forEach(entry=>{
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const amountClass = entry.amount < 0 ? 'total negative' : 'total';
+    const canDeleteThis = entry.deletable && (
+      (entry.type==='sale' && canDeleteSale()) ||
+      (entry.type==='expense' && canDeleteExpense())
+    );
+    const delBtn = canDeleteThis
+      ? `<button class="del-entry" onclick="deleteHistoryEntry('${entry.type}','${entry.id}')" aria-label="Supprimer">🗑</button>`
+      : '';
+    div.innerHTML = `
+      <div class="info">
+        <div class="name">${entry.label}</div>
+        <div class="meta">${formatDateTime(entry.date)}</div>
+      </div>
+      <div class="amounts">
+        ${entry.type==='activity' ? '' : `<div class="${amountClass}">${entry.amount < 0 ? '-' : ''}${formatMoney(Math.abs(entry.amount))}</div>`}
+        ${entry.sub ? `<div class="profit">${entry.sub}</div>` : ''}
+      </div>
+      ${delBtn}
+    `;
+    list.appendChild(div);
+  });
+}
+/* ---------- Export PDF / Excel ---------- */
+let exportFormat = 'pdf';
+function toggleExportFields(){
+  const on = document.getElementById('in-export-toggle').checked;
+  document.getElementById('export-fields').style.display = on ? 'block' : 'none';
+}
+function selectExportFormat(fmt, btn){
+  exportFormat = fmt;
+  document.querySelectorAll('.export-format-btn').forEach(b=>b.classList.toggle('active', b===btn));
+}
+function periodLabel(){
+  const t = dict[currentLang];
+  const map = { day:t.periodDay, week:t.periodWeek, month:t.periodMonth, custom:t.periodCustom };
+  return map[historyPeriod] || '';
+}
+function exportHistory(){
+  const t = dict[currentLang];
+  if(!isPatron()){ showToast(t.restrictedFeature); return; }
+  const { start, end } = getPeriodRange();
+  const entries = buildUnifiedHistory().filter(e => e.date >= start && e.date <= end);
+  if(entries.length === 0){
+    showToast(t.exportEmpty);
+    return;
+  }
+  const summary = computePeriodSummary(start, end);
+  const storeName = (stores.find(s=>s.id===activeStoreId) || {}).name || t.appname;
+  const filenameBase = `mombongo_${storeName.replace(/[^a-z0-9]+/gi,'_')}_${periodLabel().replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}`;
+
+  if(exportFormat === 'pdf'){
+    exportHistoryPdf(entries, summary, storeName, filenameBase);
+  } else {
+    exportHistoryExcel(entries, summary, storeName, filenameBase);
+  }
+  showToast(t.exportSuccess);
+}
+function exportHistoryPdf(entries, summary, storeName, filenameBase){
+  const t = dict[currentLang];
+  if(!window.jspdf){ showToast('PDF non disponible (pas de connexion internet ?)'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text(`${storeName} — ${t.historyTitle}`, 14, 16);
+  doc.setFontSize(10);
+  doc.text(`${periodLabel()} — ${new Date().toLocaleDateString('fr-FR')}`, 14, 23);
+  doc.setFontSize(11);
+  doc.text(`${t.summaryRevenue}: ${formatMoney(summary.revenue)}`, 14, 33);
+  doc.text(`${t.summaryExpenses}: ${formatMoney(summary.expensesTotal)}`, 14, 39);
+  doc.text(`${t.summaryNet}: ${formatMoney(summary.netGain)}`, 14, 45);
+
+  let y = 56;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'bold');
+  doc.text('Date', 14, y);
+  doc.text('Détail', 46, y);
+  doc.text('Montant', 180, y, { align:'right' });
+  doc.setFont(undefined, 'normal');
+  y += 5;
+  doc.setLineWidth(0.1);
+  doc.line(14, y, 196, y);
+  y += 5;
+  entries.forEach(entry=>{
+    if(y > 280){ doc.addPage(); y = 16; }
+    doc.text(formatDateTime(entry.date), 14, y);
+    const label = entry.label.length > 48 ? entry.label.slice(0,45)+'...' : entry.label;
+    doc.text(label, 46, y);
+    const amountStr = (entry.amount < 0 ? '-' : '') + formatMoney(Math.abs(entry.amount));
+    doc.text(amountStr, 180, y, { align:'right' });
+    y += 6;
+  });
+  doc.save(`${filenameBase}.pdf`);
+}
+function exportHistoryExcel(entries, summary, storeName, filenameBase){
+  const t = dict[currentLang];
+  if(!window.XLSX){ showToast('Excel non disponible (pas de connexion internet ?)'); return; }
+  const rows = entries.map(entry=>({
+    Date: formatDateTime(entry.date),
+    Détail: entry.label,
+    Montant: entry.amount,
+  }));
+  rows.push({});
+  rows.push({ Date:'', Détail: t.summaryRevenue, Montant: summary.revenue });
+  rows.push({ Date:'', Détail: t.summaryExpenses, Montant: -summary.expensesTotal });
+  rows.push({ Date:'', Détail: t.summaryNet, Montant: summary.netGain });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, storeName.slice(0,28) || 'Historique');
+  XLSX.writeFile(wb, `${filenameBase}.xlsx`);
+}
+
+async function deleteHistoryEntry(type, id){
+  const t = dict[currentLang];
+  if(type==='sale' && !canDeleteSale()){ showToast(t.restrictedFeature); return; }
+  if(type==='expense' && !canDeleteExpense()){ showToast(t.restrictedFeature); return; }
+  if(type==='repay' && !isPatron() && !canDeleteSale()){ showToast(t.restrictedFeature); return; }
+  const ok = window.confirm(t.confirmDeleteEntry);
+  if(!ok) return;
+  if(type==='sale'){
+    const sale = sales.find(s=>s.id===id);
+    if(sale && currentRole()==='caissier'){
+      const product = products.find(p=>p.id===sale.productId);
+      const pname = product ? product.name : t.historyDeletedProduct;
+      logActivity('sale_delete', dict[currentLang].logSaleDeleted + ' : ' + pname + ' × ' + sale.qty);
+    }
+    sales = sales.filter(s=>s.id!==id);
+    await saveSales();
+    if(sale){
+      // Restaurer le stock du produit concerné
+      const product = products.find(p=>p.id===sale.productId);
+      if(product){
+        if(product.lotId){
+          const lot = lots.find(l=>l.id===product.lotId);
+          if(lot){
+            lot.remainingFraction = Math.min(1, lot.remainingFraction + (sale.qty / product.yieldPerSac));
+            recalcLotQuantities(product.lotId);
+            saveLots();
+          }
+        } else {
+          product.qty += sale.qty;
+        }
+        await saveProducts();
+      }
+      // Annuler l'impact sur les compteurs (seulement si ce n'était pas une vente à crédit,
+      // puisque les ventes à crédit non réglées n'ont jamais été comptées dans les compteurs)
+      if(!sale.isCredit){
+        stats.totalProfit = Math.max(0, stats.totalProfit - sale.profit);
+        if(isToday(sale.date)){
+          stats.todaySales = Math.max(0, stats.todaySales - sale.total);
+          stats.todayProfit = Math.max(0, stats.todayProfit - sale.profit);
+        }
+        saveStats();
+      }
+    }
+  } else if(type==='expense'){
+    const expense = expenses.find(e=>e.id===id);
+    expenses = expenses.filter(e=>e.id!==id);
+    await saveExpenses();
+    if(expense){
+      stats.totalExpenses = Math.max(0, stats.totalExpenses - expense.amount);
+      saveStats();
+    }
+  }
+  renderHistory();
+  render();
+  showToast(t.entryDeleted);
+}
+async function clearAllHistory(){
+  const t = dict[currentLang];
+  const ok = window.confirm(t.confirmClearHistory);
+  if(!ok) return;
+  sales = [];
+  expenses = [];
+  stats.totalExpenses = 0;
+  await saveSales();
+  await saveExpenses();
+  saveStats();
+  renderHistory();
+  render();
+  showToast(t.historyCleared);
+}
+
+/* ---------- Crédits & Dettes ---------- */
+function openDebtsSheet(){
+  try{ renderDebtsList(); }catch(e){ console.error('Erreur affichage dettes', e); }
+  document.getElementById('debts-overlay').classList.add('open');
+}
+function closeDebtsSheet(){
+  document.getElementById('debts-overlay').classList.remove('open');
+}
+function renderDebtsList(){
+  const t = dict[currentLang];
+  const list = document.getElementById('debts-list');
+  const empty = document.getElementById('debts-empty');
+  const openDebts = debts.filter(d=>d.status==='ouvert' && (d.totalOwed - d.amountPaid) > 0.001)
+    .sort((a,b)=>b.createdAt-a.createdAt);
+  list.innerHTML = '';
+  if(openDebts.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  openDebts.forEach(d=>{
+    const remaining = Math.max(0, d.totalOwed - d.amountPaid);
+    const itemsSummary = d.items.map(it=>`${it.productName} ×${it.qty}`).join(', ');
+    const div = document.createElement('div');
+    div.className = 'debt-item';
+    div.innerHTML = `
+      <div class="top-row">
+        <div>
+          <div class="name">${d.phone ? `<a href="tel:${d.phone}" class="client-call-link">📞 ${d.clientName}</a>` : d.clientName}</div>
+          ${d.phone ? `<div class="phone">${d.phone}</div>` : ''}
+        </div>
+        <div class="owed">${formatMoney(remaining)}</div>
+      </div>
+      <div class="items-list">${itemsSummary}</div>
+      ${d.dueDate ? `<div class="due">📅 ${t.dueLabel} : ${d.dueDate}</div>` : ''}
+      ${canRepayDebt() ? `<button class="pay-btn" onclick="openRepaySheet('${d.id}')">${t.payBtn}</button>` : ''}
+    `;
+    list.appendChild(div);
+  });
+}
+
+let repayingDebtId = null;
+function openRepaySheet(debtId){
+  if(!canRepayDebt()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const debt = debts.find(d=>d.id===debtId);
+  if(!debt) return;
+  repayingDebtId = debtId;
+  const remaining = Math.max(0, debt.totalOwed - debt.amountPaid);
+  document.getElementById('repay-client-display').value = `${debt.clientName} — ${formatMoney(remaining)} ${dict[currentLang].owedSuffix}`;
+  document.getElementById('in-repay-amount').value = currentCurrency==='cdf' ? Math.round(remaining*exchangeRate) : remaining.toFixed(2);
+  document.getElementById('repay-overlay').classList.add('open');
+}
+function closeRepaySheet(){
+  document.getElementById('repay-overlay').classList.remove('open');
+  repayingDebtId = null;
+}
+async function confirmRepay(){
+  if(!canRepayDebt()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const debt = debts.find(d=>d.id===repayingDebtId);
+  if(!debt) return;
+  const remaining = Math.max(0, debt.totalOwed - debt.amountPaid);
+  const rawAmount = parseFloat(document.getElementById('in-repay-amount').value) || 0;
+  let amount = toInternal(rawAmount);
+  if(amount <= 0){
+    showToast(currentLang==='fr' ? "Montant invalide" : "Motángo ekoki te");
+    return;
+  }
+  if(amount > remaining + 0.01) amount = remaining;
+  const profitPortion = debt.totalOwed > 0 ? amount * (debt.totalProfit / debt.totalOwed) : 0;
+  debt.amountPaid += amount;
+  debt.payments.push({ amount, profit: profitPortion, date: Date.now() });
+  if(debt.totalOwed - debt.amountPaid <= 0.01){
+    debt.status = 'réglé';
+  }
+  ensureTodayStats();
+  stats.todaySales += amount;
+  stats.todayProfit += profitPortion;
+  stats.totalProfit += profitPortion;
+  saveStats();
+  saveDebts();
+  closeRepaySheet();
+  showToast(dict[currentLang].repaySaved);
+  render();
+}
+
+/* ---------- Dépenses ---------- */
+function openExpenseSheet(){
+  document.getElementById('in-expense-desc').value = '';
+  document.getElementById('in-expense-amount').value = '';
+  document.getElementById('expense-overlay').classList.add('open');
+}
+function closeExpenseSheet(){
+  document.getElementById('expense-overlay').classList.remove('open');
+}
+async function confirmExpense(){
+  const desc = document.getElementById('in-expense-desc').value.trim();
+  const rawAmount = parseFloat(document.getElementById('in-expense-amount').value) || 0;
+  if(!desc || rawAmount <= 0){
+    showToast(currentLang==='fr' ? "Indique une description et un montant" : "Pesa description na motángo");
+    return;
+  }
+  if(!canAddMoreExpenses()){ openLimitSheet('expenses'); return; }
+  const amount = toInternal(rawAmount);
+  expenses.push({ id: Date.now().toString(), desc, amount, date: Date.now() });
+  stats.totalExpenses += amount;
+  saveStats();
+  await saveExpenses();
+  closeExpenseSheet();
+  showToast(dict[currentLang].expenseSaved);
+  render();
+}
+
+/* ---------- Alertes (stock faible / produits périmés) ---------- */
+let alertsTab = 'stock';
+function openAlertsSheet(){
+  alertsTab = 'stock';
+  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab==='stock'));
+  renderAlertsSheet();
+  document.getElementById('alerts-overlay').classList.add('open');
+}
+function closeAlertsSheet(){
+  document.getElementById('alerts-overlay').classList.remove('open');
+}
+function setAlertsTab(tab){
+  alertsTab = tab;
+  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab===tab));
+  renderAlertsSheet();
+}
+function renderAlertsSheet(){
+  const t = dict[currentLang];
+  const list = document.getElementById('alerts-sheet-list');
+  const empty = document.getElementById('alerts-sheet-empty');
+  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  const dormant = products.filter(p=>{
+    const ref = p.lastSoldAt || p.createdAt;
+    return daysSince(ref) >= 14;
+  });
+  const todayStr = new Date().toISOString().slice(0,10);
+  const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
+
+  list.innerHTML = '';
+  let items = [];
+  if(alertsTab === 'stock'){
+    lowStock.forEach(p=>items.push(`<b>${p.name}</b> — ${t.lowStock} (${p.qty} ${t.stockUnit})`));
+    dormant.forEach(p=>items.push(`<b>${p.name}</b> — ${t.dormant}`));
+  } else {
+    expired.forEach(p=>items.push(`⏰ <b>${p.name}</b> — ${t.expiredAlert} (${p.expiryDate})`));
+  }
+
+  if(items.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  items.forEach(html=>{
+    const div = document.createElement('div');
+    div.className = 'alert-banner';
+    div.innerHTML = html;
+    list.appendChild(div);
+  });
+}
+
+function showToast(msg, duration){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), duration || 1800);
+}
+
+loadData();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+
+</script>
+</body>
+</html>
+
+<!--
+
+
+
+==============================================================================
+  PAGE WEB : POLITIQUE DE CONFIDENTIALITÉ (Play Store)
+  >>> Copie tout ce qui suit (jusqu'au prochain bloc ===...===) dans un
+      NOUVEAU fichier nommé : privacy.html
+==============================================================================
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politique de confidentialité — Mombongo</title>
+<style>
+  body{font-family:'Inter',Arial,sans-serif; max-width:720px; margin:0 auto; padding:32px 20px 60px; color:#26221d; line-height:1.6; background:#f7f3e8;}
+  h1{font-size:24px; color:#146356;}
+  h2{font-size:17px; color:#146356; margin-top:32px;}
+  a{color:#146356;}
+  .updated{color:#5b564c; font-size:13px; margin-bottom:24px;}
+  ul{padding-left:20px;}
+  .box{background:#fff; border-radius:14px; padding:20px 24px; box-shadow:0 2px 10px rgba(38,34,29,0.08);}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Politique de confidentialité de Mombongo</h1>
+  <p class="updated">Dernière mise à jour : 23 juillet 2026</p>
+
+  <p>Mombongo (« l'application ») est une application de gestion de commerce (suivi de produits, ventes, dépenses,
+  crédits clients) éditée par un développeur indépendant. Cette page explique quelles données sont collectées
+  lorsque tu utilises Mombongo, comment elles sont utilisées et comment tu peux les supprimer.</p>
+
+  <h2>1. Données que nous collectons</h2>
+  <p>Si tu choisis de te connecter avec ton compte Google, nous recevons et enregistrons :</p>
+  <ul>
+    <li>Ton nom, ton adresse e-mail et ta photo de profil Google (fournis par Google lors de la connexion) ;</li>
+    <li>Les données que tu saisis toi-même dans l'application : produits, prix, quantités en stock, ventes,
+    dépenses, crédits clients (nom et numéro de téléphone du client si tu les renseignes), boutiques ajoutées,
+    et les appareils que tu relies à ton compte (avec le rôle que tu leur attribues) ;</li>
+    <li>Des informations techniques minimales nécessaires au fonctionnement (identifiant de connexion Google,
+    horodatage des synchronisations).</li>
+  </ul>
+  <p>Si tu n'utilises pas la connexion Google, tes données restent uniquement stockées sur ton téléphone
+  (stockage local) et ne sont jamais envoyées à un serveur.</p>
+
+  <h2>2. Comment nous utilisons ces données</h2>
+  <ul>
+    <li>Sauvegarder et synchroniser tes données de commerce entre tes appareils connectés à ton compte ;</li>
+    <li>Te permettre de retrouver tes données si tu changes de téléphone ;</li>
+    <li>Faire fonctionner les fonctionnalités multi-boutiques et multi-appareils (patron / caissier /
+    magasinier) que tu actives toi-même ;</li>
+    <li>Identifier les comptes disposant du statut VIP.</li>
+  </ul>
+  <p>Nous ne vendons pas tes données, et nous ne les partageons avec aucun tiers à des fins publicitaires.</p>
+
+  <h2>3. Où sont stockées les données</h2>
+  <p>Les données des comptes connectés sont stockées sur Firebase (Google Cloud), un service d'hébergement
+  fourni par Google. L'accès à tes données est protégé par ton compte Google et par des règles de sécurité qui
+  limitent l'accès à toi-même et aux appareils que tu as toi-même autorisés.</p>
+
+  <h2>4. Suppression de ton compte et de tes données</h2>
+  <p>Tu peux supprimer définitivement ton compte et toutes les données associées (produits, ventes, dépenses,
+  boutiques, appareils liés) directement depuis l'application : ouvre l'onglet <b>Compte</b>, puis appuie sur
+  <b>« Supprimer mon compte »</b> et confirme. Cette action est irréversible.</p>
+  <p>Tu peux aussi demander la suppression de tes données en nous écrivant sur WhatsApp au
+  <a href="https://wa.me/243980979141">+243 980 979 141</a>, en précisant l'adresse e-mail Google associée à
+  ton compte. La suppression sera effectuée sous un délai raisonnable.</p>
+
+  <h2>5. Partage des données entre appareils liés</h2>
+  <p>Si tu utilises la fonctionnalité « connecter plusieurs appareils », le patron (compte principal) et les
+  appareils qu'il autorise (caissier, magasinier) partagent certaines données de la boutique en temps réel.
+  Le patron reste responsable des appareils qu'il autorise et peut les retirer à tout moment.</p>
+
+  <h2>6. Sécurité</h2>
+  <p>Nous mettons en place des mesures raisonnables pour protéger tes données (authentification Google, règles
+  d'accès Firebase). Aucune méthode de transmission ou de stockage n'est toutefois totalement sécurisée à 100 %.</p>
+
+  <h2>7. Enfants</h2>
+  <p>Mombongo est destinée aux commerçants et n'est pas destinée aux enfants de moins de 13 ans.</p>
+
+  <h2>8. Modifications de cette politique</h2>
+  <p>Nous pouvons mettre à jour cette politique de temps en temps. La date de mise à jour en haut de cette page
+  sera modifiée en conséquence.</p>
+
+  <h2>9. Nous contacter</h2>
+  <p>Pour toute question sur cette politique de confidentialité ou sur tes données, contacte-nous sur WhatsApp au
+  <a href="https://wa.me/243980979141">+243 980 979 141</a>.</p>
+</div>
+</body>
+</html>
+
+
+==============================================================================
+  FIN DU FICHIER : privacy.html
+==============================================================================
+
+==============================================================================
+  PAGE WEB : SUPPRESSION DE COMPTE (Play Store)
+  >>> Copie tout ce qui suit (jusqu'au prochain bloc ===...===) dans un
+      NOUVEAU fichier nommé : account-deletion.html
+==============================================================================
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suppression de compte — Mombongo</title>
+<style>
+  body{font-family:'Inter',Arial,sans-serif; max-width:720px; margin:0 auto; padding:32px 20px 60px; color:#26221d; line-height:1.6; background:#f7f3e8;}
+  h1{font-size:24px; color:#146356;}
+  h2{font-size:17px; color:#146356; margin-top:28px;}
+  a{color:#146356;}
+  ol,ul{padding-left:20px;}
+  .box{background:#fff; border-radius:14px; padding:20px 24px; box-shadow:0 2px 10px rgba(38,34,29,0.08);}
+  .btn{display:inline-block; margin-top:6px; background:#c0392b; color:#fff; text-decoration:none;
+       padding:10px 16px; border-radius:10px; font-weight:700; font-size:14px;}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Suppression de compte et de données — Mombongo</h1>
+
+  <h2>Depuis l'application (recommandé)</h2>
+  <ol>
+    <li>Ouvre l'application Mombongo et connecte-toi avec ton compte Google si ce n'est pas déjà fait ;</li>
+    <li>Ouvre l'onglet <b>Compte</b> ;</li>
+    <li>Appuie sur <b>« Supprimer mon compte »</b> ;</li>
+    <li>Confirme la suppression.</li>
+  </ol>
+  <p>Cette action supprime immédiatement et définitivement :</p>
+  <ul>
+    <li>Ton compte de connexion (identifiant Google associé) ;</li>
+    <li>Toutes tes boutiques et leurs données (produits, ventes, dépenses, crédits clients) ;</li>
+    <li>La liste des appareils liés à ton compte (caissier, magasinier).</li>
+  </ul>
+
+  <h2>Sans accès à l'application</h2>
+  <p>Si tu ne peux pas ouvrir l'application, écris-nous sur WhatsApp au
+  <a href="https://wa.me/243980979141">+243 980 979 141</a> en indiquant l'adresse e-mail Google associée à ton
+  compte Mombongo. Nous supprimerons ton compte et toutes les données associées sous un délai raisonnable.</p>
+
+  <a class="btn" href="https://wa.me/243980979141?text=Bonjour%2C%20je%20souhaite%20supprimer%20mon%20compte%20Mombongo">Demander la suppression sur WhatsApp</a>
+
+  <h2>Détail des données supprimées</h2>
+  <p>La suppression efface : nom, e-mail et photo de profil enregistrés, toutes les boutiques, tous les produits,
+  toutes les ventes, dépenses et crédits clients, ainsi que la liste des appareils liés. Rien n'est conservé après
+  la suppression, hormis d'éventuelles obligations légales de conservation comptable si applicables dans ton pays.</p>
+
+  <p>Voir aussi notre <a href="privacy.html">politique de confidentialité</a>.</p>
+</div>
+</body>
+</html>
+
+
+==============================================================================
+  FIN DU FICHIER : account-deletion.html
+==============================================================================
+
+==============================================================================
+  RÈGLES DE SÉCURITÉ FIRESTORE (à coller dans Firebase Console, pas sur GitHub)
+  >>> Copie tout ce qui suit (jusqu'au prochain bloc ===...===) dans un
+      NOUVEAU fichier nommé : firestore.rules
+==============================================================================
+
+rules_version = '2';
+
+// Règles de sécurité Firestore pour Mombongo
+// À coller dans Firebase Console → Firestore Database → Règles, puis Publier.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Un appareil est "lié" à un compte patron s'il existe un document
+    // dans la sous-collection /devices de ce compte, avec pour ID son propre UID Firebase Auth.
+    function isLinkedDevice(ownerUid) {
+      return exists(/databases/$(database)/documents/mombongo_users/$(ownerUid)/devices/$(request.auth.uid));
+    }
+
+    match /mombongo_users/{ownerUid} {
+      // Le patron (propriétaire du compte Google) a un accès complet à son propre document.
+      allow read, write: if request.auth != null && request.auth.uid == ownerUid;
+
+      // Un appareil lié (caissier, magasinier, ou patron secondaire) peut lire et
+      // mettre à jour les données de la boutique, mais ne peut pas créer ou supprimer
+      // le document principal du compte.
+      allow read, update: if request.auth != null && isLinkedDevice(ownerUid);
+
+      match /devices/{deviceUid} {
+        // Le patron gère librement la liste des appareils.
+        allow read, delete: if request.auth != null && request.auth.uid == ownerUid;
+        // Un appareil peut créer SA PROPRE entrée uniquement (lors du couplage par code),
+        // et la mettre à jour ensuite (ex: renommage).
+        allow create, update: if request.auth != null &&
+          (request.auth.uid == ownerUid || request.auth.uid == deviceUid);
+        // Un appareil peut lire sa propre entrée (pour connaître son rôle).
+        allow get: if request.auth != null &&
+          (request.auth.uid == ownerUid || request.auth.uid == deviceUid);
+      }
+    }
+
+    // Codes PIN temporaires utilisés pour coupler un nouvel appareil.
+    // Un utilisateur connecté (y compris en mode anonyme) peut créer un code pour
+    // SON PROPRE compte, le lire s'il en connaît l'identifiant exact (impossible à deviner
+    // sans lister la collection, ce qui est bloqué), et le supprimer après usage.
+    match /pairing_codes/{pin} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerUid;
+      allow get, delete: if request.auth != null;
+      allow list: if false;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LIMITES IMPORTANTES DE CES RÈGLES (à lire avant publication) :
+//
+// 1. Elles empêchent quiconque n'est pas explicitement lié (patron ou appareil
+//    autorisé) de lire ou modifier les données d'une boutique.
+//
+// 2. Elles NE PEUVENT PAS empêcher un appareil technique (ex: un caissier qui
+//    inspecte le code de l'application) d'appeler directement l'API Firestore
+//    pour, par exemple, ajouter un produit alors que son rôle ne l'y autorise pas
+//    dans l'interface. Les restrictions de rôle (patron / caissier / magasinier)
+//    sont appliquées côté application (JavaScript), pas au niveau de ces règles,
+//    car Firestore ne peut pas facilement vérifier "quel champ" d'un document a été
+//    modifié en fonction du rôle stocké dans un autre document.
+//    → Pour une sécurité renforcée à l'avenir, il faudrait passer par des
+//      Cloud Functions qui valident chaque écriture côté serveur selon le rôle.
+//    Pour une petite boutique familiale, le niveau de protection ci-dessus
+//    (accès réservé aux appareils autorisés + restrictions dans l'interface)
+//    est un compromis raisonnable et courant pour ce type d'application.
+//
+// 3. Pense à activer "Anonymous" dans Firebase Console → Authentication → Sign-in method,
+//    sinon les appareils caissier/magasinier ne pourront pas se connecter.
+// ---------------------------------------------------------------------------
+
+
+==============================================================================
+  FIN DU FICHIER : firestore.rules
+==============================================================================
+
+==============================================================================
+  GUIDE DE MISE EN SERVICE (à lire, pas à mettre sur GitHub)
+  >>> Copie tout ce qui suit (jusqu'au prochain bloc ===...===) dans un
+      NOUVEAU fichier nommé : GUIDE-MISE-EN-SERVICE.md
+==============================================================================
+
+# Guide de mise en service — nouvelles fonctionnalités Mombongo
+
+Ce guide t'explique ce qu'il faut faire, en dehors du code, pour que tout fonctionne.
+Projet Firebase concerné : `mombongo-15323`.
+
+## 1. Héberger les 2 pages web (Play Store)
+
+Le Play Store exige une URL publique pour :
+- la politique de confidentialité (`privacy.html`)
+- la suppression de compte (`account-deletion.html`)
+
+Le plus simple : Firebase Hosting, gratuit, déjà lié à ton projet.
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase init hosting
+# choisis le projet "mombongo-15323"
+# dossier public : mets les 2 fichiers privacy.html et account-deletion.html dedans
+firebase deploy --only hosting
+```
+
+Après ça, tes pages seront accessibles à :
+- `https://mombongo-15323.web.app/privacy.html`
+- `https://mombongo-15323.web.app/account-deletion.html`
+
+Ce sont ces 2 liens que tu colleras dans la Play Console (fiche de l'application →
+Politique de confidentialité, et dans la section "Sécurité des données" → suppression
+de compte).
+
+**⚠️ À corriger avant publication :** j'ai mis le numéro WhatsApp `+243 980 979 141`
+comme contact dans les 2 pages (repris de ton fichier). Vérifie que c'est bien le bon
+numéro à afficher publiquement, et ajoute une adresse e-mail de contact si tu en as une
+— c'est mieux vu par Google que WhatsApp seul.
+
+## 2. Publier les règles de sécurité Firestore
+
+Le fichier `firestore.rules` que je t'ai fourni protège les données : seuls le patron
+et les appareils qu'il a explicitement autorisés peuvent lire/écrire une boutique.
+
+Dans **Firebase Console → Firestore Database → Règles**, colle le contenu du fichier
+`firestore.rules`, puis clique sur **Publier**.
+
+**Sans cette étape, le couplage d'appareils par code PIN ne fonctionnera pas**
+(Firestore refusera les lectures/écritures par défaut).
+
+## 3. Activer l'authentification anonyme
+
+Les appareils caissier/magasinier n'ont pas de compte Google : ils se connectent en
+mode "anonyme" (juste un identifiant technique, sans e-mail).
+
+Dans **Firebase Console → Authentication → Sign-in method**, active le fournisseur
+**Anonymous**.
+
+## 4. Tester le flux multi-appareils
+
+1. Sur le téléphone du patron : Compte → Appareils connectés → Connecter un autre
+   appareil → note le code à 5 chiffres.
+2. Sur un 2e téléphone (ou un onglet de navigation privée) : écran de connexion →
+   Rejoindre avec un code → entre le code, choisis le rôle (caissier ou magasinier),
+   valide.
+3. Vérifie que les actions faites sur un appareil (ajout de produit, vente) apparaissent
+   en quelques secondes sur l'autre.
+
+## 5. Limites à connaître
+
+- **Synchronisation "dernière écriture gagne" par boutique** : si deux appareils
+  modifient les données de la même boutique à la même seconde exacte, l'un peut écraser
+  l'autre. Pour une équipe de 2-3 personnes, le risque réel est très faible, mais ce
+  n'est pas un système transactionnel parfait.
+- **Les restrictions de rôle (caissier/magasinier) sont appliquées côté application**,
+  pas au niveau des règles Firestore (voir les commentaires en bas de `firestore.rules`).
+  C'est suffisant pour dissuader une utilisation normale, mais un utilisateur très
+  technique pourrait théoriquement contourner l'interface. Une protection totale
+  nécessiterait des Cloud Functions (étape possible plus tard).
+- **Un appareil employé est lié à la boutique active au moment de la génération du
+  code.** Si le patron a plusieurs boutiques, pense à changer de boutique active
+  *avant* de générer le code pour le bon employé.
+- Les traductions Lingala et Swahili des nouvelles fonctionnalités ont été faites avec
+  soin en réutilisant le vocabulaire déjà présent dans ton app, mais méritent une
+  relecture par un locuteur natif, comme le reste de tes traductions.
+
+## 6. Récapitulatif des fichiers livrés
+
+- `mombongo-index-call-datefix.html` → ton application mise à jour (à réuploader là où
+  elle est hébergée actuellement)
+- `privacy.html` → à héberger (étape 1)
+- `account-deletion.html` → à héberger (étape 1)
+- `firestore.rules` → à coller dans Firebase Console (étape 2)
+- Ce guide
+
+
+==============================================================================
+  FIN DU FICHIER : GUIDE-MISE-EN-SERVICE.md
+==============================================================================
+
+-->
