@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
+<meta name="viewport" content="wi>dth=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
 <title>Mombongo — Gestion de commerce</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146356">
@@ -677,7 +677,8 @@
         <div style="margin-top:16px;">
           <h3 style="font-size:14px; margin:0 0 10px;" id="t-devices-title">Appareils connectés</h3>
           <p style="font-size:12px; color:var(--charcoal-soft); margin-top:0;" id="t-devices-desc">Relie 2 ou 3 téléphones à ce compte pour ton caissier ou ton magasinier.</p>
-          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openDevicesSheet()" id="t-add-device-btn">+ Connecter un autre appareil</button>
+          <div id="devices-list-inline"></div>
+          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openGeneratePinSheet()" id="t-add-device-btn">+ Connecter un autre appareil</button>
         </div>
 
         <button class="btn-secondary" onclick="signOutGoogle()" style="color:var(--alert); margin-top:10px;" id="t-signout-btn">Se déconnecter</button>
@@ -847,7 +848,7 @@
 
       <button class="btn-danger-outline" onclick="clearAllHistory()" id="t-clear-history">Effacer tout l'historique</button>
       <button class="btn-secondary" onclick="closeHistorySheet()" id="t-cancel4">Fermer</button>
-    </div>
+    </div
   </div>
 
   <div class="sheet-overlay" id="debts-overlay">
@@ -1381,7 +1382,11 @@ function toggleTheme(){
 })();
 
 /* ---------- Compte Google & synchronisation cloud ---------- */
-function openAccountSheet(){ document.getElementById('account-overlay').classList.add('open'); }
+function openAccountSheet(){
+  document.getElementById('account-overlay').classList.add('open');
+  renderStoresList();
+  renderDevicesList();
+}
 function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
 
 function signInWithGoogle(){
@@ -1401,20 +1406,27 @@ function signInWithGoogle(){
 }
 function signOutGoogle(){
   firebase.auth().signOut().then(()=>{
+    if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
     products = [];
     sales = [];
     lots = [];
     debts = [];
     expenses = [];
+    activityLog = [];
     isVip = false;
     vipUntil = null;
+    stores = [];
+    activeStoreId = null;
+    storesDataCache = {};
     stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
     localSet('mombongo:lots', JSON.stringify(lots));
     localSet('mombongo:debts', JSON.stringify(debts));
     localSet('mombongo:expenses', JSON.stringify(expenses));
+    localSet('mombongo:activityLog', JSON.stringify(activityLog));
     localSet('mombongo:stats', JSON.stringify(stats));
+    renderStoresList();
     render();
     showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");
   });
@@ -1696,7 +1708,16 @@ function attachRealtimeListener(ownerUid){
     renderStoresList();
     renderDevicesList();
     render();
-  }, (e)=>{ console.error('Erreur écoute temps réel', e); });
+  }, (e)=>{
+    console.error('Erreur écoute temps réel', e);
+    if(isEmployeeMode && (e.code === 'permission-denied')){
+      // Le patron a retiré cet appareil (ou l'a supprimé de son compte) : on nettoie localement.
+      leaveDeviceCleanup();
+      renderAccountUI();
+      render();
+      showToast(dict[currentLang].deviceRemoved);
+    }
+  });
 }
 
 /* ---------- Boutiques ---------- */
@@ -1808,36 +1829,43 @@ function closeDevicesSheet(){
   document.getElementById('devices-overlay').classList.remove('open');
 }
 function renderDevicesList(){
-  const list = document.getElementById('devices-list');
-  if(!list) return;
+  const containers = ['devices-list-inline','devices-list']
+    .map(id=>document.getElementById(id))
+    .filter(Boolean);
+  if(containers.length === 0) return;
   const ownerUid = getDataOwnerUid();
-  if(!cloudEnabled || !db || !ownerUid || !canManageStoresAndDevices()){ list.innerHTML = ''; return; }
+  if(!cloudEnabled || !db || !ownerUid || !canManageStoresAndDevices()){
+    containers.forEach(c=>c.innerHTML = '');
+    return;
+  }
   const t = dict[currentLang];
   db.collection('mombongo_users').doc(ownerUid).collection('devices').get().then(snap=>{
-    list.innerHTML = '';
-    if(snap.empty){
-      const p = document.createElement('div');
-      p.className = 'empty';
-      p.textContent = t.noDevices;
-      list.appendChild(p);
-      return;
-    }
-    const roleLabel = { patron:t.rolePatron, caissier:t.roleCaissier, magasinier:t.roleMagasinier };
-    snap.forEach(docu=>{
-      const dv = docu.data();
-      const row = document.createElement('div');
-      row.className = 'debt-item';
-      row.style.display = 'flex';
-      row.style.justifyContent = 'space-between';
-      row.style.alignItems = 'center';
-      row.innerHTML = `
-        <div>
-          <div style="font-weight:700; font-size:13.5px;">${dv.name || roleLabel[dv.role] || dv.role}</div>
-          <div style="font-size:11.5px; color:var(--charcoal-soft);">${roleLabel[dv.role] || dv.role}</div>
-        </div>
-        <button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0;" onclick="removeDevice('${docu.id}')" aria-label="${t.removeDeviceBtn}">🗑️</button>
-      `;
-      list.appendChild(row);
+    containers.forEach(list=>{
+      list.innerHTML = '';
+      if(snap.empty){
+        const p = document.createElement('div');
+        p.className = 'empty';
+        p.textContent = t.noDevices;
+        list.appendChild(p);
+        return;
+      }
+      const roleLabel = { patron:t.rolePatron, caissier:t.roleCaissier, magasinier:t.roleMagasinier };
+      snap.forEach(docu=>{
+        const dv = docu.data();
+        const row = document.createElement('div');
+        row.className = 'debt-item';
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.innerHTML = `
+          <div>
+            <div style="font-weight:700; font-size:13.5px;">${dv.name || roleLabel[dv.role] || dv.role}</div>
+            <div style="font-size:11.5px; color:var(--charcoal-soft);">${roleLabel[dv.role] || dv.role}</div>
+          </div>
+          <button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0;" onclick="removeDevice('${docu.id}')" aria-label="${t.removeDeviceBtn}">🗑️</button>
+        `;
+        list.appendChild(row);
+      });
     });
   }).catch(e=>console.error('Erreur chargement appareils', e));
 }
@@ -1947,9 +1975,7 @@ async function confirmJoinWithPin(){
   }
 }
 
-function confirmLeaveDevice(){
-  const t = dict[currentLang];
-  if(!window.confirm(t.confirmLeaveDevice)) return;
+function leaveDeviceCleanup(){
   if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
   isEmployeeMode = false;
   employeeOwnerUid = null; employeeRole = null; employeeStoreId = null; employeeDeviceName = '';
@@ -1957,10 +1983,17 @@ function confirmLeaveDevice(){
   localStorage.removeItem('mombongo:employeeRole');
   localStorage.removeItem('mombongo:employeeStoreId');
   localStorage.removeItem('mombongo:employeeDeviceName');
-  products = []; sales = []; lots = []; debts = []; expenses = [];
+  products = []; sales = []; lots = []; debts = []; expenses = []; activityLog = [];
   stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
   localSet('mombongo:products', '[]'); localSet('mombongo:sales', '[]'); localSet('mombongo:lots', '[]');
-  localSet('mombongo:debts', '[]'); localSet('mombongo:expenses', '[]'); localSet('mombongo:stats', JSON.stringify(stats));
+  localSet('mombongo:debts', '[]'); localSet('mombongo:expenses', '[]'); localSet('mombongo:activityLog', '[]');
+  localSet('mombongo:stats', JSON.stringify(stats));
+}
+
+function confirmLeaveDevice(){
+  const t = dict[currentLang];
+  if(!window.confirm(t.confirmLeaveDevice)) return;
+  leaveDeviceCleanup();
   closeAccountSheet();
   renderAccountUI();
   render();
