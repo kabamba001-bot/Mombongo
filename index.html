@@ -390,23 +390,23 @@
 
   <div class="stats-row">
     <div class="stat-card">
-      <button class="stat-reset" onclick="resetStat('todaySales')" aria-label="Réinitialiser">🗑</button>
+      <button class="stat-reset" id="reset-today-sales-btn" onclick="resetStat('todaySales')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-today">Ventes aujourd'hui</div>
       <div class="value money" id="stat-today">0 $</div>
     </div>
     <div class="stat-card">
-      <button class="stat-reset" onclick="resetStat('todayProfit')" aria-label="Réinitialiser">🗑</button>
+      <button class="stat-reset" id="reset-today-profit-btn" onclick="resetStat('todayProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-today">Bénéfice aujourd'hui</div>
       <div class="value money" id="stat-profit-today">0 $</div>
     </div>
     <div class="stat-card">
-      <button class="stat-reset" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
+      <button class="stat-reset" id="reset-total-profit-btn" onclick="resetStat('totalProfit')" aria-label="Réinitialiser">🗑</button>
       <div class="label" id="t-profit-total">Bénéfice total</div>
       <div class="value money" id="stat-profit-total">0 $</div>
       <div class="sub-expense" onclick="openExpensesHistorySheet()">
         <span id="t-expenses-label">Dépenses</span> :
         <span id="stat-expenses">0 $</span>
-        <button class="expense-reset" onclick="event.stopPropagation(); resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
+        <button class="expense-reset" id="reset-expenses-btn" onclick="event.stopPropagation(); resetExpenses()" aria-label="Réinitialiser dépenses">🗑</button>
       </div>
     </div>
     <div class="stat-card clickable" onclick="openAlertsSheet()">
@@ -1100,7 +1100,8 @@ const dict = {
 
     exportLabel:"Exporter en PDF ou Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
     exportBtn:"Exporter", exportSuccess:"Export généré", exportEmpty:"Rien à exporter pour cette période.",
-    syncOk:"Tes données sont synchronisées.", syncError:"⚠️ Échec de synchronisation :"
+    syncOk:"Tes données sont synchronisées.", syncError:"⚠️ Échec de synchronisation :",
+    logProductDeleted:"Produit supprimé", logProductEdited:"Produit modifié", logSaleDeleted:"Vente supprimée"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -1219,7 +1220,8 @@ const dict = {
 
     exportLabel:"Kobimisa na PDF to Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
     exportBtn:"Kobimisa", exportSuccess:"Export esalémi", exportEmpty:"Eloko te ya kobimisa mpo na ntango oyo.",
-    syncOk:"Ba données na yo ekangami malamu.", syncError:"⚠️ Synchronisation elongi te :"
+    syncOk:"Ba données na yo ekangami malamu.", syncError:"⚠️ Synchronisation elongi te :",
+    logProductDeleted:"Produit elongolámi", logProductEdited:"Produit ebongwani", logSaleDeleted:"Kotéka elongolámi"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -1338,7 +1340,8 @@ const dict = {
 
     exportLabel:"Hamisha kwa PDF au Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
     exportBtn:"Hamisha", exportSuccess:"Hamisho limetengenezwa", exportEmpty:"Hakuna cha kuhamisha kwa kipindi hiki.",
-    syncOk:"Data zako zimehifadhiwa vizuri.", syncError:"⚠️ Usawazishaji umeshindwa :"
+    syncOk:"Data zako zimehifadhiwa vizuri.", syncError:"⚠️ Usawazishaji umeshindwa :",
+    logProductDeleted:"Bidhaa imefutwa", logProductEdited:"Bidhaa imebadilishwa", logSaleDeleted:"Uuzaji umefutwa"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -1502,6 +1505,7 @@ function renderAccountUI(){
 let stores = [];
 let activeStoreId = null;
 let storesDataCache = {};
+let activityLog = [];
 let isEmployeeMode = false;
 let employeeOwnerUid = null;
 let employeeRole = null;      // 'patron' | 'caissier' | 'magasinier'
@@ -1519,9 +1523,10 @@ function currentRole(){
 function isPatron(){ return currentRole() === 'patron'; }
 function canSell(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
 function canAddProducts(){ const r = currentRole(); return r==='patron' || r==='magasinier'; }
-function canEditDeleteProducts(){ return currentRole()==='patron'; }
+function canEditDeleteProducts(){ const r = currentRole(); return r==='patron' || r==='magasinier'; }
 function canManageExpenses(){ return true; } // patron, caissier et magasinier peuvent enregistrer une dépense
 function canDeleteSale(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
+function canRepayDebt(){ const r = currentRole(); return r==='patron' || r==='caissier'; }
 function canDeleteExpense(){ return true; }
 function canManageStoresAndDevices(){ return !isEmployeeMode || currentRole()==='patron'; }
 
@@ -1535,7 +1540,7 @@ function getActiveStoreIdForWrites(){
 
 function emptyStoreData(){
   return {
-    products: [], sales: [], lots: [], debts: [], expenses: [],
+    products: [], sales: [], lots: [], debts: [], expenses: [], activityLog: [],
     stats: { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }
   };
 }
@@ -1547,6 +1552,7 @@ function loadStoreDataIntoWorkingArrays(storeData){
   lots = d.lots || [];
   debts = d.debts || [];
   expenses = d.expenses || [];
+  activityLog = d.activityLog || [];
   stats = d.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
   if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
   localSet('mombongo:products', JSON.stringify(products));
@@ -1554,6 +1560,7 @@ function loadStoreDataIntoWorkingArrays(storeData){
   localSet('mombongo:lots', JSON.stringify(lots));
   localSet('mombongo:debts', JSON.stringify(debts));
   localSet('mombongo:expenses', JSON.stringify(expenses));
+  localSet('mombongo:activityLog', JSON.stringify(activityLog));
   localSet('mombongo:stats', JSON.stringify(stats));
 }
 
@@ -1576,7 +1583,7 @@ async function pushToCloud(){
   if(!cloudEnabled || !db || !ownerUid) return;
   const storeId = getActiveStoreIdForWrites();
   if(!storeId) return;
-  storesDataCache[storeId] = { products, sales, lots, debts, expenses, stats };
+  storesDataCache[storeId] = { products, sales, lots, debts, expenses, activityLog, stats };
   try{
     const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
     if(!isEmployeeMode){
@@ -1625,7 +1632,7 @@ function applyDocData(data){
     stores = [{ id: legacyId, name: currentLang==='fr' ? 'Boutique principale' : (dict[currentLang].storesTitle), createdAt: Date.now() }];
     storesDataCache[legacyId] = {
       products: data.products || [], sales: data.sales || [], lots: data.lots || [],
-      debts: data.debts || [], expenses: data.expenses || [],
+      debts: data.debts || [], expenses: data.expenses || [], activityLog: data.activityLog || [],
       stats: data.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }
     };
     data.activeStoreId = legacyId;
@@ -1825,7 +1832,7 @@ function renderDevicesList(){
           <div style="font-weight:700; font-size:13.5px;">${dv.name || roleLabel[dv.role] || dv.role}</div>
           <div style="font-size:11.5px; color:var(--charcoal-soft);">${roleLabel[dv.role] || dv.role}</div>
         </div>
-        <button class="btn-secondary" style="width:auto; padding:6px 12px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0;" onclick="removeDevice('${docu.id}')">${t.removeDeviceBtn}</button>
+        <button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0;" onclick="removeDevice('${docu.id}')" aria-label="${t.removeDeviceBtn}">🗑️</button>
       `;
       list.appendChild(row);
     });
@@ -2526,6 +2533,9 @@ async function addProduct(){
   if(editingProductId){
     const product = products.find(p=>p.id===editingProductId);
     if(product){
+      if(currentRole()==='magasinier'){
+        logActivity('product_edit', dict[currentLang].logProductEdited + ' : ' + product.name);
+      }
       product.name = name; product.buy = buy; product.sell = sell;
       product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
     }
@@ -2611,6 +2621,18 @@ async function addSacProduct(){
   render();
 }
 
+function saveActivityLog(){
+  localSet('mombongo:activityLog', JSON.stringify(activityLog));
+  pushToCloud();
+}
+function logActivity(action, label){
+  const roleLabel = { patron:'Patron', caissier:'Caissier', magasinier:'Magasinier' };
+  const who = employeeDeviceName ? `${roleLabel[currentRole()]} (${employeeDeviceName})` : roleLabel[currentRole()];
+  activityLog.unshift({ id: 'act'+Date.now()+Math.random().toString(36).slice(2,6), action, label, who, date: Date.now() });
+  if(activityLog.length > 300) activityLog = activityLog.slice(0, 300);
+  saveActivityLog();
+}
+
 /* ---------- Suppression produit ---------- */
 async function deleteProduct(id){
   if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
@@ -2618,6 +2640,9 @@ async function deleteProduct(id){
   if(!product) return;
   const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
   if(!ok) return;
+  if(currentRole()==='magasinier'){
+    logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name);
+  }
   products = products.filter(p=>p.id!==id);
   await saveProducts();
   showToast(dict[currentLang].deleted);
@@ -2785,6 +2810,10 @@ function render(){
 
   document.getElementById('t-add-btn').style.display = (role==='caissier') ? 'none' : '';
   document.getElementById('t-expense-btn').style.display = (role==='patron' || role==='caissier' || role==='magasinier') ? '' : 'none';
+  ['reset-today-sales-btn','reset-today-profit-btn','reset-total-profit-btn','reset-expenses-btn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = isPatron() ? '' : 'none';
+  });
 
   const openDebts = debts.filter(d=>d.status==='ouvert');
   const totalOwed = openDebts.reduce((sum,d)=>sum + Math.max(0, d.totalOwed - d.amountPaid), 0);
@@ -2856,6 +2885,7 @@ function saveStats(){
 }
 
 async function resetStat(field){
+  if(!isPatron()){ showToast(dict[currentLang].restrictedFeature); return; }
   const t = dict[currentLang];
   const ok = window.confirm(t.confirmResetStats);
   if(!ok) return;
@@ -2866,6 +2896,7 @@ async function resetStat(field){
 }
 
 async function resetExpenses(){
+  if(!isPatron()){ showToast(dict[currentLang].restrictedFeature); return; }
   const t = dict[currentLang];
   const ok = window.confirm(t.confirmResetStats);
   if(!ok) return;
@@ -3010,6 +3041,15 @@ function buildUnifiedHistory(){
       });
     });
   });
+  if(isPatron()){
+    (activityLog||[]).forEach(a=>{
+      entries.push({
+        type:'activity', id:a.id, date:a.date,
+        label: '👁️ ' + a.label + ' — ' + a.who,
+        amount: 0, sub:'', deletable:false
+      });
+    });
+  }
   return entries.sort((a,b)=>b.date-a.date);
 }
 
@@ -3060,7 +3100,7 @@ function renderHistory(){
         <div class="meta">${formatDateTime(entry.date)}</div>
       </div>
       <div class="amounts">
-        <div class="${amountClass}">${entry.amount < 0 ? '-' : ''}${formatMoney(Math.abs(entry.amount))}</div>
+        ${entry.type==='activity' ? '' : `<div class="${amountClass}">${entry.amount < 0 ? '-' : ''}${formatMoney(Math.abs(entry.amount))}</div>`}
         ${entry.sub ? `<div class="profit">${entry.sub}</div>` : ''}
       </div>
       ${delBtn}
@@ -3166,6 +3206,11 @@ async function deleteHistoryEntry(type, id){
   if(!ok) return;
   if(type==='sale'){
     const sale = sales.find(s=>s.id===id);
+    if(sale && currentRole()==='caissier'){
+      const product = products.find(p=>p.id===sale.productId);
+      const pname = product ? product.name : t.historyDeletedProduct;
+      logActivity('sale_delete', dict[currentLang].logSaleDeleted + ' : ' + pname + ' × ' + sale.qty);
+    }
     sales = sales.filter(s=>s.id!==id);
     await saveSales();
     if(sale){
@@ -3258,7 +3303,7 @@ function renderDebtsList(){
       </div>
       <div class="items-list">${itemsSummary}</div>
       ${d.dueDate ? `<div class="due">📅 ${t.dueLabel} : ${d.dueDate}</div>` : ''}
-      <button class="pay-btn" onclick="openRepaySheet('${d.id}')">${t.payBtn}</button>
+      ${canRepayDebt() ? `<button class="pay-btn" onclick="openRepaySheet('${d.id}')">${t.payBtn}</button>` : ''}
     `;
     list.appendChild(div);
   });
@@ -3266,6 +3311,7 @@ function renderDebtsList(){
 
 let repayingDebtId = null;
 function openRepaySheet(debtId){
+  if(!canRepayDebt()){ showToast(dict[currentLang].restrictedFeature); return; }
   const debt = debts.find(d=>d.id===debtId);
   if(!debt) return;
   repayingDebtId = debtId;
@@ -3279,6 +3325,7 @@ function closeRepaySheet(){
   repayingDebtId = null;
 }
 async function confirmRepay(){
+  if(!canRepayDebt()){ showToast(dict[currentLang].restrictedFeature); return; }
   const debt = debts.find(d=>d.id===repayingDebtId);
   if(!debt) return;
   const remaining = Math.max(0, debt.totalOwed - debt.amountPaid);
