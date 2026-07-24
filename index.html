@@ -1099,7 +1099,8 @@ const dict = {
     cancelJoin:"Annuler",
 
     exportLabel:"Exporter en PDF ou Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
-    exportBtn:"Exporter", exportSuccess:"Export généré", exportEmpty:"Rien à exporter pour cette période."
+    exportBtn:"Exporter", exportSuccess:"Export généré", exportEmpty:"Rien à exporter pour cette période.",
+    syncOk:"Tes données sont synchronisées.", syncError:"⚠️ Échec de synchronisation :"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -1217,7 +1218,8 @@ const dict = {
     cancelJoin:"Boya",
 
     exportLabel:"Kobimisa na PDF to Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
-    exportBtn:"Kobimisa", exportSuccess:"Export esalémi", exportEmpty:"Eloko te ya kobimisa mpo na ntango oyo."
+    exportBtn:"Kobimisa", exportSuccess:"Export esalémi", exportEmpty:"Eloko te ya kobimisa mpo na ntango oyo.",
+    syncOk:"Ba données na yo ekangami malamu.", syncError:"⚠️ Synchronisation elongi te :"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -1335,7 +1337,8 @@ const dict = {
     cancelJoin:"Ghairi",
 
     exportLabel:"Hamisha kwa PDF au Excel ?", exportFormatPdf:"PDF", exportFormatExcel:"Excel",
-    exportBtn:"Hamisha", exportSuccess:"Hamisho limetengenezwa", exportEmpty:"Hakuna cha kuhamisha kwa kipindi hiki."
+    exportBtn:"Hamisha", exportSuccess:"Hamisho limetengenezwa", exportEmpty:"Hakuna cha kuhamisha kwa kipindi hiki.",
+    syncOk:"Data zako zimehifadhiwa vizuri.", syncError:"⚠️ Usawazishaji umeshindwa :"
   }
 };
 /* ---------- Stockage local fiable (fonctionne une fois l'app hébergée, contrairement à l'ancien système) ---------- */
@@ -1387,7 +1390,7 @@ function signInWithGoogle(){
     }
   }).catch((e)=>{
     console.error('Erreur de connexion', e);
-    showToast('Erreur : ' + (e.code || e.message || e));
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
   });
 }
 function signOutGoogle(){
@@ -1456,7 +1459,7 @@ async function doDeleteAccount(){
     render();
   }catch(e){
     console.error('Erreur suppression compte', e);
-    showToast('Erreur : ' + (e.code || e.message || e));
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
   }
 }
 
@@ -1554,6 +1557,20 @@ function loadStoreDataIntoWorkingArrays(storeData){
   localSet('mombongo:stats', JSON.stringify(stats));
 }
 
+let lastSyncOk = true;
+let lastSyncErrorMsg = '';
+function updateSyncStatusUI(){
+  const el = document.getElementById('t-sync-status');
+  if(!el) return;
+  if(lastSyncOk){
+    el.textContent = dict[currentLang].syncOk || "Tes données sont synchronisées.";
+    el.style.color = '';
+  } else {
+    el.textContent = (dict[currentLang].syncError || "⚠️ Échec de synchronisation :") + ' ' + lastSyncErrorMsg;
+    el.style.color = 'var(--alert)';
+  }
+}
+
 async function pushToCloud(){
   const ownerUid = getDataOwnerUid();
   if(!cloudEnabled || !db || !ownerUid) return;
@@ -1571,7 +1588,14 @@ async function pushToCloud(){
       update.displayName = currentUser.displayName || '';
     }
     await db.collection('mombongo_users').doc(ownerUid).set(update, { merge: true });
-  }catch(e){ console.error('Erreur synchronisation cloud', e); }
+    lastSyncOk = true;
+    updateSyncStatusUI();
+  }catch(e){
+    console.error('Erreur synchronisation cloud', e);
+    lastSyncOk = false;
+    lastSyncErrorMsg = e.code || e.message || String(e);
+    updateSyncStatusUI();
+  }
 }
 
 function applyDocData(data){
@@ -1776,7 +1800,7 @@ async function removeDevice(deviceUid){
     await db.collection('mombongo_users').doc(ownerUid).collection('devices').doc(deviceUid).delete();
     showToast(t.deviceRemoved);
     renderDevicesList();
-  }catch(e){ console.error('Erreur suppression appareil', e); showToast('Erreur : ' + (e.code || e.message || e)); }
+  }catch(e){ console.error('Erreur suppression appareil', e); showToast('Erreur : ' + (e.code || e.message || e), 5000); }
 }
 
 function openGeneratePinSheet(){
@@ -1805,7 +1829,10 @@ async function generateNewPin(){
     updatePinCountdown();
   }catch(e){
     console.error('Erreur génération code', e);
-    showToast('Erreur : ' + (e.code || e.message || e));
+    const hint = (e.code === 'permission-denied')
+      ? " — les règles de sécurité Firestore ne sont probablement pas publiées."
+      : "";
+    showToast('Erreur code : ' + (e.code || e.message || e) + hint, 5000);
   }
 }
 function updatePinCountdown(){
@@ -1867,7 +1894,7 @@ async function confirmJoinWithPin(){
     attachRealtimeListener(employeeOwnerUid);
   }catch(e){
     console.error('Erreur rejoindre', e);
-    showToast('Erreur : ' + (e.code || e.message || e));
+    showToast('Erreur : ' + (e.code || e.message || e), 5000);
   }
 }
 
@@ -3317,11 +3344,11 @@ function renderAlertsSheet(){
   });
 }
 
-function showToast(msg){
+function showToast(msg, duration){
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'), 1800);
+  setTimeout(()=>toast.classList.remove('show'), duration || 1800);
 }
 
 loadData();
