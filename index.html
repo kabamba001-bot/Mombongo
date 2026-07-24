@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="wi>dth=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
 <title>Mombongo — Gestion de commerce</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146356">
@@ -72,6 +72,9 @@
     padding:6px 10px; border-radius:999px; cursor:pointer;
   }
   .mini-toggle button.active{background:var(--paper); color:var(--emerald);}
+  .field-currency-toggle{display:inline-flex; background:var(--paper-2); border-radius:999px; padding:2px; margin-left:6px; vertical-align:middle;}
+  .field-currency-toggle button{border:none; background:transparent; color:var(--charcoal-soft); font-family:'Inter'; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; cursor:pointer;}
+  .field-currency-toggle button.active{background:var(--emerald); color:#fff;}
   #rate-row{display:none; margin-top:12px; position:relative; z-index:1;}
   #rate-row label{font-size:11px; opacity:.85; display:block; margin-bottom:4px;}
   #rate-row input{
@@ -464,11 +467,11 @@
         </div>
         <div class="two-col">
           <div class="field">
-            <label id="t-buy">Prix d'achat ($)</label>
+            <label id="t-buy">Prix d'achat ($)</label><span class="field-currency-toggle" id="fc-toggle-buy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('buy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('buy','cdf')">FC</button></span>
             <input id="in-buy" type="number" inputmode="decimal" placeholder="0.5">
           </div>
           <div class="field">
-            <label id="t-sell">Prix de vente ($)</label>
+            <label id="t-sell">Prix de vente ($)</label><span class="field-currency-toggle" id="fc-toggle-sell"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sell','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sell','cdf')">FC</button></span>
             <input id="in-sell" type="number" inputmode="decimal" placeholder="1">
           </div>
           <div class="field" style="grid-column:1/-1; margin-bottom:0;">
@@ -515,13 +518,13 @@
             <input id="carton-qty" type="number" inputmode="numeric" placeholder="24">
           </div>
           <div class="field">
-            <label id="t-carton-buy">Prix d'achat du carton</label>
+            <label id="t-carton-buy">Prix d'achat du carton</label><span class="field-currency-toggle" id="fc-toggle-cartonBuy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('cartonBuy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('cartonBuy','cdf')">FC</button></span>
             <input id="carton-buy" type="number" inputmode="decimal" placeholder="12">
           </div>
         </div>
         <div class="two-col">
           <div class="field">
-            <label id="t-carton-sell">Prix de vente d'une pièce</label>
+            <label id="t-carton-sell">Prix de vente d'une pièce</label><span class="field-currency-toggle" id="fc-toggle-cartonSell"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('cartonSell','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('cartonSell','cdf')">FC</button></span>
             <input id="carton-sell" type="number" inputmode="decimal" placeholder="1">
           </div>
           <div class="field">
@@ -558,7 +561,7 @@
         </div>
         <div class="two-col">
           <div class="field">
-            <label id="t-sac-buy">Prix d'achat du sac</label>
+            <label id="t-sac-buy">Prix d'achat du sac</label><span class="field-currency-toggle" id="fc-toggle-sacBuy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sacBuy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sacBuy','cdf')">FC</button></span>
             <input id="sac-buy" type="number" inputmode="decimal" placeholder="45">
           </div>
           <div class="field">
@@ -848,7 +851,7 @@
 
       <button class="btn-danger-outline" onclick="clearAllHistory()" id="t-clear-history">Effacer tout l'historique</button>
       <button class="btn-secondary" onclick="closeHistorySheet()" id="t-cancel4">Fermer</button>
-    </div
+    </div>
   </div>
 
   <div class="sheet-overlay" id="debts-overlay">
@@ -1050,6 +1053,10 @@ const dict = {
     limitDescHistory:"Tu veux voir les résultats de ton travail sur plusieurs jours ? Contacte le développeur sur WhatsApp pour débloquer l'historique complet (semaine, mois, période personnalisée).",
     limitWhatsappMsgExpenses:"Bonjour, je veux débloquer l'ajout illimité de dépenses sur Mombongo.",
     limitWhatsappMsgHistory:"Bonjour, je veux débloquer l'historique complet (semaine/mois) sur Mombongo.",
+    limitDescStores:"Ajouter une autre boutique ou pharmacie est une fonctionnalité VIP. Contacte le développeur sur WhatsApp pour débloquer le multi-boutiques.",
+    limitWhatsappMsgStores:"Bonjour, je veux débloquer l'ajout de plusieurs boutiques sur Mombongo.",
+    limitDescDevices:"Connecter plusieurs appareils (caissier, magasinier) est une fonctionnalité VIP. Contacte le développeur sur WhatsApp pour la débloquer.",
+    limitWhatsappMsgDevices:"Bonjour, je veux débloquer la connexion de plusieurs appareils sur Mombongo.",
     limitNeedsLoginDesc:"Tu dois d'abord te connecter avec Google pour pouvoir discuter avec le développeur ou devenir Premium. Sans compte, on ne peut pas te retrouver pour activer ton accès.",
     limitLoginBtn:"Se connecter avec Google",
     expensesHistoryTitle:"Historique des dépenses",
@@ -1169,6 +1176,10 @@ const dict = {
     limitDescHistory:"Olingi koyeba misala na yo ya mikolo mingi ? Benga développeur na WhatsApp mpo na kolongola istwaru mobimba (poso, sanza, mokolo oyo oponi).",
     limitWhatsappMsgExpenses:"Mbote, nalingi kolongola ndelo ya ba dépenses na Mombongo.",
     limitWhatsappMsgHistory:"Mbote, nalingi kolongola istwaru mobimba (poso/sanza) na Mombongo.",
+    limitDescStores:"Kobakisa boutique to pharmacie mosusu ezali likambo ya VIP. Benga développeur na WhatsApp mpo na kolongola yango.",
+    limitWhatsappMsgStores:"Mbote, nalingi kolongola kobakisa ba boutiques ebele na Mombongo.",
+    limitDescDevices:"Kokangisa ba appareils ebele (caissier, magasinier) ezali likambo ya VIP. Benga développeur na WhatsApp mpo na kolongola yango.",
+    limitWhatsappMsgDevices:"Mbote, nalingi kolongola kokangisa ba appareils ebele na Mombongo.",
     limitNeedsLoginDesc:"Osengeli liboso kokota na Google mpo okoka kosolola na développeur to kokóma Premium. Soki compte te, tokoki koluka yo te mpo na kofungola yo.",
     limitLoginBtn:"Kokota na Google",
     expensesHistoryTitle:"Istwaru ya ba dépenses",
@@ -1289,6 +1300,10 @@ const dict = {
     limitDescHistory:"Unataka kuona matokeo ya kazi yako kwa siku nyingi ? Wasiliana na msanidi kwenye WhatsApp kufungua historia kamili (wiki, mwezi, kipindi maalum).",
     limitWhatsappMsgExpenses:"Habari, nataka kufungua ongezeko lisilo na kikomo la matumizi kwenye Mombongo.",
     limitWhatsappMsgHistory:"Habari, nataka kufungua historia kamili (wiki/mwezi) kwenye Mombongo.",
+    limitDescStores:"Kuongeza duka au famasi nyingine ni kipengele cha VIP. Wasiliana na msanidi kwenye WhatsApp kukifungua.",
+    limitWhatsappMsgStores:"Habari, nataka kufungua uongezaji wa maduka mengi kwenye Mombongo.",
+    limitDescDevices:"Kuunganisha vifaa vingi (mhasibu, msimamizi wa bidhaa) ni kipengele cha VIP. Wasiliana na msanidi kwenye WhatsApp kukifungua.",
+    limitWhatsappMsgDevices:"Habari, nataka kufungua uunganishaji wa vifaa vingi kwenye Mombongo.",
     limitNeedsLoginDesc:"Lazima kwanza uingie na Google ili uweze kuzungumza na msanidi au kuwa Premium. Bila akaunti, hatuwezi kukutafuta ili kukuwezesha ufikiaji.",
     limitLoginBtn:"Ingia na Google",
     expensesHistoryTitle:"Historia ya matumizi",
@@ -1765,6 +1780,7 @@ async function switchStore(storeId){
 }
 
 function openNewStoreSheet(){
+  if(!isVip){ closeAccountSheet(); openLimitSheet('stores'); return; }
   document.getElementById('in-store-name').value = '';
   document.getElementById('new-store-overlay').classList.add('open');
 }
@@ -1772,6 +1788,7 @@ function closeNewStoreSheet(){
   document.getElementById('new-store-overlay').classList.remove('open');
 }
 async function confirmAddStore(){
+  if(!isVip){ closeNewStoreSheet(); openLimitSheet('stores'); return; }
   const name = document.getElementById('in-store-name').value.trim();
   if(!name){ showToast(currentLang==='fr' ? "Indique un nom de boutique" : "Tia nkombo ya boutique"); return; }
   const id = 'store_' + Date.now();
@@ -1881,6 +1898,7 @@ async function removeDevice(deviceUid){
 }
 
 function openGeneratePinSheet(){
+  if(!isVip){ closeAccountSheet(); openLimitSheet('devices'); return; }
   document.getElementById('generate-pin-overlay').classList.add('open');
   generateNewPin();
 }
@@ -2000,13 +2018,16 @@ function confirmLeaveDevice(){
 }
 
 function initEmployeeModeIfAny(){
-  const ownerUid = localGet('mombongo:employeeOwnerUid');
-  if(!ownerUid) return false;
+  const ownerUidResult = localGet('mombongo:employeeOwnerUid');
+  if(!ownerUidResult || !ownerUidResult.value) return false;
   isEmployeeMode = true;
-  employeeOwnerUid = ownerUid;
-  employeeRole = localGet('mombongo:employeeRole') || 'caissier';
-  employeeStoreId = localGet('mombongo:employeeStoreId');
-  employeeDeviceName = localGet('mombongo:employeeDeviceName') || '';
+  employeeOwnerUid = ownerUidResult.value;
+  const roleResult = localGet('mombongo:employeeRole');
+  employeeRole = (roleResult && roleResult.value) || 'caissier';
+  const storeIdResult = localGet('mombongo:employeeStoreId');
+  employeeStoreId = storeIdResult ? storeIdResult.value : null;
+  const deviceNameResult = localGet('mombongo:employeeDeviceName');
+  employeeDeviceName = (deviceNameResult && deviceNameResult.value) || '';
   if(cloudEnabled){
     firebase.auth().signInAnonymously().catch(e=>console.error('Erreur connexion anonyme', e));
   }
@@ -2356,6 +2377,7 @@ function setAddMode(mode){
 function addMesuretteRow(){
   mesuretteCount++;
   const idx = mesuretteCount;
+  priceFieldCurrency['mesurette'+idx] = 'usd';
   const wrap = document.createElement('div');
   wrap.className = 'mesurette-row';
   wrap.id = 'mesurette-row-'+idx;
@@ -2367,7 +2389,7 @@ function addMesuretteRow(){
     </div>
     <div class="two-col">
       <div class="field">
-        <label>${t.mesuretteSell}</label>
+        <label>${t.mesuretteSell}</label><span class="field-currency-toggle" id="fc-toggle-mesurette${idx}"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('mesurette${idx}','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('mesurette${idx}','cdf')">FC</button></span>
         <input id="mesurette-sell-${idx}" type="number" inputmode="decimal">
       </div>
       <div class="field">
@@ -2402,6 +2424,7 @@ function openAddSheet(){
   document.getElementById('add-mode-row').style.display = 'flex';
   resetMesurettes();
   setAddMode('simple');
+  resetFieldCurrencies();
   document.getElementById('add-overlay').classList.add('open');
 }
 function openEditSheet(id){
@@ -2415,6 +2438,7 @@ function openEditSheet(id){
   document.getElementById('add-mode-row').style.display = 'none';
   resetMesurettes();
   setAddMode('simple');
+  resetFieldCurrencies();
   document.getElementById('in-name').value = product.name;
   document.getElementById('in-buy').value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
   document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
@@ -2451,6 +2475,28 @@ function toInternal(raw){
   return currentCurrency === 'cdf' ? raw / exchangeRate : raw;
 }
 
+/* ---------- Devise indépendante par champ de prix ---------- */
+let priceFieldCurrency = {};
+function resetFieldCurrencies(){
+  priceFieldCurrency = { buy: currentCurrency, sell: currentCurrency, cartonBuy: currentCurrency, cartonSell: currentCurrency, sacBuy: currentCurrency };
+  document.querySelectorAll('.field-currency-toggle').forEach(group=>{
+    const key = group.id.replace('fc-toggle-','');
+    const cur = priceFieldCurrency[key] || currentCurrency;
+    group.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cur===cur));
+  });
+}
+function setFieldCurrency(field, cur){
+  priceFieldCurrency[field] = cur;
+  const group = document.getElementById('fc-toggle-'+field);
+  if(group){
+    group.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cur===cur));
+  }
+}
+function toInternalField(raw, field){
+  const cur = priceFieldCurrency[field] || currentCurrency;
+  return cur === 'cdf' ? raw / exchangeRate : raw;
+}
+
 function canAddMoreProducts(countToAdd){
   if(isVip) return true;
   return (products.length + countToAdd) <= FREE_PRODUCT_LIMIT;
@@ -2473,8 +2519,8 @@ function openLimitSheet(reason){
       openAccountSheet();
     };
   } else {
-    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory' }[reason];
-    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory' }[reason];
+    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices' }[reason];
+    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices' }[reason];
     document.getElementById('t-limit-desc').textContent = t[descKey];
     const msg = encodeURIComponent(t[msgKey]);
     link.textContent = t.limitUnlockBtn;
@@ -2551,9 +2597,9 @@ async function addProduct(){
   const name = document.getElementById('in-name').value.trim();
   const rawBuy = parseFloat(document.getElementById('in-buy').value) || 0;
   const rawSell = parseFloat(document.getElementById('in-sell').value) || 0;
-  // Les montants sont toujours stockés en dollars en interne, quelle que soit la devise de saisie
-  const buy = toInternal(rawBuy);
-  const sell = toInternal(rawSell);
+  // Chaque champ (achat/vente) convertit selon sa propre devise sélectionnée
+  const buy = toInternalField(rawBuy, 'buy');
+  const sell = toInternalField(rawSell, 'sell');
   const qty = parseInt(document.getElementById('in-qty').value) || 0;
   const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
   const hasExpiry = document.getElementById('in-has-expiry').checked;
@@ -2593,9 +2639,9 @@ async function addCartonProduct(){
     return;
   }
   if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
-  const cartonBuyInternal = toInternal(rawCartonBuy);
+  const cartonBuyInternal = toInternalField(rawCartonBuy, 'cartonBuy');
   const buyPerPiece = cartonBuyInternal / cartonQty;
-  const sell = toInternal(rawSell);
+  const sell = toInternalField(rawSell, 'cartonSell');
   const hasExpiry = document.getElementById('carton-has-expiry').checked;
   const expiryDate = hasExpiry ? (getDateValue('carton-expiry-date') || null) : null;
   products.push({
@@ -2616,7 +2662,7 @@ async function addSacProduct(){
     showToast(currentLang==='fr' ? "Remplis le nom et le prix d'achat du sac" : "Pesa nkombo na ntalo ya sac");
     return;
   }
-  const sacBuyInternal = toInternal(rawSacBuy);
+  const sacBuyInternal = toInternalField(rawSacBuy, 'sacBuy');
   const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
   const validRows = [];
   rows.forEach((row)=>{
@@ -2624,7 +2670,7 @@ async function addSacProduct(){
     const mName = document.getElementById('mesurette-name-'+idx).value.trim();
     const rawMSell = parseFloat(document.getElementById('mesurette-sell-'+idx).value) || 0;
     const mQty = parseInt(document.getElementById('mesurette-qty-'+idx).value) || 0;
-    if(mName && rawMSell && mQty) validRows.push({ mName, rawMSell, mQty });
+    if(mName && rawMSell && mQty) validRows.push({ mName, rawMSell, mQty, idx });
   });
   if(validRows.length === 0){
     showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
@@ -2635,8 +2681,8 @@ async function addSacProduct(){
   const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
   const lotId = 'lot' + Date.now().toString();
   let offset = 0;
-  validRows.forEach(({mName, rawMSell, mQty})=>{
-    const mSell = toInternal(rawMSell);
+  validRows.forEach(({mName, rawMSell, mQty, idx})=>{
+    const mSell = toInternalField(rawMSell, 'mesurette'+idx);
     const buyPerUnit = sacBuyInternal / mQty;
     offset++;
     products.push({
@@ -2959,10 +3005,7 @@ function closeHistorySheet(){
   document.getElementById('history-overlay').classList.remove('open');
 }
 window.addEventListener('popstate', function(){
-  const el = document.getElementById('history-overlay');
-  if(el && el.classList.contains('open')){
-    el.classList.remove('open');
-  }
+  document.querySelectorAll('.sheet-overlay.open').forEach(el=>el.classList.remove('open'));
 });
 function formatDateTime(ts){
   const d = new Date(ts);
@@ -3302,7 +3345,7 @@ async function clearAllHistory(){
 
 /* ---------- Crédits & Dettes ---------- */
 function openDebtsSheet(){
-  renderDebtsList();
+  try{ renderDebtsList(); }catch(e){ console.error('Erreur affichage dettes', e); }
   document.getElementById('debts-overlay').classList.add('open');
 }
 function closeDebtsSheet(){
