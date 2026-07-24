@@ -967,6 +967,9 @@ let db = null;
 let currentUser = null;
 let isVip = false;
 let vipUntil = null;
+let currentLang = 'fr';
+let currentCurrency = 'usd';
+let exchangeRate = 2800;
 const FREE_PRODUCT_LIMIT = 30;
 const FREE_EXPENSE_LIMIT = 3;
 const DEV_WHATSAPP = '243980979141';
@@ -1999,10 +2002,6 @@ if(cloudEnabled){
     if(user) handlePostLogin();
   });
 }
-
-let currentLang = 'fr';
-let currentCurrency = 'usd';
-let exchangeRate = 2800;
 
 function setLang(lang){
   currentLang = lang;
