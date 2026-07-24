@@ -1705,11 +1705,17 @@ function renderStoresList(){
     row.style.justifyContent = 'space-between';
     row.style.alignItems = 'center';
     const active = s.id === activeStoreId;
+    const delBtn = stores.length > 1
+      ? `<button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0 0 0 6px;" onclick="deleteStore('${s.id}')" aria-label="Supprimer">🗑</button>`
+      : '';
     row.innerHTML = `
       <div style="flex:1; min-width:0;">
         <div style="font-weight:700; font-size:13.5px;">${s.name}${active ? ' <span style="color:var(--emerald); font-size:11px;">● '+dict[currentLang].activeStoreTag+'</span>' : ''}</div>
       </div>
-      ${active ? '' : `<button class="btn-secondary" style="width:auto; padding:6px 12px; background:var(--paper-2); border-radius:8px; margin:0;" onclick="switchStore('${s.id}')">${currentLang==='fr'?'Choisir':'Poná'}</button>`}
+      <div style="display:flex; align-items:center;">
+        ${active ? '' : `<button class="btn-secondary" style="width:auto; padding:6px 12px; background:var(--paper-2); border-radius:8px; margin:0;" onclick="switchStore('${s.id}')">${currentLang==='fr'?'Choisir':'Poná'}</button>`}
+        ${delBtn}
+      </div>
     `;
     container.appendChild(row);
   });
@@ -1748,6 +1754,39 @@ async function confirmAddStore(){
   renderStoresList();
   render();
   showToast(dict[currentLang].storeAdded);
+}
+
+async function deleteStore(storeId){
+  const t = dict[currentLang];
+  if(stores.length <= 1){ showToast(t.cantDeleteLastStore); return; }
+  const store = stores.find(s=>s.id===storeId);
+  if(!store) return;
+  if(!window.confirm(`${t.confirmDeleteStore}\n"${store.name}"`)) return;
+
+  const wasActive = storeId === activeStoreId;
+  stores = stores.filter(s=>s.id!==storeId);
+  delete storesDataCache[storeId];
+
+  if(wasActive){
+    activeStoreId = stores[0].id;
+    if(!storesDataCache[activeStoreId]) storesDataCache[activeStoreId] = emptyStoreData();
+    loadStoreDataIntoWorkingArrays(storesDataCache[activeStoreId]);
+  }
+
+  try{
+    const ownerUid = getDataOwnerUid();
+    if(cloudEnabled && db && ownerUid){
+      await db.collection('mombongo_users').doc(ownerUid).set({
+        stores, activeStoreId,
+        storesData: { [storeId]: firebase.firestore.FieldValue.delete() },
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+  }catch(e){ console.error('Erreur suppression boutique', e); }
+
+  renderStoresList();
+  render();
+  showToast(t.storeDeleted);
 }
 
 /* ---------- Appareils & rôles (PIN de couplage) ---------- */
