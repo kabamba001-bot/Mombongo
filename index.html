@@ -263,13 +263,17 @@
     transition:background .15s ease, transform .15s ease; -webkit-tap-highlight-color:transparent;
     user-select:none;
   }
-  .voice-fab.recording{
-    background:var(--alert); transform:translateX(-50%) scale(1.12);
-    animation:voicePulse 1s ease-in-out infinite;
+  .voice-fab.pressed{
+    transform:translateX(-50%) scale(1.1);
   }
-  @keyframes voicePulse{
-    0%,100%{ box-shadow:0 0 0 0 rgba(192,57,43,0.5); }
-    50%{ box-shadow:0 0 0 14px rgba(192,57,43,0); }
+  .voice-fab.listening{
+    background:var(--alert); transform:translateX(-50%) scale(1.1);
+    animation:voiceWave 1.2s ease-out infinite;
+  }
+  @keyframes voiceWave{
+    0%{ box-shadow:0 0 0 0 rgba(192,57,43,0.55), 0 0 0 0 rgba(192,57,43,0.35); }
+    60%{ box-shadow:0 0 0 18px rgba(192,57,43,0), 0 0 0 34px rgba(192,57,43,0); }
+    100%{ box-shadow:0 0 0 18px rgba(192,57,43,0), 0 0 0 34px rgba(192,57,43,0); }
   }
 
   .sheet-overlay{
@@ -3522,6 +3526,8 @@ const FRENCH_NUMBER_WORDS = {
 
 let voiceRecognition = null;
 let pendingVoiceSale = null;
+let voiceListening = false;
+let voiceStopRequested = false;
 
 function getVoiceRecognition(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -3531,17 +3537,35 @@ function getVoiceRecognition(){
     voiceRecognition.lang = 'fr-FR';
     voiceRecognition.interimResults = false;
     voiceRecognition.maxAlternatives = 1;
+
+    voiceRecognition.onstart = () => {
+      voiceListening = true;
+      const btn = document.getElementById('voice-sale-btn');
+      btn.classList.remove('pressed');
+      btn.classList.add('listening');
+      if(voiceStopRequested){
+        // L'utilisateur avait déjà relâché avant que le micro ne démarre vraiment
+        // (permission en attente, initialisation...) : on arrête proprement maintenant.
+        try{ voiceRecognition.stop(); }catch(e){}
+      }
+    };
     voiceRecognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       handleVoiceSaleTranscript(transcript);
     };
     voiceRecognition.onerror = (event) => {
-      document.getElementById('voice-sale-btn').classList.remove('recording');
+      voiceListening = false;
+      document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
       if(event.error === 'no-speech' || event.error === 'aborted') return;
-      showToast(currentLang==='fr' ? "Erreur micro : "+event.error : "Erreur micro");
+      if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+        showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
+        return;
+      }
+      showToast("Erreur micro : " + event.error, 4000);
     };
     voiceRecognition.onend = () => {
-      document.getElementById('voice-sale-btn').classList.remove('recording');
+      voiceListening = false;
+      document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     };
   }
   return voiceRecognition;
@@ -3554,14 +3578,27 @@ function startVoiceSale(){
     showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
     return;
   }
-  document.getElementById('voice-sale-btn').classList.add('recording');
-  try{ rec.start(); }catch(e){ /* déjà démarré, on ignore */ }
+  voiceStopRequested = false;
+  voiceListening = false;
+  document.getElementById('voice-sale-btn').classList.add('pressed');
+  try{
+    rec.start();
+  }catch(e){
+    document.getElementById('voice-sale-btn').classList.remove('pressed');
+    showToast("Micro déjà actif ou indisponible, réessaie.", 3000);
+  }
 }
 
 function stopVoiceSale(){
-  document.getElementById('voice-sale-btn').classList.remove('recording');
-  if(voiceRecognition){
-    try{ voiceRecognition.stop(); }catch(e){}
+  voiceStopRequested = true;
+  const btn = document.getElementById('voice-sale-btn');
+  if(voiceListening){
+    btn.classList.remove('listening');
+    if(voiceRecognition){ try{ voiceRecognition.stop(); }catch(e){} }
+  } else {
+    // Pas encore réellement démarré (permission/initialisation en cours) : on annule proprement.
+    btn.classList.remove('pressed');
+    if(voiceRecognition){ try{ voiceRecognition.abort(); }catch(e){} }
   }
 }
 
