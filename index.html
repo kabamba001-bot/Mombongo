@@ -3611,12 +3611,13 @@ function normalizeForMatch(s){
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
-// Reconnaît "2 pains vendus", "pain vendu", "3 paracétamol vendu"...
+// Reconnaît "pain", "2 pain", "pain vendu", "2 pains vendus"... — "vendu(s)" est optionnel
 function parseVoiceSaleCommand(transcript){
   let text = transcript.trim().toLowerCase().replace(/[.,!?]/g,'').trim();
+  if(!text) return null;
+
   const soldMatch = text.match(/^(.*?)\s*vendus?\s*$/);
-  if(!soldMatch) return null;
-  let rest = soldMatch[1].trim();
+  let rest = (soldMatch && soldMatch[1].trim()) ? soldMatch[1].trim() : text;
   if(!rest) return null;
 
   const words = rest.split(/\s+/);
