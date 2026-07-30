@@ -239,7 +239,7 @@
   .product-card button.edit:active{color:var(--emerald);}
 
   .fab-row{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:20px;
+    position:fixed; left:50%; transform:translateX(-50%); bottom:82px;
     width:calc(100% - 32px); max-width:448px; display:flex; gap:10px; z-index:20;
   }
   .fab{
@@ -253,6 +253,23 @@
   .fab-right{
     background:var(--slate); color:#fff;
     box-shadow:0 6px 18px rgba(90,107,107,0.35);
+  }
+  .voice-fab{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:16px;
+    width:64px; height:64px; border-radius:50%; border:none;
+    background:var(--emerald); color:#fff; font-size:26px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(20,99,86,0.45); z-index:22; cursor:pointer;
+    transition:background .15s ease, transform .15s ease; -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .voice-fab.recording{
+    background:var(--alert); transform:translateX(-50%) scale(1.12);
+    animation:voicePulse 1s ease-in-out infinite;
+  }
+  @keyframes voicePulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(192,57,43,0.5); }
+    50%{ box-shadow:0 0 0 14px rgba(192,57,43,0); }
   }
 
   .sheet-overlay{
@@ -475,6 +492,17 @@
   <div class="fab-row">
     <button class="fab fab-left" onclick="openAddSheet()" id="t-add-btn">➕ Produit</button>
     <button class="fab fab-right" onclick="openExpenseSheet()" id="t-expense-btn">💸 Dépense</button>
+  </div>
+
+  <button type="button" class="voice-fab" id="voice-sale-btn" aria-label="Maintenir pour enregistrer une vente par la voix">🎤</button>
+
+  <div class="sheet-overlay" id="voice-confirm-overlay">
+    <div class="sheet">
+      <h3 id="t-voice-confirm-title">Confirmer la vente</h3>
+      <div id="voice-confirm-body" style="font-size:16px; margin:14px 0 20px; line-height:1.6; font-weight:600;"></div>
+      <button class="btn-primary" onclick="confirmVoiceSale()" id="t-voice-confirm-btn">✅ Confirmer</button>
+      <button class="btn-secondary" onclick="cancelVoiceSale()" id="t-voice-cancel-btn">Annuler</button>
+    </div>
   </div>
 
   <div class="sheet-overlay" id="add-overlay">
@@ -3486,6 +3514,165 @@ async function confirmSale(){
   render();
 }
 
+/* ---------- Vente par la voix (français uniquement) ---------- */
+const FRENCH_NUMBER_WORDS = {
+  un:1, une:1, deux:2, trois:3, quatre:4, cinq:5, six:6, sept:7, huit:8, neuf:9, dix:10,
+  onze:11, douze:12, treize:13, quatorze:14, quinze:15, seize:16, vingt:20
+};
+
+let voiceRecognition = null;
+let pendingVoiceSale = null;
+
+function getVoiceRecognition(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return null;
+  if(!voiceRecognition){
+    voiceRecognition = new SR();
+    voiceRecognition.lang = 'fr-FR';
+    voiceRecognition.interimResults = false;
+    voiceRecognition.maxAlternatives = 1;
+    voiceRecognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      handleVoiceSaleTranscript(transcript);
+    };
+    voiceRecognition.onerror = (event) => {
+      document.getElementById('voice-sale-btn').classList.remove('recording');
+      if(event.error === 'no-speech' || event.error === 'aborted') return;
+      showToast(currentLang==='fr' ? "Erreur micro : "+event.error : "Erreur micro");
+    };
+    voiceRecognition.onend = () => {
+      document.getElementById('voice-sale-btn').classList.remove('recording');
+    };
+  }
+  return voiceRecognition;
+}
+
+function startVoiceSale(){
+  if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const rec = getVoiceRecognition();
+  if(!rec){
+    showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
+    return;
+  }
+  document.getElementById('voice-sale-btn').classList.add('recording');
+  try{ rec.start(); }catch(e){ /* déjà démarré, on ignore */ }
+}
+
+function stopVoiceSale(){
+  document.getElementById('voice-sale-btn').classList.remove('recording');
+  if(voiceRecognition){
+    try{ voiceRecognition.stop(); }catch(e){}
+  }
+}
+
+function normalizeForMatch(s){
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+
+// Reconnaît "2 pains vendus", "pain vendu", "3 paracétamol vendu"...
+function parseVoiceSaleCommand(transcript){
+  let text = transcript.trim().toLowerCase().replace(/[.,!?]/g,'').trim();
+  const soldMatch = text.match(/^(.*?)\s*vendus?\s*$/);
+  if(!soldMatch) return null;
+  let rest = soldMatch[1].trim();
+  if(!rest) return null;
+
+  const words = rest.split(/\s+/);
+  let qty = 1;
+  const firstWord = words[0];
+  if(/^\d+$/.test(firstWord)){
+    qty = parseInt(firstWord, 10);
+    words.shift();
+  } else if(FRENCH_NUMBER_WORDS[firstWord] !== undefined){
+    qty = FRENCH_NUMBER_WORDS[firstWord];
+    words.shift();
+  }
+  const productText = words.join(' ').trim();
+  if(!productText) return null;
+  return { qty, productText };
+}
+
+// Cherche le produit le plus proche du texte dicté, dans l'inventaire réel de la boutique active
+function findProductMatch(productText){
+  const norm = normalizeForMatch(productText);
+  if(!norm) return null;
+  let best = null, bestScore = 0;
+  products.forEach(p=>{
+    const pn = normalizeForMatch(p.name);
+    let score = 0;
+    if(pn === norm) score = 100;
+    else if(pn.includes(norm) || norm.includes(pn)) score = 70;
+    else{
+      const wordsA = norm.split(/\s+/);
+      const wordsB = pn.split(/\s+/);
+      const shared = wordsA.filter(w => w.length>=3 && wordsB.includes(w)).length;
+      score = shared * 20;
+    }
+    if(score > bestScore){ bestScore = score; best = p; }
+  });
+  return bestScore >= 20 ? best : null;
+}
+
+function handleVoiceSaleTranscript(transcript){
+  const parsed = parseVoiceSaleCommand(transcript);
+  if(!parsed){
+    showToast(`Je n'ai pas compris : "${transcript}"`);
+    return;
+  }
+  const product = findProductMatch(parsed.productText);
+  if(!product){
+    showToast(`Produit non reconnu : "${parsed.productText}"`);
+    return;
+  }
+  if(parsed.qty > product.qty){
+    showToast(`Stock insuffisant pour ${product.name} (reste ${product.qty})`);
+    return;
+  }
+  pendingVoiceSale = { product, qty: parsed.qty };
+  openVoiceConfirmSheet();
+}
+
+function openVoiceConfirmSheet(){
+  if(!pendingVoiceSale) return;
+  const { product, qty } = pendingVoiceSale;
+  const total = qty * product.sell;
+  document.getElementById('voice-confirm-body').innerHTML =
+    `${qty} × ${escapeHtml(product.name)}<br>` +
+    `<span style="color:var(--emerald);">${formatMoney(total)}</span>`;
+  document.getElementById('voice-confirm-overlay').classList.add('open');
+}
+
+function cancelVoiceSale(){
+  pendingVoiceSale = null;
+  document.getElementById('voice-confirm-overlay').classList.remove('open');
+}
+
+async function confirmVoiceSale(){
+  if(!pendingVoiceSale) return;
+  const { product, qty } = pendingVoiceSale;
+  sellingProductId = product.id;
+  document.getElementById('in-sell-qty').value = qty;
+  document.getElementById('in-is-credit').checked = false;
+  document.getElementById('voice-confirm-overlay').classList.remove('open');
+  pendingVoiceSale = null;
+  await confirmSale();
+}
+
+function initVoiceSaleButton(){
+  const btn = document.getElementById('voice-sale-btn');
+  if(!btn) return;
+  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
+    btn.style.display = 'none';
+    return;
+  }
+  btn.addEventListener('touchstart', e=>{ e.preventDefault(); startVoiceSale(); });
+  btn.addEventListener('touchend', e=>{ e.preventDefault(); stopVoiceSale(); });
+  btn.addEventListener('touchcancel', stopVoiceSale);
+  btn.addEventListener('mousedown', startVoiceSale);
+  btn.addEventListener('mouseup', stopVoiceSale);
+  btn.addEventListener('mouseleave', stopVoiceSale);
+}
+
 /* ---------- Rendu ---------- */
 function getDateValue(prefix){
   const dEl = document.getElementById(prefix+'-d');
@@ -3533,6 +3720,7 @@ function render(){
 
   document.getElementById('t-add-btn').style.display = (role==='caissier') ? 'none' : '';
   document.getElementById('t-expense-btn').style.display = (role==='patron' || role==='caissier' || role==='magasinier') ? '' : 'none';
+  document.getElementById('voice-sale-btn').style.display = canSell() ? '' : 'none';
   ['reset-today-sales-btn','reset-today-profit-btn','reset-total-profit-btn','reset-expenses-btn'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = isPatron() ? '' : 'none';
@@ -4502,6 +4690,7 @@ if(shouldOfferApkInstall()){
   setTimeout(openInstallApkSheet, 700);
 }
 
+initVoiceSaleButton();
 loadData();
 
 if ('serviceWorker' in navigator) {
