@@ -3529,63 +3529,64 @@ let pendingVoiceSale = null;
 let voiceListening = false;
 let voiceStopRequested = false;
 
-function getVoiceRecognition(){
+function createVoiceRecognition(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR) return null;
-  if(!voiceRecognition){
-    voiceRecognition = new SR();
-    voiceRecognition.lang = 'fr-FR';
-    voiceRecognition.interimResults = false;
-    voiceRecognition.maxAlternatives = 1;
+  const rec = new SR();
+  rec.lang = 'fr-FR';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
 
-    voiceRecognition.onstart = () => {
-      voiceListening = true;
-      const btn = document.getElementById('voice-sale-btn');
-      btn.classList.remove('pressed');
-      btn.classList.add('listening');
-      if(voiceStopRequested){
-        // L'utilisateur avait déjà relâché avant que le micro ne démarre vraiment
-        // (permission en attente, initialisation...) : on arrête proprement maintenant.
-        try{ voiceRecognition.stop(); }catch(e){}
-      }
-    };
-    voiceRecognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      handleVoiceSaleTranscript(transcript);
-    };
-    voiceRecognition.onerror = (event) => {
-      voiceListening = false;
-      document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
-      if(event.error === 'no-speech' || event.error === 'aborted') return;
-      if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
-        showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
-        return;
-      }
-      showToast("Erreur micro : " + event.error, 4000);
-    };
-    voiceRecognition.onend = () => {
-      voiceListening = false;
-      document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
-    };
-  }
-  return voiceRecognition;
+  rec.onstart = () => {
+    voiceListening = true;
+    const btn = document.getElementById('voice-sale-btn');
+    btn.classList.remove('pressed');
+    btn.classList.add('listening');
+    if(voiceStopRequested){
+      // L'utilisateur avait déjà relâché avant que le micro ne démarre vraiment
+      // (permission en attente, initialisation...) : on arrête proprement maintenant.
+      try{ rec.stop(); }catch(e){}
+    }
+  };
+  rec.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    handleVoiceSaleTranscript(transcript);
+  };
+  rec.onerror = (event) => {
+    voiceListening = false;
+    document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
+    if(event.error === 'no-speech' || event.error === 'aborted') return;
+    if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
+      return;
+    }
+    showToast("Erreur micro : " + event.error, 4000);
+  };
+  rec.onend = () => {
+    voiceListening = false;
+    document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
+  };
+
+  return rec;
 }
 
 function startVoiceSale(){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
-  const rec = getVoiceRecognition();
-  if(!rec){
+  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
     showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
     return;
   }
   voiceStopRequested = false;
   voiceListening = false;
   document.getElementById('voice-sale-btn').classList.add('pressed');
+  // Un moteur tout neuf à chaque appui : évite qu'une tentative précédente
+  // laisse le micro bloqué dans un état invalide (comportement connu sur Android).
+  voiceRecognition = createVoiceRecognition();
   try{
-    rec.start();
+    voiceRecognition.start();
   }catch(e){
     document.getElementById('voice-sale-btn').classList.remove('pressed');
-    showToast("Micro déjà actif ou indisponible, réessaie.", 3000);
+    showToast("Micro indisponible : " + (e.message || e.name || 'erreur inconnue'), 4000);
   }
 }
 
