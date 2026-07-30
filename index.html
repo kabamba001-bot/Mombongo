@@ -3555,7 +3555,11 @@ function createVoiceRecognition(){
   rec.onerror = (event) => {
     voiceListening = false;
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
-    if(event.error === 'no-speech' || event.error === 'aborted') return;
+    if(event.error === 'aborted') return;
+    if(event.error === 'no-speech'){
+      showToast("Aucun son détecté par le micro — parle juste après avoir appuyé.", 4500);
+      return;
+    }
     if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
       showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
       return;
