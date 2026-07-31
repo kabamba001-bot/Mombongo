@@ -3532,6 +3532,9 @@ let voiceRecognition = null;
 let pendingVoiceSale = null;
 let voiceListening = false;
 let voiceStopRequested = false;
+let voiceStartTimestamp = null;
+let voiceMinTimer = null;
+const VOICE_MIN_LISTEN_MS = 5000; // durée minimale d'écoute avant de pouvoir arrêter, même si le doigt est relâché plus tôt
 
 function createVoiceRecognition(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -3550,9 +3553,8 @@ function createVoiceRecognition(){
     const btn = document.getElementById('voice-sale-btn');
     btn.classList.remove('pressed');
     btn.classList.add('listening');
-    if(voiceStopRequested){
-      try{ rec.stop(); }catch(e){}
-    }
+    // Ne plus arrêter immédiatement même si le doigt a déjà été relâché :
+    // stopVoiceSale() se charge de respecter le délai minimum d'écoute (VOICE_MIN_LISTEN_MS).
   };
   rec.onresult = (event) => {
     gotResult = true;
@@ -3629,6 +3631,8 @@ function startVoiceSale(){
   voiceStopRequested = false;
   voiceListening = false;
   pendingVoiceSale = null;
+  if(voiceMinTimer){ clearTimeout(voiceMinTimer); voiceMinTimer = null; }
+  voiceStartTimestamp = Date.now();
   document.getElementById('voice-sale-btn').classList.add('pressed');
   openVoiceListeningSheet();
   // Un moteur tout neuf à chaque appui : évite qu'une tentative précédente
@@ -3645,6 +3649,20 @@ function startVoiceSale(){
 
 function stopVoiceSale(){
   voiceStopRequested = true;
+  // On respecte toujours un minimum de VOICE_MIN_LISTEN_MS d'écoute depuis l'appui sur le micro,
+  // que le doigt soit relâché tôt ou tard : on retarde l'arrêt réel si besoin.
+  const elapsed = voiceStartTimestamp ? (Date.now() - voiceStartTimestamp) : VOICE_MIN_LISTEN_MS;
+  const remaining = VOICE_MIN_LISTEN_MS - elapsed;
+  if(voiceMinTimer){ clearTimeout(voiceMinTimer); voiceMinTimer = null; }
+  if(remaining > 0){
+    voiceMinTimer = setTimeout(performVoiceStop, remaining);
+  } else {
+    performVoiceStop();
+  }
+}
+
+function performVoiceStop(){
+  voiceMinTimer = null;
   const btn = document.getElementById('voice-sale-btn');
   if(voiceListening){
     btn.classList.remove('listening');
