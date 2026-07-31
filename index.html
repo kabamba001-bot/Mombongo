@@ -3536,23 +3536,27 @@ function createVoiceRecognition(){
   rec.lang = 'fr-FR';
   rec.interimResults = false;
   rec.maxAlternatives = 1;
+  let gotResult = false;
+  let gotError = false;
 
   rec.onstart = () => {
     voiceListening = true;
+    gotResult = false;
+    gotError = false;
     const btn = document.getElementById('voice-sale-btn');
     btn.classList.remove('pressed');
     btn.classList.add('listening');
     if(voiceStopRequested){
-      // L'utilisateur avait déjà relâché avant que le micro ne démarre vraiment
-      // (permission en attente, initialisation...) : on arrête proprement maintenant.
       try{ rec.stop(); }catch(e){}
     }
   };
   rec.onresult = (event) => {
+    gotResult = true;
     const transcript = event.results[0][0].transcript;
     handleVoiceSaleTranscript(transcript);
   };
   rec.onerror = (event) => {
+    gotError = true;
     voiceListening = false;
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     if(event.error === 'aborted') return;
@@ -3569,6 +3573,9 @@ function createVoiceRecognition(){
   rec.onend = () => {
     voiceListening = false;
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
+    if(!gotResult && !gotError){
+      showToast("Le micro s'est arrêté sans renvoyer de résultat ni d'erreur.", 4500);
+    }
   };
 
   return rec;
