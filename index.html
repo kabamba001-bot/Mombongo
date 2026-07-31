@@ -308,6 +308,9 @@
     width:100%; background:var(--emerald); color:#fff; border:none; border-radius:12px;
     padding:14px; font-size:15px; font-weight:700; font-family:'Sora'; cursor:pointer; margin-top:6px;
   }
+  .btn-primary:disabled{
+    background:var(--slate); opacity:0.55; cursor:not-allowed;
+  }
   .btn-secondary{
     width:100%; background:transparent; color:var(--charcoal-soft); border:none;
     padding:10px; font-size:13.5px; font-weight:600; cursor:pointer;
@@ -503,7 +506,8 @@
   <div class="sheet-overlay" id="voice-confirm-overlay">
     <div class="sheet">
       <h3 id="t-voice-confirm-title">Confirmer la vente</h3>
-      <div id="voice-confirm-body" style="font-size:16px; margin:14px 0 20px; line-height:1.6; font-weight:600;"></div>
+      <div id="voice-live-transcript" style="font-size:13px; color:var(--charcoal-soft); font-style:italic; margin-bottom:8px;">🎙️ Écoute en cours…</div>
+      <div id="voice-confirm-body" style="font-size:16px; margin:0 0 20px; line-height:1.6; font-weight:600;"></div>
       <button class="btn-primary" onclick="confirmVoiceSale()" id="t-voice-confirm-btn">✅ Confirmer</button>
       <button class="btn-secondary" onclick="cancelVoiceSale()" id="t-voice-cancel-btn">Annuler</button>
     </div>
@@ -3534,7 +3538,7 @@ function createVoiceRecognition(){
   if(!SR) return null;
   const rec = new SR();
   rec.lang = 'fr-FR';
-  rec.interimResults = false;
+  rec.interimResults = true;
   rec.maxAlternatives = 1;
   let gotResult = false;
   let gotError = false;
@@ -3552,8 +3556,9 @@ function createVoiceRecognition(){
   };
   rec.onresult = (event) => {
     gotResult = true;
-    const transcript = event.results[0][0].transcript;
-    handleVoiceSaleTranscript(transcript);
+    const result = event.results[event.results.length - 1];
+    const transcript = result[0].transcript;
+    updateVoiceLiveDisplay(transcript, result.isFinal);
   };
   rec.onerror = (event) => {
     gotError = true;
@@ -3561,24 +3566,58 @@ function createVoiceRecognition(){
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     if(event.error === 'aborted') return;
     if(event.error === 'no-speech'){
-      showToast("Aucun son détecté par le micro — parle juste après avoir appuyé.", 4500);
+      document.getElementById('voice-live-transcript').textContent = "🎙️ Aucun son détecté.";
       return;
     }
     if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      closeVoiceConfirmOverlay();
       showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
       return;
     }
-    showToast("Erreur micro : " + event.error, 4000);
+    document.getElementById('voice-live-transcript').textContent = "🎙️ Erreur micro : " + event.error;
   };
   rec.onend = () => {
     voiceListening = false;
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     if(!gotResult && !gotError){
-      showToast("Le micro s'est arrêté sans renvoyer de résultat ni d'erreur.", 4500);
+      document.getElementById('voice-live-transcript').textContent = "🎙️ Rien reçu — réessaie.";
     }
   };
 
   return rec;
+}
+
+// Met à jour en direct la phrase entendue + le produit qui lui ressemble le plus, pendant la dictée
+function updateVoiceLiveDisplay(transcript, isFinal){
+  const liveEl = document.getElementById('voice-live-transcript');
+  const bodyEl = document.getElementById('voice-confirm-body');
+  const confirmBtn = document.getElementById('t-voice-confirm-btn');
+  liveEl.textContent = `🎙️ "${transcript}"`;
+
+  const parsed = parseVoiceSaleCommand(transcript);
+  if(!parsed){
+    bodyEl.innerHTML = `<span style="color:var(--charcoal-soft); font-weight:400;">…</span>`;
+    confirmBtn.disabled = true;
+    pendingVoiceSale = null;
+    return;
+  }
+  const product = findProductMatch(parsed.productText);
+  if(!product){
+    bodyEl.innerHTML = `<span style="color:var(--charcoal-soft); font-weight:400;">Produit non reconnu${isFinal ? ' : "'+escapeHtml(parsed.productText)+'"' : '…'}</span>`;
+    confirmBtn.disabled = true;
+    pendingVoiceSale = null;
+    return;
+  }
+  if(parsed.qty > product.qty){
+    bodyEl.innerHTML = `<span style="color:var(--alert); font-weight:600;">Stock insuffisant pour ${escapeHtml(product.name)} (reste ${product.qty})</span>`;
+    confirmBtn.disabled = true;
+    pendingVoiceSale = null;
+    return;
+  }
+  const total = parsed.qty * product.sell;
+  bodyEl.innerHTML = `${parsed.qty} × ${escapeHtml(product.name)}<br><span style="color:var(--emerald);">${formatMoney(total)}</span>`;
+  confirmBtn.disabled = false;
+  pendingVoiceSale = { product, qty: parsed.qty };
 }
 
 function startVoiceSale(){
@@ -3589,7 +3628,9 @@ function startVoiceSale(){
   }
   voiceStopRequested = false;
   voiceListening = false;
+  pendingVoiceSale = null;
   document.getElementById('voice-sale-btn').classList.add('pressed');
+  openVoiceListeningSheet();
   // Un moteur tout neuf à chaque appui : évite qu'une tentative précédente
   // laisse le micro bloqué dans un état invalide (comportement connu sur Android).
   voiceRecognition = createVoiceRecognition();
@@ -3597,6 +3638,7 @@ function startVoiceSale(){
     voiceRecognition.start();
   }catch(e){
     document.getElementById('voice-sale-btn').classList.remove('pressed');
+    closeVoiceConfirmOverlay();
     showToast("Micro indisponible : " + (e.message || e.name || 'erreur inconnue'), 4000);
   }
 }
@@ -3663,38 +3705,23 @@ function findProductMatch(productText){
   return bestScore >= 20 ? best : null;
 }
 
-function handleVoiceSaleTranscript(transcript){
-  const parsed = parseVoiceSaleCommand(transcript);
-  if(!parsed){
-    showToast(`Je n'ai pas compris : "${transcript}"`);
-    return;
-  }
-  const product = findProductMatch(parsed.productText);
-  if(!product){
-    showToast(`Produit non reconnu : "${parsed.productText}"`);
-    return;
-  }
-  if(parsed.qty > product.qty){
-    showToast(`Stock insuffisant pour ${product.name} (reste ${product.qty})`);
-    return;
-  }
-  pendingVoiceSale = { product, qty: parsed.qty };
-  openVoiceConfirmSheet();
+function openVoiceListeningSheet(){
+  document.getElementById('voice-live-transcript').textContent = '🎙️ Écoute en cours…';
+  document.getElementById('voice-confirm-body').innerHTML = '<span style="color:var(--charcoal-soft); font-weight:400;">…</span>';
+  document.getElementById('t-voice-confirm-btn').disabled = true;
+  document.getElementById('voice-confirm-overlay').classList.add('open');
 }
 
-function openVoiceConfirmSheet(){
-  if(!pendingVoiceSale) return;
-  const { product, qty } = pendingVoiceSale;
-  const total = qty * product.sell;
-  document.getElementById('voice-confirm-body').innerHTML =
-    `${qty} × ${escapeHtml(product.name)}<br>` +
-    `<span style="color:var(--emerald);">${formatMoney(total)}</span>`;
-  document.getElementById('voice-confirm-overlay').classList.add('open');
+function closeVoiceConfirmOverlay(){
+  document.getElementById('voice-confirm-overlay').classList.remove('open');
 }
 
 function cancelVoiceSale(){
   pendingVoiceSale = null;
-  document.getElementById('voice-confirm-overlay').classList.remove('open');
+  closeVoiceConfirmOverlay();
+  if(voiceRecognition){ try{ voiceRecognition.abort(); }catch(e){} }
+  voiceListening = false;
+  document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
 }
 
 async function confirmVoiceSale(){
@@ -3703,8 +3730,9 @@ async function confirmVoiceSale(){
   sellingProductId = product.id;
   document.getElementById('in-sell-qty').value = qty;
   document.getElementById('in-is-credit').checked = false;
-  document.getElementById('voice-confirm-overlay').classList.remove('open');
+  closeVoiceConfirmOverlay();
   pendingVoiceSale = null;
+  if(voiceRecognition){ try{ voiceRecognition.abort(); }catch(e){} }
   await confirmSale();
 }
 
