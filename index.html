@@ -3534,7 +3534,26 @@ let voiceListening = false;
 let voiceStopRequested = false;
 let voiceStartTimestamp = null;
 let voiceMinTimer = null;
+let voiceAutoRetryCount = 0;
 const VOICE_MIN_LISTEN_MS = 5000; // durée minimale d'écoute avant de pouvoir arrêter, même si le doigt est relâché plus tôt
+const VOICE_MAX_AUTO_RETRY = 3; // nombre de réessais automatiques avant de laisser la main à l'utilisateur
+
+// Quand rien n'a été capté (silence), relance l'écoute automatiquement au lieu de forcer
+// l'utilisateur à annuler puis réessayer — sauf si la fenêtre a été fermée entre-temps
+// (annulation manuelle) ou si le nombre max de réessais automatiques est atteint.
+function scheduleVoiceAutoRetry(retryingText, giveUpText){
+  const overlay = document.getElementById('voice-confirm-overlay');
+  if(overlay.classList.contains('open') && voiceAutoRetryCount < VOICE_MAX_AUTO_RETRY){
+    document.getElementById('voice-live-transcript').textContent = retryingText;
+    setTimeout(()=>{
+      if(document.getElementById('voice-confirm-overlay').classList.contains('open')){
+        startVoiceSale(true);
+      }
+    }, 400);
+  } else {
+    document.getElementById('voice-live-transcript').textContent = giveUpText;
+  }
+}
 
 function createVoiceRecognition(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -3568,7 +3587,7 @@ function createVoiceRecognition(){
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     if(event.error === 'aborted') return;
     if(event.error === 'no-speech'){
-      document.getElementById('voice-live-transcript').textContent = "🎙️ Aucun son détecté.";
+      scheduleVoiceAutoRetry("🎙️ Aucun son détecté — nouvel essai…", "🎙️ Aucun son détecté.");
       return;
     }
     if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
@@ -3582,7 +3601,7 @@ function createVoiceRecognition(){
     voiceListening = false;
     document.getElementById('voice-sale-btn').classList.remove('pressed','listening');
     if(!gotResult && !gotError){
-      document.getElementById('voice-live-transcript').textContent = "🎙️ Rien reçu — réessaie.";
+      scheduleVoiceAutoRetry("🎙️ Rien reçu — nouvel essai…", "🎙️ Rien reçu — réessaie.");
     }
   };
 
@@ -3622,12 +3641,13 @@ function updateVoiceLiveDisplay(transcript, isFinal){
   pendingVoiceSale = { product, qty: parsed.qty };
 }
 
-function startVoiceSale(){
+function startVoiceSale(isAutoRetry){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
     showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
     return;
   }
+  voiceAutoRetryCount = isAutoRetry ? (voiceAutoRetryCount + 1) : 0;
   voiceStopRequested = false;
   voiceListening = false;
   pendingVoiceSale = null;
@@ -3702,25 +3722,48 @@ function parseVoiceSaleCommand(transcript){
   return { qty, productText };
 }
 
-// Cherche le produit le plus proche du texte dicté, dans l'inventaire réel de la boutique active
+// Mots vides à ignorer dans la comparaison (ne différencient pas les produits entre eux)
+const VOICE_STOPWORDS = new Set(['le','la','les','un','une','des','de','du','au','aux','et']);
+
+// Deux mots sont considérés "proches" s'ils partagent un début d'au moins 3 lettres
+// et ne diffèrent pas de plus de 2 lettres en longueur — tolère les petites imprécisions
+// du micro (pluriel mal capté, terminaison différente, etc.) sans confondre des mots différents.
+function wordsAreClose(a, b){
+  if(a === b) return true;
+  const minLen = Math.min(a.length, b.length);
+  if(minLen < 3) return false;
+  let common = 0;
+  while(common < minLen && a[common] === b[common]) common++;
+  return common >= 3 && common >= minLen - 2;
+}
+
+// Cherche le produit le plus proche du texte dicté, dans l'inventaire réel de la boutique active.
+// Comparaison mot à mot (en ignorant les mots vides) plutôt que par simple sous-chaîne : ça évite
+// qu'un nom de produit court et générique (ex: "savon") batte par erreur un nom plus précis et
+// plus proche de ce qui a réellement été dit (ex: "Savon le coq") simplement parce qu'il est
+// contenu tel quel dans une transcription imparfaite comme "savons les coques".
 function findProductMatch(productText){
   const norm = normalizeForMatch(productText);
   if(!norm) return null;
+  const wordsA = norm.split(/\s+/).filter(w => w && !VOICE_STOPWORDS.has(w));
+  if(wordsA.length === 0) return null;
+
   let best = null, bestScore = 0;
   products.forEach(p=>{
     const pn = normalizeForMatch(p.name);
-    let score = 0;
-    if(pn === norm) score = 100;
-    else if(pn.includes(norm) || norm.includes(pn)) score = 70;
-    else{
-      const wordsA = norm.split(/\s+/);
-      const wordsB = pn.split(/\s+/);
-      const shared = wordsA.filter(w => w.length>=3 && wordsB.includes(w)).length;
-      score = shared * 20;
-    }
+    const wordsB = pn.split(/\s+/).filter(w => w && !VOICE_STOPWORDS.has(w));
+    if(wordsB.length === 0) return;
+
+    const matchedCount = wordsB.filter(wb => wordsA.some(wa => wordsAreClose(wa, wb))).length;
+    if(matchedCount === 0) return;
+
+    const productCoverage = matchedCount / wordsB.length;     // part du nom du produit retrouvée dans la dictée
+    const transcriptCoverage = matchedCount / wordsA.length;  // part de ce qui a été dit qui correspond à ce produit
+    const score = (productCoverage + transcriptCoverage) * 50 + matchedCount;
+
     if(score > bestScore){ bestScore = score; best = p; }
   });
-  return bestScore >= 20 ? best : null;
+  return bestScore >= 60 ? best : null;
 }
 
 function openVoiceListeningSheet(){
