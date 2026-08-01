@@ -1407,6 +1407,7 @@ const dict = {
     removeDeviceBtn:"Retirer", confirmRemoveDevice:"Retirer cet appareil ? Il perdra l'accès aux données.",
     renameDeviceBtn:"Renommer", renameDevicePrompt:"Nouveau nom de l'appareil :", deviceRenamed:"Appareil renommé",
     deviceRemoved:"Appareil retiré", youAreHere:"(cet appareil)",
+    deviceConnectedSuccess:"✅ Appareil connecté !",
     leaveDeviceBtn:"Quitter cette boutique sur cet appareil",
     confirmLeaveDevice:"Quitter cette boutique sur cet appareil ?",
     confirmSignOut:"Se déconnecter effacera les données de cet appareil (elles restent sur ton compte si la synchronisation a réussi). Continuer ?",
@@ -1567,6 +1568,7 @@ const dict = {
     removeDeviceBtn:"Longola", confirmRemoveDevice:"Longola appareil oyo ? Ekozala lisusu na accès te.",
     renameDeviceBtn:"Bongola nkombo", renameDevicePrompt:"Nkombo ya sika ya appareil :", deviceRenamed:"Appareil ebongwani nkombo",
     deviceRemoved:"Appareil elongolámi", youAreHere:"(appareil oyo)",
+    deviceConnectedSuccess:"✅ Appareil ekangámi !",
     leaveDeviceBtn:"Bima na boutique oyo na appareil oyo",
     confirmLeaveDevice:"Bima na boutique oyo na appareil oyo ?",
     confirmSignOut:"Kobima ekolimwisa ba données ya appareil oyo (ekotikala na compte na yo soki synchronisation esalemaki malamu). Kokoba ?",
@@ -1727,6 +1729,7 @@ const dict = {
     removeDeviceBtn:"Ondoa", confirmRemoveDevice:"Ondoa kifaa hiki ? Kitapoteza ufikiaji wa data.",
     renameDeviceBtn:"Badilisha jina", renameDevicePrompt:"Jina jipya la kifaa :", deviceRenamed:"Jina la kifaa limebadilishwa",
     deviceRemoved:"Kifaa kimeondolewa", youAreHere:"(kifaa hiki)",
+    deviceConnectedSuccess:"✅ Kifaa kimeunganishwa !",
     leaveDeviceBtn:"Ondoka kwenye duka hili kwenye kifaa hiki",
     confirmLeaveDevice:"Ondoka kwenye duka hili kwenye kifaa hiki ?",
     confirmSignOut:"Kutoka kutafuta data za kifaa hiki (zitabaki kwenye akaunti yako kama usawazishaji ulifanikiwa). Endelea ?",
@@ -1892,6 +1895,7 @@ let employeeStoreId = null;
 let employeeDeviceName = '';
 let unsubscribeListener = null;
 let devicesUnsub = null;
+let pairingWaitUnsub = null;
 // Tant que cet appareil employé n'a pas reçu au moins une vraie réponse du patron via
 // attachRealtimeListener depuis le dernier chargement, pushToCloud() refuse d'écrire :
 // ça évite qu'un rafraîchissement de page envoie des tableaux vides (encore non
@@ -2333,10 +2337,45 @@ function openGeneratePinSheet(){
   if(!isVip){ closeAccountSheet(); openLimitSheet('devices'); return; }
   document.getElementById('generate-pin-overlay').classList.add('open');
   generateNewPin();
+  watchForDevicePairing();
 }
 function closeGeneratePinSheet(){
   document.getElementById('generate-pin-overlay').classList.remove('open');
   if(pinCountdownTimer){ clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
+  stopWatchingDevicePairing();
+}
+
+// Surveille en direct l'arrivée d'un nouvel appareil pendant que le code de couplage est affiché.
+// Dès qu'un appareil rejoint (document ajouté dans /devices), on ferme automatiquement les sheets
+// et on retourne à un accueil à jour — sans que le patron ait besoin de fermer manuellement.
+function watchForDevicePairing(){
+  stopWatchingDevicePairing();
+  const ownerUid = getDataOwnerUid();
+  if(!cloudEnabled || !db || !ownerUid) return;
+  let firstSnapshot = true;
+  pairingWaitUnsub = db.collection('mombongo_users').doc(ownerUid).collection('devices')
+    .onSnapshot(snap=>{
+      if(firstSnapshot){
+        // Le tout premier instantané ne fait qu'établir l'état de départ (appareils déjà connectés),
+        // ce n'est pas une nouvelle connexion.
+        firstSnapshot = false;
+        return;
+      }
+      const deviceAdded = snap.docChanges().some(ch => ch.type === 'added');
+      if(deviceAdded) onDevicePaired();
+    }, e=>console.error('Erreur écoute couplage appareil', e));
+}
+function stopWatchingDevicePairing(){
+  if(pairingWaitUnsub){ pairingWaitUnsub(); pairingWaitUnsub = null; }
+}
+function onDevicePaired(){
+  stopWatchingDevicePairing();
+  if(pinCountdownTimer){ clearInterval(pinCountdownTimer); pinCountdownTimer = null; }
+  document.getElementById('generate-pin-overlay').classList.remove('open');
+  closeAccountSheet();
+  renderDevicesList();
+  render();
+  showToast(dict[currentLang].deviceConnectedSuccess);
 }
 let currentPin = null;
 let currentPinExpiresAt = 0;
@@ -3725,16 +3764,58 @@ function parseVoiceSaleCommand(transcript){
 // Mots vides à ignorer dans la comparaison (ne différencient pas les produits entre eux)
 const VOICE_STOPWORDS = new Set(['le','la','les','un','une','des','de','du','au','aux','et']);
 
-// Deux mots sont considérés "proches" s'ils partagent un début d'au moins 3 lettres
-// et ne diffèrent pas de plus de 2 lettres en longueur — tolère les petites imprécisions
-// du micro (pluriel mal capté, terminaison différente, etc.) sans confondre des mots différents.
+// Convertit un mot en une "clé phonétique" simplifiée du français : regroupe les graphies
+// qui se prononcent pareil (ex: "au"/"eau" -> même son, "ph" -> "f", lettres finales muettes
+// supprimées...). Sert à comparer ce qui a été DIT (le son) plutôt que ce qui a été TRANSCRIT
+// (l'orthographe précise choisie par le moteur de dictée) — un produit doit être reconnu même
+// si le micro l'a mal orthographié, tant que ça sonne pareil. Heuristique simple, pas un moteur
+// linguistique complet : elle couvre les cas les plus fréquents en français, pas chaque exception.
+function frenchPhoneticKey(word){
+  let w = word;
+  const rules = [
+    [/ch/g, 'sh'],
+    [/eau/g, 'o'], [/oeu/g, 'eu'], [/au/g, 'o'],
+    [/ain|ein|aim/g, 'in'],
+    [/oi|oy/g, 'wa'],
+    [/ou/g, 'u'],
+    [/an|am|en|em/g, 'an'],
+    [/in|im|yn|ym|un|um/g, 'in'],
+    [/on|om/g, 'on'],
+    [/gn/g, 'ny'],
+    [/ill/g, 'i'],
+    [/ph/g, 'f'],
+    [/qu/g, 'k'],
+    [/gu(?=[eiy])/g, 'g'],
+    [/th/g, 't'],
+    [/ai|ei/g, 'e'],
+    [/c(?=[eiy])/g, 's'],
+    [/c/g, 'k'],
+    [/g(?=[eiy])/g, 'j'],
+    [/x/g, 'ks'],
+    [/q/g, 'k'],
+    [/y/g, 'i'],
+  ];
+  rules.forEach(([re, rep]) => { w = w.replace(re, rep); });
+  // "e" final muet, très fréquent en français (ex: "coque" ~ "coq", "grande" ~ "grand") —
+  // un seul retrait, pas de boucle : on ne touche pas aux consonnes finales, trop souvent
+  // réellement prononcées (ex: le "s" de "chaise") pour être retirées sans risque.
+  if(/e$/.test(w)) w = w.slice(0, -1);
+  // Lettres doublées consécutives -> une seule (n'affecte pas le son en français)
+  return w.replace(/(.)\1+/g, '$1');
+}
+
+// Deux mots sont considérés "proches" si leur clé phonétique correspond exactement (ils sonnent
+// pareil), ou à défaut si leurs clés partagent un début suffisant — tolère les petites
+// imprécisions de la dictée qui subsistent même après normalisation phonétique.
 function wordsAreClose(a, b){
   if(a === b) return true;
-  const minLen = Math.min(a.length, b.length);
-  if(minLen < 3) return false;
+  const ka = frenchPhoneticKey(a), kb = frenchPhoneticKey(b);
+  if(ka && ka === kb) return true;
+  const minLen = Math.min(ka.length, kb.length);
+  if(minLen < 2) return false;
   let common = 0;
-  while(common < minLen && a[common] === b[common]) common++;
-  return common >= 3 && common >= minLen - 2;
+  while(common < minLen && ka[common] === kb[common]) common++;
+  return common >= 2 && common >= minLen - 1;
 }
 
 // Cherche le produit le plus proche du texte dicté, dans l'inventaire réel de la boutique active.
