@@ -4400,8 +4400,12 @@ async function deleteHistoryEntry(type, id, reason){
     sales = sales.filter(s=>s.id!==id);
     await saveSales();
     if(sale){
-      // Restaurer le stock du produit concerné, uniquement si c'était une erreur de vente
-      // (en cas de rupture de stock, la marchandise est réellement perdue, elle ne revient pas)
+      // "Erreur de vente" : la vente n'aurait jamais dû être enregistrée, on l'annule complètement
+      // comme si elle n'avait jamais eu lieu — le stock revient, et les chiffres du jour, le bénéfice
+      // total et la dette liée (vente à crédit) sont corrigés en conséquence.
+      // "Rupture de stock" : la vente a réellement eu lieu (l'argent a été encaissé, le produit est
+      // parti) — on retire seulement l'entrée de l'historique, le stock et tous les chiffres restent
+      // inchangés, puisque la vente elle-même reste valide.
       if(reason !== 'stockout'){
         const product = products.find(p=>p.id===sale.productId);
         if(product){
@@ -4417,36 +4421,36 @@ async function deleteHistoryEntry(type, id, reason){
           }
           await saveProducts();
         }
-      }
-      // Annuler l'impact sur les compteurs (seulement si ce n'était pas une vente à crédit,
-      // puisque les ventes à crédit non réglées n'ont jamais été comptées dans les compteurs)
-      if(!sale.isCredit){
-        stats.totalProfit = Math.max(0, stats.totalProfit - sale.profit);
-        if(isToday(sale.date)){
-          stats.todaySales = Math.max(0, stats.todaySales - sale.total);
-          stats.todayProfit = Math.max(0, stats.todayProfit - sale.profit);
-        }
-        saveStats();
-      } else if(sale.debtId){
-        // Retirer aussi l'article correspondant de la dette liée, pour ne pas laisser
-        // le client "devoir" une vente qui n'existe plus dans l'historique.
-        const debt = debts.find(dd=>dd.id===sale.debtId);
-        if(debt){
-          const itemIdx = debt.items.findIndex(it=>it.saleId===sale.id);
-          if(itemIdx !== -1){
-            const removedItem = debt.items[itemIdx];
-            debt.items.splice(itemIdx, 1);
-            debt.totalOwed = Math.max(0, debt.totalOwed - removedItem.total);
-            debt.totalProfit = Math.max(0, debt.totalProfit - removedItem.profit);
-            // Si des règlements déjà reçus dépassaient le nouveau total, on plafonne
-            // pour éviter un solde restant négatif.
-            if(debt.amountPaid > debt.totalOwed) debt.amountPaid = debt.totalOwed;
-            if(debt.items.length === 0){
-              debts = debts.filter(dd=>dd.id!==debt.id);
-            } else if(debt.totalOwed - debt.amountPaid <= 0.01){
-              debt.status = 'réglé';
+        // Annuler l'impact sur les compteurs (seulement si ce n'était pas une vente à crédit,
+        // puisque les ventes à crédit non réglées n'ont jamais été comptées dans les compteurs)
+        if(!sale.isCredit){
+          stats.totalProfit = Math.max(0, stats.totalProfit - sale.profit);
+          if(isToday(sale.date)){
+            stats.todaySales = Math.max(0, stats.todaySales - sale.total);
+            stats.todayProfit = Math.max(0, stats.todayProfit - sale.profit);
+          }
+          saveStats();
+        } else if(sale.debtId){
+          // Retirer aussi l'article correspondant de la dette liée, pour ne pas laisser
+          // le client "devoir" une vente qui n'existe plus dans l'historique.
+          const debt = debts.find(dd=>dd.id===sale.debtId);
+          if(debt){
+            const itemIdx = debt.items.findIndex(it=>it.saleId===sale.id);
+            if(itemIdx !== -1){
+              const removedItem = debt.items[itemIdx];
+              debt.items.splice(itemIdx, 1);
+              debt.totalOwed = Math.max(0, debt.totalOwed - removedItem.total);
+              debt.totalProfit = Math.max(0, debt.totalProfit - removedItem.profit);
+              // Si des règlements déjà reçus dépassaient le nouveau total, on plafonne
+              // pour éviter un solde restant négatif.
+              if(debt.amountPaid > debt.totalOwed) debt.amountPaid = debt.totalOwed;
+              if(debt.items.length === 0){
+                debts = debts.filter(dd=>dd.id!==debt.id);
+              } else if(debt.totalOwed - debt.amountPaid <= 0.01){
+                debt.status = 'réglé';
+              }
+              saveDebts();
             }
-            saveDebts();
           }
         }
       }
