@@ -483,7 +483,7 @@
       <h2 id="t-products-title">Mes produits</h2>
       <div class="search-wrap">
         <span class="icon">🔍</span>
-        <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit..." id="t-search-input">
+        <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit...">
       </div>
       <div id="products-list"></div>
       <button id="delete-all-products-btn" onclick="deleteAllProducts()" style="display:none;width:100%;margin-top:10px;padding:12px;border:1px solid #c0392b;color:#c0392b;background:transparent;border-radius:10px;font-size:14px;cursor:pointer;"></button>
@@ -1134,11 +1134,36 @@ try{
 const FCM_VAPID_KEY = "BPZU_DN8OKvv_zYHAeZmBRC_xakW9UrxhQb0CPl3vpcaPs1p9biH7wHjtBa4JitjHYo01BNdH4eKPGNTkWpxxmI";
 
 let fcmMessaging = null;
-try{
-  if(cloudEnabled && firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()){
-    fcmMessaging = firebase.messaging();
+(async function initFcmMessaging(){
+  try{
+    // firebase.messaging.isSupported() renvoie une Promise<boolean> (pas un booléen direct) dans
+    // cette version du SDK — il faut l'attendre, sinon la Promise est toujours "vraie" en JS et le
+    // code tente d'initialiser la messagerie même sur un navigateur qui ne la supporte pas.
+    if(cloudEnabled && firebase.messaging && firebase.messaging.isSupported && await firebase.messaging.isSupported()){
+      fcmMessaging = firebase.messaging();
+    }
+  }catch(e){ console.error('FCM non disponible :', e); }
+  if(fcmMessaging){
+    // L'app est ouverte au premier plan : FCM ne montre pas de notification
+    // système automatiquement, donc on l'affiche nous-mêmes.
+    fcmMessaging.onMessage((payload)=>{
+      const title = (payload.notification && payload.notification.title) || 'Mombongo';
+      const body = (payload.notification && payload.notification.body) || '';
+      showToast(`${title} — ${body}`, 6000);
+      try{
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification(title, {
+            body,
+            icon: './icon-192.png',
+            badge: './icon-192.png',
+            data: payload.data || {},
+            tag: (payload.data && payload.data.tag) || 'mombongo-alert'
+          });
+        });
+      }catch(e){}
+    });
   }
-}catch(e){ console.error('FCM non disponible :', e); }
+})();
 
 function notificationsSupported(){
   return !!(fcmMessaging && ('Notification' in window) && ('serviceWorker' in navigator));
@@ -1240,27 +1265,6 @@ function updateNotifButton(){
     } else {
       btn.textContent = '🔔 ' + t.notifOff;
     }
-  });
-}
-
-if(fcmMessaging){
-  // L'app est ouverte au premier plan : FCM ne montre pas de notification
-  // système automatiquement, donc on l'affiche nous-mêmes.
-  fcmMessaging.onMessage((payload)=>{
-    const title = (payload.notification && payload.notification.title) || 'Mombongo';
-    const body = (payload.notification && payload.notification.body) || '';
-    showToast(`${title} — ${body}`, 6000);
-    try{
-      navigator.serviceWorker.ready.then(reg=>{
-        reg.showNotification(title, {
-          body,
-          icon: './icon-192.png',
-          badge: './icon-192.png',
-          data: payload.data || {},
-          tag: (payload.data && payload.data.tag) || 'mombongo-alert'
-        });
-      });
-    }catch(e){}
   });
 }
 </script>
@@ -3632,6 +3636,16 @@ function createVoiceRecognition(){
     if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
       closeVoiceConfirmOverlay();
       showToast("Micro refusé — autorise le micro pour Mombongo dans les réglages de Chrome.", 5000);
+      return;
+    }
+    if(event.error === 'audio-capture'){
+      closeVoiceConfirmOverlay();
+      showToast("Micro inaccessible sur ce téléphone. Sur certains Xiaomi/MIUI, il existe une autorisation micro séparée dans l'app Sécurité (Paramètres > Applications > Autorisations > Micro > Chrome), en plus de celle de Chrome.", 7000);
+      return;
+    }
+    if(event.error === 'network'){
+      closeVoiceConfirmOverlay();
+      showToast("Le service de reconnaissance vocale de Google n'a pas répondu (problème réseau ou services Google restreints sur ce téléphone). Vérifie ta connexion, ou que les services Google ne sont pas bloqués.", 7000);
       return;
     }
     document.getElementById('voice-live-transcript').textContent = "🎙️ Erreur micro : " + event.error;
