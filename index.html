@@ -816,6 +816,7 @@
         </div>
       </div>
 
+      <a href="./guide-suivi-boutique.html" style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-guide-link">📖 Comment bien suivre les ventes de sa boutique</a>
       <a href="./mombongo.apk" download style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-download-apk-link">⬇️ Télécharger l'application (APK)</a>
       <a href="https://wa.me/243980979141" target="_blank" rel="noopener" style="display:block; text-align:center; font-size:12.5px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-whatsapp-contact-link">💬 Contacte-nous sur WhatsApp au +243 980 979 141</a>
       <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
@@ -1403,6 +1404,7 @@ const dict = {
 
     whatsappContactLink:"💬 Contacte-nous sur WhatsApp au +243 980 979 141",
     downloadApkLink:"⬇️ Télécharger l'application (APK)",
+    guideLink:"📖 Comment bien suivre les ventes de sa boutique",
     installApkTitle:"📲 Installer Mombongo",
     installApkDesc:"Installe Mombongo comme une vraie application sur ton téléphone : ouverture plus rapide, notifications fiables, et une icône directement sur ton écran d'accueil.",
     installApkAccept:"Installer maintenant",
@@ -1564,6 +1566,7 @@ const dict = {
 
     whatsappContactLink:"💬 Benga biso na WhatsApp : +243 980 979 141",
     downloadApkLink:"⬇️ Kozua application (APK)",
+    guideLink:"📖 Ndenge ya kolandela malamu boteki ya magazini na yo",
     installApkTitle:"📲 Koluka Mombongo",
     installApkDesc:"Luka Mombongo lokola application ya solo na telefone na yo : kofungwama noki, ba notifications ya solide, mpe icône na écran ya accueil na yo.",
     installApkAccept:"Luka sikoyo",
@@ -1726,6 +1729,7 @@ const dict = {
 
     whatsappContactLink:"💬 Wasiliana nasi kwa WhatsApp : +243 980 979 141",
     downloadApkLink:"⬇️ Pakua programu (APK)",
+    guideLink:"📖 Jinsi ya kufuatilia vizuri mauzo ya duka lako",
     installApkTitle:"📲 Sakinisha Mombongo",
     installApkDesc:"Sakinisha Mombongo kama programu halisi kwenye simu yako: ufunguzi wa haraka, arifa za kuaminika, na aikoni moja kwa moja kwenye skrini yako ya nyumbani.",
     installApkAccept:"Sakinisha sasa",
@@ -2737,6 +2741,7 @@ function applyTranslations(){
   document.getElementById('t-expiry-date-sac').textContent = t.expiryDateLabelSac;
 
   document.getElementById('t-download-apk-link').textContent = t.downloadApkLink;
+  document.getElementById('t-guide-link').textContent = t.guideLink;
   document.getElementById('t-whatsapp-contact-link').textContent = t.whatsappContactLink;
   document.getElementById('t-install-apk-title').textContent = t.installApkTitle;
   document.getElementById('t-install-apk-desc').textContent = t.installApkDesc;
