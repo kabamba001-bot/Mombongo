@@ -3,7 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
-<title>Mombongo — Gestion de commerce</title>
+<title>Mombongo — Suivi de vente et stock pour boutiques en RDC</title>
+<meta name="description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC — Kinshasa, Lubumbashi, Goma et ailleurs.">
+<link rel="canonical" href="https://kabamba001-bot.github.io/Mombongo/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mombongo">
+<meta property="og:locale" content="fr_CD">
+<meta property="og:title" content="Mombongo — Suivi de vente et stock pour boutiques en RDC">
+<meta property="og:description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC — Kinshasa, Lubumbashi, Goma et ailleurs.">
+<meta property="og:url" content="https://kabamba001-bot.github.io/Mombongo/">
+<meta property="og:image" content="https://kabamba001-bot.github.io/Mombongo/icon-192.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Mombongo — Suivi de vente et stock pour boutiques en RDC">
+<meta name="twitter:description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC.">
+<meta name="twitter:image" content="https://kabamba001-bot.github.io/Mombongo/icon-192.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Mombongo",
+  "description": "Application gratuite de suivi des ventes, du stock et des bénéfices pour les boutiques, pharmacies et quincailleries en République démocratique du Congo (RDC).",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Android, Web",
+  "url": "https://kabamba001-bot.github.io/Mombongo/",
+  "areaServed": "CD",
+  "inLanguage": ["fr", "ln", "sw"],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146356">
 <link rel="icon" href="icon-192.png">
@@ -408,6 +439,7 @@
       <div>
         <h1 id="t-appname">Mombongo</h1>
         <p id="t-tagline">Suivi de ton commerce, simplement</p>
+        <p id="t-seo-subtitle" style="font-size:0.8rem; opacity:0.75; margin-top:2px; max-width:520px;">Cahier des comptes numérique pour suivre ton commerce jusqu'à une année sans rien perdre</p>
       </div>
       <div class="toggles">
         <div class="mini-toggle">
@@ -1274,6 +1306,7 @@ function updateNotifButton(){
 const dict = {
   fr: {
     appname:"Mombongo", tagline:"Suivi de ton commerce, simplement",
+    seoSubtitle:"Cahier des comptes numérique pour suivre ton commerce jusqu'à une année sans rien perdre",
     today:"Ventes aujourd'hui", profitToday:"Bénéfice aujourd'hui", profitTotal:"Bénéfice total",
     alerts:"Alertes", alertsTitle:"Alertes", productsTitle:"Mes produits",
     empty:"Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.",
@@ -1434,6 +1467,7 @@ const dict = {
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
+    seoSubtitle:"Kaye ya elektroniki mpo na kolanda mombongo na yo tii mobu mobimba, kozanga kobungisa eloko",
     today:"Kotéka ya lelo", profitToday:"Litomba ya lelo", profitTotal:"Litomba nyonso",
     alerts:"Bikebisi", alertsTitle:"Bikebisi", productsTitle:"Biloko na ngai",
     empty:"Eloko moko te tii sik'oyo. Bakisá eloko ya liboso na esika ya nse.",
@@ -1595,6 +1629,7 @@ const dict = {
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
+    seoSubtitle:"Kitabu cha kidijitali cha kufuatilia biashara yako kwa mwaka mzima bila kupoteza kitu",
     today:"Mauzo ya leo", profitToday:"Faida ya leo", profitTotal:"Faida yote",
     alerts:"Maonyo", alertsTitle:"Maonyo", productsTitle:"Bidhaa zangu",
     empty:"Hakuna bidhaa bado. Ongeza bidhaa yako ya kwanza na kitufe kilicho chini.",
@@ -2624,6 +2659,7 @@ function applyTranslations(){
   document.getElementById('t-cancel4').textContent = t.close;
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
+  document.getElementById('t-seo-subtitle').textContent = t.seoSubtitle;
   document.getElementById('t-today').textContent = t.today;
   document.getElementById('t-profit-today').textContent = t.profitToday;
   document.getElementById('t-profit-total').textContent = t.profitTotal;
