@@ -1080,6 +1080,17 @@
     </div>
   </div>
 
+  <!-- Pas de bouton pour fermer : ce panneau ne se lève que tout seul, dès que checkVipExpiryLive()
+       détecte que le VIP a été renouvelé. Volontaire — l'appareil doit rester bloqué entre-temps. -->
+  <div class="sheet-overlay" id="vip-expired-block-overlay" style="z-index:60;">
+    <div class="sheet">
+      <h3 id="t-vip-expired-title">Abonnement VIP expiré</h3>
+      <p id="t-vip-expired-desc" style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6;">
+        L'abonnement VIP du compte principal est arrivé à échéance. Cet appareil est mis en pause tant qu'il n'est pas renouvelé.
+      </p>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="expenses-history-overlay">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -1142,6 +1153,7 @@ let db = null;
 let currentUser = null;
 let isVip = false;
 let vipUntil = null;
+let vipExpiryCheckTimer = null;
 let currentLang = 'fr';
 let currentCurrency = 'usd';
 let exchangeRate = 2300;
@@ -1367,6 +1379,9 @@ const dict = {
     limitUnlockBtn:"Débloquer sur WhatsApp",
     limitWhatsappMsg:"Bonjour, je veux débloquer l'ajout illimité de produits sur Mombongo.",
     vipUntilLabel:"jusqu'au",
+    vipExpiredToast:"⭐ Ton abonnement VIP est arrivé à échéance — boutiques et appareils supplémentaires, export et autres options VIP repassent à la version gratuite.",
+    vipExpiredBlockTitle:"Abonnement VIP expiré",
+    vipExpiredBlockDesc:"L'abonnement VIP du compte principal est arrivé à échéance. Cet appareil est mis en pause tant qu'il n'est pas renouvelé. Dès que le patron renouvelle, tout redevient actif automatiquement — pas besoin d'un nouveau code.",
     periodDay:"Aujourd'hui", periodWeek:"Semaine", periodMonth:"Mois", periodCustom:"Personnalisé",
     periodFrom:"Du", periodTo:"Au", periodApply:"Appliquer",
     summaryRevenue:"Ventes", summaryExpenses:"Dépenses", summaryNet:"Gain net",
@@ -1529,6 +1544,9 @@ const dict = {
     limitUnlockBtn:"Longola ndelo na WhatsApp",
     limitWhatsappMsg:"Mbote, nalingi kolongola ndelo ya kobakisa biloko na Mombongo.",
     vipUntilLabel:"tii na",
+    vipExpiredToast:"⭐ Abonnement VIP na yo esili ntango — ba boutique, ba appareils mpe ba options VIP mosusu ezongi na version ya ofele.",
+    vipExpiredBlockTitle:"Abonnement VIP esili ntango",
+    vipExpiredBlockDesc:"Abonnement VIP ya compte principale esili ntango. Appareil oyo ezali kopema tii patron akobongisa yango lisusu. Soki patron a renouveler, nyonso ekozonga na travail automatiquement — kozanga code ya sika.",
     periodDay:"Lelo", periodWeek:"Poso", periodMonth:"Sanza", periodCustom:"Poná moko",
     periodFrom:"Banda", periodTo:"Tii", periodApply:"Kokitisa",
     summaryRevenue:"Kotéka", summaryExpenses:"Ba dépenses", summaryNet:"Litomba ya sikisiki",
@@ -1692,6 +1710,9 @@ const dict = {
     limitUnlockBtn:"Fungua kwenye WhatsApp",
     limitWhatsappMsg:"Habari, nataka kufungua ongezeko lisilo na kikomo la bidhaa kwenye Mombongo.",
     vipUntilLabel:"hadi",
+    vipExpiredToast:"⭐ Usajili wako wa VIP umeisha muda — maduka na vifaa vya ziada, export na chaguo zingine za VIP zimerudi kwenye toleo la bure.",
+    vipExpiredBlockTitle:"Usajili wa VIP umeisha muda",
+    vipExpiredBlockDesc:"Usajili wa VIP wa akaunti kuu umeisha muda. Kifaa hiki kimesimamishwa mpaka mmiliki asasishe usajili. Mara tu akiusasisha, kila kitu kitarudi kufanya kazi kiotomatiki — hakuna msimbo mpya unaohitajika.",
     periodDay:"Leo", periodWeek:"Wiki", periodMonth:"Mwezi", periodCustom:"Chagua",
     periodFrom:"Kutoka", periodTo:"Hadi", periodApply:"Tumia",
     summaryRevenue:"Mauzo", summaryExpenses:"Matumizi", summaryNet:"Faida halisi",
@@ -2173,6 +2194,49 @@ function attachRealtimeListener(ownerUid){
   });
 }
 
+// Vérifie si le VIP est réellement encore actif À L'INSTANT PRÉSENT, indépendamment de la dernière
+// synchro Firestore reçue. Sans ça, isVip ne se recalcule que quand le document change sur le
+// serveur — donc un abonnement qui expire pendant qu'une session reste ouverte (patron ou appareil
+// secondaire) ne serait jamais détecté tant que rien d'autre ne déclenche une resynchro.
+function checkVipExpiryLive(){
+  if(!vipUntil) return;
+  const stillVip = new Date(vipUntil + 'T23:59:59').getTime() > Date.now();
+  if(stillVip === isVip) return; // rien n'a changé depuis la dernière vérification
+  isVip = stillVip;
+  renderAccountUI();
+  renderStoresList();
+  renderDevicesList();
+  render();
+  if(isVip){
+    // VIP redevenu actif (renouvellement détecté) : si cet appareil était mis en pause, on le libère.
+    hideVipExpiredBlock();
+  } else {
+    handleVipJustExpired();
+  }
+}
+
+function handleVipJustExpired(){
+  // Ferme immédiatement toute action VIP en cours, même si l'utilisateur était en train de
+  // l'utiliser au moment précis de l'expiration.
+  closeNewStoreSheet();
+  closeGeneratePinSheet();
+  if(isEmployeeMode){
+    // Un appareil secondaire EST la fonctionnalité VIP (multi-appareils) : on bloque son usage.
+    // On n'efface volontairement ni l'appairage ni les données locales (contrairement à un retrait
+    // définitif par le patron) : dès que le VIP est renouvelé, cet appareil redevient actif tout
+    // seul, sans qu'il faille un nouveau code de connexion.
+    showVipExpiredBlock();
+  } else {
+    showToast(dict[currentLang].vipExpiredToast, 6000);
+  }
+}
+function showVipExpiredBlock(){
+  document.getElementById('vip-expired-block-overlay').classList.add('open');
+}
+function hideVipExpiredBlock(){
+  document.getElementById('vip-expired-block-overlay').classList.remove('open');
+}
+
 /* ---------- Boutiques ---------- */
 function renderStoresList(){
   const container = document.getElementById('stores-list');
@@ -2581,6 +2645,16 @@ if(cloudEnabled){
   });
 }
 
+// Vérification périodique de l'expiration VIP en temps réel : une resynchro Firestore ne se
+// déclenche que si le document change sur le serveur, donc sans ça un abonnement qui expire
+// pendant qu'une session reste ouverte ne serait jamais détecté avant un rechargement manuel.
+vipExpiryCheckTimer = setInterval(checkVipExpiryLive, 60000);
+// Revérifie aussi dès que l'app revient au premier plan (téléphone déverrouillé après une veille
+// qui a duré plus longtemps que prévu) — plus réactif que d'attendre le prochain intervalle.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') checkVipExpiryLive();
+});
+
 function setLang(lang){
   currentLang = lang;
   document.getElementById('btn-fr').classList.toggle('active', lang==='fr');
@@ -2718,6 +2792,8 @@ function applyTranslations(){
   document.getElementById('t-cancel7').textContent = t.cancel;
   document.getElementById('t-limit-title').textContent = t.limitTitle;
   document.getElementById('t-limit-desc').textContent = currentUser ? t.limitDesc : t.limitNeedsLoginDesc;
+  document.getElementById('t-vip-expired-title').textContent = t.vipExpiredBlockTitle;
+  document.getElementById('t-vip-expired-desc').textContent = t.vipExpiredBlockDesc;
   document.getElementById('limit-whatsapp-link').textContent = currentUser ? t.limitUnlockBtn : t.limitLoginBtn;
   document.getElementById('t-cancel8').textContent = t.cancel;
   document.getElementById('t-period-day').textContent = t.periodDay;
@@ -3809,7 +3885,14 @@ function performVoiceStop(){
 }
 
 function normalizeForMatch(s){
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  return s.toLowerCase()
+    .normalize('NFC')
+    .replace(/ç/g, 's')       // le "ç" se prononce /s/ — à traiter AVANT le retrait générique des
+                               // accents ci-dessous, sinon il devient un simple "c" (qui sonnerait
+                               // "k" devant a/o/u dans notre clé phonétique : "ça" → "ka" au lieu de "sa")
+    .replace(/['’]/g, '')     // "s'en", "l'eau", "qu'il"... : l'apostrophe ne doit pas empêcher
+                               // de comparer les lettres avant/après comme un seul bloc sonore
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
 // Reconnaît "pain", "2 pain", "pain vendu", "2 pains vendus"... — "vendu(s)" est optionnel
