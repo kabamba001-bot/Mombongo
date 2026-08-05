@@ -267,6 +267,9 @@ function closeInstallApkSheet(){
   document.getElementById('install-apk-overlay').classList.remove('open');
 }
 function acceptInstallApk(){
+  if(typeof fbq === 'function'){
+    fbq('trackCustom', 'TelechargementAPK');
+  }
   localStorage.setItem('mombongo:apkPromptSeen', '1');
   closeInstallApkSheet();
   const link = document.createElement('a');

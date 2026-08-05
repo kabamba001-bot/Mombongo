@@ -7,6 +7,9 @@ function openAccountSheet(){
 function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
 
 function signInWithGoogle(){
+  if(typeof fbq === 'function'){
+    fbq('trackCustom', 'ClicConnexionGoogle');
+  }
   if(!cloudEnabled){
     showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
     return;
