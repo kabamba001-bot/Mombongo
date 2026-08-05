@@ -72,6 +72,13 @@ async function confirmSale(){
   };
   await saveProducts();
 
+  // Signal d'activation réelle : la personne a fait plus que s'inscrire, elle a
+  // enregistré une vraie vente. On ne l'envoie qu'une fois par appareil.
+  if(typeof fbq === 'function' && localStorage.getItem('mombongo:firstSaleTracked') !== '1'){
+    localStorage.setItem('mombongo:firstSaleTracked', '1');
+    fbq('track', 'Lead');
+  }
+
   if(isCredit){
     // On ne fusionne avec une dette ouverte existante que si le nom correspond ET,
     // quand un numéro est connu des deux côtés, que ce numéro correspond aussi —

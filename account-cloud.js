@@ -15,6 +15,12 @@ function signInWithGoogle(){
   firebase.auth().signInWithPopup(provider).then((result)=>{
     if(result && result.user){
       showToast(currentLang==='fr' ? "Connexion réussie" : "Ekangami");
+      // On ne compte comme "inscription" que la toute première connexion de ce compte
+      // (Firebase l'indique via additionalUserInfo.isNewUser) — sinon chaque reconnexion
+      // d'un utilisateur existant fausserait les statistiques d'inscription dans Meta.
+      if(typeof fbq === 'function' && result.additionalUserInfo && result.additionalUserInfo.isNewUser){
+        fbq('track', 'CompleteRegistration');
+      }
     }
   }).catch((e)=>{
     console.error('Erreur de connexion', e);
