@@ -31,3 +31,30 @@ function toggleTheme(){
   }catch(e){}
 })();
 
+/* ---------- Installation PWA en un tap ---------- */
+// Chrome propose nativement d'installer un site comme une app (icône sur l'écran d'accueil,
+// ouverture en plein écran, sans barre d'adresse) sans passer par un fichier .apk à télécharger
+// manuellement. Par défaut, Chrome ne montre cette option que discrètement (petite icône dans la
+// barre d'adresse, selon son propre calendrier) — on capture l'événement pour l'offrir nous-mêmes
+// via un vrai bouton, dès qu'il est disponible.
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('t-pwa-install-btn');
+  if(btn) btn.style.display = 'block';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('t-pwa-install-btn');
+  if(btn) btn.style.display = 'none';
+});
+async function installPwa(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('t-pwa-install-btn');
+  if(btn) btn.style.display = 'none';
+}
+

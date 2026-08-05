@@ -3,26 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, interactive-widget=resizes-content">
-<title>Mombongo — Suivi de vente et stock pour boutiques en RDC</title>
+<title>Mombongo RDC APK — Suivi de vente et stock boutique</title>
 <meta name="google-site-verification" content="whF7h9w9Onz5SwkuPuJ4TnSER0M-MP5dDaHq44yoaXU" />
-<meta name="description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC — Kinshasa, Lubumbashi, Goma et ailleurs.">
+<meta name="description" content="Mombongo RDC : appli gratuite (APK) pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie — Kinshasa, Lubumbashi, Goma et ailleurs.">
 <link rel="canonical" href="https://kabamba001-bot.github.io/Mombongo/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Mombongo">
 <meta property="og:locale" content="fr_CD">
-<meta property="og:title" content="Mombongo — Suivi de vente et stock pour boutiques en RDC">
-<meta property="og:description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC — Kinshasa, Lubumbashi, Goma et ailleurs.">
+<meta property="og:title" content="Mombongo RDC APK — Suivi de vente et stock boutique">
+<meta property="og:description" content="Mombongo RDC : appli gratuite (APK) pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie — Kinshasa, Lubumbashi, Goma et ailleurs.">
 <meta property="og:url" content="https://kabamba001-bot.github.io/Mombongo/">
 <meta property="og:image" content="https://kabamba001-bot.github.io/Mombongo/icon-192.png">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Mombongo — Suivi de vente et stock pour boutiques en RDC">
-<meta name="twitter:description" content="L'appli gratuite pour suivre ventes, stock et bénéfices de ta boutique, pharmacie ou quincaillerie en RDC.">
+<meta name="twitter:title" content="Mombongo RDC APK — Suivi de vente et stock boutique">
+<meta name="twitter:description" content="Mombongo RDC : appli gratuite (APK) pour suivre ventes, stock et bénéfices de ta boutique en RDC.">
 <meta name="twitter:image" content="https://kabamba001-bot.github.io/Mombongo/icon-192.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Mombongo",
+  "alternateName": "Mombongo RDC",
   "description": "Application gratuite de suivi des ventes, du stock et des bénéfices pour les boutiques, pharmacies et quincailleries en République démocratique du Congo (RDC).",
   "applicationCategory": "BusinessApplication",
   "operatingSystem": "Android, Web",
@@ -43,24 +44,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-
-<!-- Meta Pixel Code -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '1097558122598024');
-fbq('track', 'PageView');
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
 </head>
 <body>
 <div id="app">
@@ -101,7 +84,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
         <span id="theme-btn-icon">🌙</span>
       </button>
-      <span id="promo-first20-badge" class="promo-badge" style="display:none;"></span>
     </div>
   </header>
 
@@ -448,6 +430,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </div>
 
       <a href="./guide-suivi-boutique.html" style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-guide-link">📖 Comment bien suivre les ventes de sa boutique</a>
+      <a href="#" onclick="installPwa(); return false;" id="t-pwa-install-btn" style="display:none; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;">📲 Installer Mombongo en 1 tap</a>
       <a href="./mombongo.apk" download style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-download-apk-link">⬇️ Télécharger l'application (APK)</a>
       <a href="https://wa.me/243980979141" target="_blank" rel="noopener" style="display:block; text-align:center; font-size:12.5px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-whatsapp-contact-link">💬 Contacte-nous sur WhatsApp au +243 980 979 141</a>
       <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
