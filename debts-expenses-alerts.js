@@ -1,4 +1,30 @@
 /* ---------- Crédits & Dettes ---------- */
+
+/* =========================================================================
+   INSTALLATION "EN UN TAP" (PWA) : quand le téléphone le permet, Chrome
+   propose un vrai prompt d'installation natif — aucune permission "sources
+   inconnues" à activer, aucun fichier à ouvrir manuellement, exactement
+   comme une app du Play Store. On intercepte cet évènement tôt (avant même
+   que l'utilisateur touche quoi que ce soit) pour pouvoir le déclencher
+   nous-mêmes plus tard, au moment où NOTRE fenêtre "Installer Mombongo"
+   s'affiche, plutôt que de laisser Chrome afficher sa propre mini-bannière
+   à un moment qu'on ne contrôle pas.
+   Le téléchargement APK reste le filet de sécurité : si ce prompt n'est
+   jamais proposé (navigateur qui ne le supporte pas, critères pas encore
+   remplis, etc.), acceptInstallApk() retombe automatiquement dessus —
+   rien ne change pour ces cas-là.
+   ========================================================================= */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  localStorage.setItem('mombongo:apkPromptSeen', '1');
+  if(typeof fbq === 'function'){ fbq('trackCustom', 'InstallPWA'); }
+});
+
 function openDebtsSheet(){
   if(currentRole()==='magasinier'){ showToast(dict[currentLang].restrictedFeature); return; }
   try{ renderDebtsList(); }catch(e){ console.error('Erreur affichage dettes', e); }
@@ -267,11 +293,28 @@ function closeInstallApkSheet(){
   document.getElementById('install-apk-overlay').classList.remove('open');
 }
 function acceptInstallApk(){
+  localStorage.setItem('mombongo:apkPromptSeen', '1');
+  closeInstallApkSheet();
+
+  if(deferredInstallPrompt){
+    // Chemin fluide : vrai prompt natif de Chrome, sans téléchargement ni
+    // "sources inconnues" — c'est celui qui donne la sensation "Play Store".
+    const promptEvent = deferredInstallPrompt;
+    deferredInstallPrompt = null; // un prompt ne peut servir qu'une fois
+    promptEvent.prompt();
+    promptEvent.userChoice.then((choice)=>{
+      if(choice.outcome === 'accepted' && typeof fbq === 'function'){
+        fbq('trackCustom', 'InstallPWA');
+      }
+    }).catch(()=>{});
+    return;
+  }
+
+  // Secours : téléchargement direct de l'APK (comportement historique,
+  // utilisé seulement si le prompt natif n'a jamais été proposé).
   if(typeof fbq === 'function'){
     fbq('trackCustom', 'TelechargementAPK');
   }
-  localStorage.setItem('mombongo:apkPromptSeen', '1');
-  closeInstallApkSheet();
   const link = document.createElement('a');
   link.href = './mombongo.apk';
   link.download = 'Mombongo.apk';

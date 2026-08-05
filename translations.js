@@ -100,7 +100,7 @@ const dict = {
     notifUnsupported:"Notifications non supportées sur cet appareil",
 
     whatsappContactLink:"💬 Contacte-nous sur WhatsApp au +243 980 979 141",
-    downloadApkLink:"⬇️ Télécharger l'application (APK)",
+    downloadApkLink:"⬇️ Installer l'application",
     guideLink:"📖 Comment bien suivre les ventes de sa boutique",
     installApkTitle:"📲 Installer Mombongo",
     installApkDesc:"Installe Mombongo comme une vraie application sur ton téléphone : ouverture plus rapide, notifications fiables, et une icône directement sur ton écran d'accueil.",
@@ -267,7 +267,7 @@ const dict = {
     notifUnsupported:"Ba notifications ezali te na appareil oyo",
 
     whatsappContactLink:"💬 Benga biso na WhatsApp : +243 980 979 141",
-    downloadApkLink:"⬇️ Kozua application (APK)",
+    downloadApkLink:"⬇️ Kotia application",
     guideLink:"📖 Ndenge ya kolandela malamu boteki ya magazini na yo",
     installApkTitle:"📲 Koluka Mombongo",
     installApkDesc:"Luka Mombongo lokola application ya solo na telefone na yo : kofungwama noki, ba notifications ya solide, mpe icône na écran ya accueil na yo.",
@@ -435,7 +435,7 @@ const dict = {
     notifUnsupported:"Arifa hazitumiki kwenye kifaa hiki",
 
     whatsappContactLink:"💬 Wasiliana nasi kwa WhatsApp : +243 980 979 141",
-    downloadApkLink:"⬇️ Pakua programu (APK)",
+    downloadApkLink:"⬇️ Sakinisha programu",
     guideLink:"📖 Jinsi ya kufuatilia vizuri mauzo ya duka lako",
     installApkTitle:"📲 Sakinisha Mombongo",
     installApkDesc:"Sakinisha Mombongo kama programu halisi kwenye simu yako: ufunguzi wa haraka, arifa za kuaminika, na aikoni moja kwa moja kwenye skrini yako ya nyumbani.",
