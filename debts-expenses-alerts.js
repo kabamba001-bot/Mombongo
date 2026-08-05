@@ -297,6 +297,7 @@ if(shouldOfferApkInstall()){
 
 initVoiceSaleButton();
 loadData();
+initFirst20Badge();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
