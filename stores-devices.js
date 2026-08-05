@@ -790,7 +790,6 @@ function applyTranslations(){
 
   document.getElementById('t-download-apk-link').textContent = t.downloadApkLink;
   document.getElementById('t-guide-link').textContent = t.guideLink;
-  document.getElementById('t-pwa-install-btn').textContent = t.pwaInstallBtn;
   document.getElementById('t-whatsapp-contact-link').textContent = t.whatsappContactLink;
   document.getElementById('t-install-apk-title').textContent = t.installApkTitle;
   document.getElementById('t-install-apk-desc').textContent = t.installApkDesc;
