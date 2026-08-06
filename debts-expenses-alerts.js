@@ -335,7 +335,25 @@ function updateDownloadApkLinkVisibility(){
 
 updateDownloadApkLinkVisibility();
 if(shouldOfferApkInstall()){
-  setTimeout(openInstallApkSheet, 700);
+  // Plutôt que d'attendre un temps deviné pour tout le monde, on fait la
+  // course : soit Chrome propose son prompt natif, soit ce délai plafond
+  // s'écoule — le premier des deux déclenche l'affichage de la fenêtre.
+  // Ajuste juste ce chiffre si tu veux tester une valeur différente.
+  const MAX_WAIT_FOR_NATIVE_PROMPT_MS = 5000;
+  let sheetOpened = false;
+  const openOnce = () => {
+    if(sheetOpened) return;
+    sheetOpened = true;
+    openInstallApkSheet();
+  };
+  if(deferredInstallPrompt){
+    // Le prompt natif était déjà prêt avant même qu'on regarde (ex: visite
+    // répétée, engagement déjà suffisant) — pas besoin d'attendre.
+    openOnce();
+  } else {
+    window.addEventListener('beforeinstallprompt', openOnce, { once:true });
+    setTimeout(openOnce, MAX_WAIT_FOR_NATIVE_PROMPT_MS);
+  }
 }
 
 initVoiceSaleButton();
