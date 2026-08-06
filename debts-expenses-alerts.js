@@ -339,7 +339,7 @@ if(shouldOfferApkInstall()){
   // course : soit Chrome propose son prompt natif, soit ce délai plafond
   // s'écoule — le premier des deux déclenche l'affichage de la fenêtre.
   // Ajuste juste ce chiffre si tu veux tester une valeur différente.
-  const MAX_WAIT_FOR_NATIVE_PROMPT_MS = 5000;
+  const MAX_WAIT_FOR_NATIVE_PROMPT_MS = 10000;
   let sheetOpened = false;
   const openOnce = () => {
     if(sheetOpened) return;
