@@ -7,9 +7,15 @@
    et je fusionnerai — sinon ce fichier remplace le tien sans rien perdre
    d'important : il garde le principe (marche hors-ligne) et ajoute juste les
    notifications.
+
+   👉 À chaque déploiement qui touche du JS/CSS/HTML (comme aujourd'hui),
+   incrémente CACHE_NAME (v2 -> v3 -> v4...). C'est ce qui force le nettoyage
+   de l'ancien cache chez les utilisateurs déjà installés — sans ça, "fetch"
+   ci-dessous continue de servir une version un peu en retard le temps qu'elle
+   se rafraîchisse toute seule en arrière-plan.
 */
 
-const CACHE_NAME = 'mombongo-cache-v2';
+const CACHE_NAME = 'mombongo-cache-v3';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -69,13 +75,6 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Affiche la notification système quand l'app est FERMÉE ou en arrière-plan.
-// (Quand l'app est ouverte au premier plan, c'est plutôt onMessage() côté
-// index.html qui s'en charge — voir la section notifications du fichier principal.)
-// Le message envoyé par les scripts GitHub Actions est "data-only" (voir alert-utils.js) :
-// tout est dans payload.data, jamais payload.notification. C'est volontaire, pour que ce
-// soit TOUJOURS ce code ici qui décide de l'affichage — sinon certains téléphones
-// affichent la notification deux fois (une automatique + une manuelle).
 messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
   const title = data.title || 'Mombongo';
@@ -89,8 +88,6 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// Quand on tape sur la notification : ouvrir l'app si elle est fermée,
-// ou juste la remettre au premier plan si elle est déjà ouverte quelque part.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
