@@ -212,7 +212,7 @@ async function confirmSale(){
     saveDebts();
     await saveSales();
     closeSellSheet();
-    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka na crédit ekómi");
+    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka ya nyongo ekómi");
   } else {
     sales.push(saleRecord);
     ensureTodayStats();
@@ -263,12 +263,12 @@ async function confirmMultiSale(){
     }
     const rawDebt = parseFloat(document.getElementById('in-debt-amount').value);
     if(isNaN(rawDebt) || rawDebt <= 0){
-      showToast(currentLang==='fr' ? "Indique un montant de dette valide" : "Pesa motángo ya dette oyo ekoki");
+      showToast(currentLang==='fr' ? "Indique un montant de dette valide" : "Pesa motángo ya nyongo oyo ekoki");
       return;
     }
     debtAmount = toInternal(rawDebt);
     if(debtAmount > grandTotal + 0.01){
-      showToast(currentLang==='fr' ? "La dette ne peut pas dépasser le total de la vente" : "Dette ekoki koleka total te");
+      showToast(currentLang==='fr' ? "La dette ne peut pas dépasser le total de la vente" : "Nyongo ekoki koleka total te");
       return;
     }
     debtClientPhone = document.getElementById('in-debt-client-phone').value.trim();
@@ -335,7 +335,7 @@ async function confirmMultiSale(){
     saveDebts();
     await saveSales();
     closeSellSheet();
-    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka na crédit ekómi");
+    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka ya nyongo ekómi");
   } else if(hasPartialDebt){
     // La vente entière est d'abord comptée comme payée au comptant, puis on
     // bascule le reliquat (montant libre, pas lié à un produit précis) vers
@@ -376,7 +376,7 @@ async function confirmMultiSale(){
     saveDebts();
     await saveSales();
     closeSellSheet();
-    showToast(currentLang==='fr' ? "Vente enregistrée avec une dette partielle" : "Kotéka ekómi na dette moke");
+    showToast(currentLang==='fr' ? "Vente enregistrée avec une dette partielle" : "Kotéka ekómi na nyongo moke");
   } else {
     sales.push(...saleRecords);
     ensureTodayStats();
