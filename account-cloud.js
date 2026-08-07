@@ -24,6 +24,7 @@ function signInWithGoogle(){
       if(typeof fbq === 'function' && result.additionalUserInfo && result.additionalUserInfo.isNewUser){
         fbq('track', 'CompleteRegistration');
       }
+      updateBackupBanner();
     }
   }).catch((e)=>{
     console.error('Erreur de connexion', e);
@@ -62,5 +63,41 @@ function signOutGoogle(){
   });
   closeAccountSheet();
 }
+
+/* ---------- Bandeau "Sauvegarde inactive" ---------- */
+// Affiché uniquement à ceux qui NE sont PAS connectés à Google, et seulement
+// à partir de leur première vente (avant ça, il n'y a encore rien à perdre).
+// Un clic sur × le masque pendant quelques jours plutôt que pour toujours —
+// pour rester incitatif sans devenir agaçant à chaque ouverture.
+const BACKUP_BANNER_SNOOZE_MS = 3*24*60*60*1000; // 3 jours
+function updateBackupBanner(){
+  const banner = document.getElementById('backup-banner');
+  if(!banner) return;
+  const dismissedAt = parseInt(localStorage.getItem('mombongo:backupBannerDismissedAt')) || 0;
+  const snoozed = (Date.now() - dismissedAt) < BACKUP_BANNER_SNOOZE_MS;
+  const hasSold = typeof sales !== 'undefined' && Array.isArray(sales) && sales.length > 0;
+  const shouldShow = !currentUser && !isEmployeeMode && hasSold && !snoozed;
+  banner.style.display = shouldShow ? 'flex' : 'none';
+}
+function dismissBackupBanner(){
+  localStorage.setItem('mombongo:backupBannerDismissedAt', Date.now().toString());
+  updateBackupBanner();
+}
+// Filet de sécurité : on se greffe sur render() (déjà appelée après chaque
+// vente, chaque connexion/déconnexion, et au chargement initial ailleurs
+// dans l'app) pour que le bandeau reste à jour partout, sans devoir modifier
+// render.js — au cas où il ne serait pas encore défini au moment où ce
+// fichier s'exécute, on attend le tout premier "load" de la page.
+window.addEventListener('load', function(){
+  if(typeof render === 'function' && !render.__backupBannerWrapped){
+    const _originalRender = render;
+    render = function(){
+      _originalRender.apply(this, arguments);
+      updateBackupBanner();
+    };
+    render.__backupBannerWrapped = true;
+  }
+  updateBackupBanner();
+});
 
 

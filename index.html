@@ -105,6 +105,16 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </header>
 
+  <div id="backup-banner" class="backup-banner" style="display:none;">
+    <span class="icon">☁️</span>
+    <div class="msg">
+      <strong id="t-backup-banner-title">Sauvegarde inactive</strong>
+      <span id="t-backup-banner-text">Connecte-toi avec Google pour ne rien perdre si tu perds ton téléphone</span>
+    </div>
+    <button class="activate" onclick="signInWithGoogle()" id="t-backup-banner-btn">Activer</button>
+    <button class="dismiss" onclick="dismissBackupBanner()" aria-label="Fermer">×</button>
+  </div>
+
   <div class="stats-row">
     <div class="stat-card">
       <button class="stat-reset" id="reset-today-sales-btn" onclick="resetStat('todaySales')" aria-label="Réinitialiser">🗑</button>

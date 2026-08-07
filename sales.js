@@ -225,6 +225,7 @@ async function confirmSale(){
     showToast(dict[currentLang].sold);
   }
   render();
+  if(typeof updateBackupBanner === 'function') updateBackupBanner();
 }
 
 /* ---------- Vente plusieurs (catalogue complet + dette partielle) ---------- */
@@ -388,6 +389,7 @@ async function confirmMultiSale(){
     showToast(dict[currentLang].sold);
   }
   render();
+  if(typeof updateBackupBanner === 'function') updateBackupBanner();
 }
 
 /* ---------- Vente par la voix (français uniquement) ---------- */
