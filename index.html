@@ -340,28 +340,42 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <div class="sheet-overlay" id="sell-overlay">
     <div class="sheet">
       <h3 id="sell-title">Vendre</h3>
-      <div class="field">
-        <label id="t-sell-qty">Quantité vendue</label>
-        <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()" onfocus="scrollConfirmIntoView()">
-      </div>
-      <div class="sell-preview">
-        <div class="col">
-          <div class="lbl" id="t-total-label">Total</div>
-          <div class="val" id="preview-total">0 $</div>
+
+      <div id="single-sale-fields">
+        <div class="field">
+          <label id="t-sell-qty">Quantité vendue</label>
+          <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()" onfocus="scrollConfirmIntoView()">
         </div>
-        <div class="divider"></div>
-        <div class="col">
-          <div class="lbl" id="t-profit-label">Bénéfice</div>
-          <div class="val" id="preview-profit">0 $</div>
+        <div class="sell-preview">
+          <div class="col">
+            <div class="lbl" id="t-total-label">Total</div>
+            <div class="val" id="preview-total">0 $</div>
+          </div>
+          <div class="divider"></div>
+          <div class="col">
+            <div class="lbl" id="t-profit-label">Bénéfice</div>
+            <div class="val" id="preview-profit">0 $</div>
+          </div>
         </div>
       </div>
-      <div class="toggle-row">
-        <span id="t-credit-toggle">Vente à crédit ?</span>
-        <label class="switch">
-          <input type="checkbox" id="in-is-credit" onchange="toggleCreditFields()">
-          <span class="switch-track"></span>
-        </label>
+
+      <div class="toggle-row-pair">
+        <div class="toggle-row">
+          <span id="t-credit-toggle">Vente à crédit ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-is-credit" onchange="toggleCreditFields()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span id="t-multi-toggle">Vente plusieurs ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-is-multi" onchange="toggleMultiFields()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
       </div>
+
       <div id="credit-fields" style="display:none;">
         <div class="field">
           <label id="t-client-name">Nom du client</label>
@@ -382,10 +396,61 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           </div>
         </div>
       </div>
+
+      <!-- NOUVEAU : mode "vente plusieurs" — catalogue complet avec +/-, comme une
+           mini-boutique. Le "Dettes ?" ci-dessous vit ICI, sous le total, et non
+           à côté de "vente à crédit" (cf. discussion). Montant libre, pas lié à
+           un produit précis. -->
+      <div id="multi-fields" style="display:none;">
+        <div class="field multi-search">
+          <input id="in-multi-search" type="text" placeholder="Rechercher un produit" oninput="renderMultiProductList()">
+        </div>
+        <div id="multi-product-list"></div>
+        <div class="multi-total-divider"></div>
+        <div class="multi-total-row">
+          <span class="lbl" id="t-multi-total-label">Total</span>
+          <span class="val" id="multi-total">0 $</span>
+        </div>
+
+        <div class="toggle-row" id="debt-toggle-row">
+          <span id="t-debt-toggle">Dettes ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-has-debt" onchange="toggleDebtFields()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="debt-fields" style="display:none;">
+          <div class="field">
+            <label id="t-debt-amount">Montant restant en dette</label>
+            <input id="in-debt-amount" type="number" inputmode="decimal" placeholder="Ex : 3" oninput="updateMultiTotal()">
+            <span id="debt-cash-preview" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
+          </div>
+          <div class="field">
+            <label id="t-debt-client-name">Nom du client</label>
+            <input id="in-debt-client-name" type="text" placeholder="Ex : Maman Marie">
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label id="t-debt-client-phone">Numéro de téléphone (optionnel)</label>
+              <input id="in-debt-client-phone" type="tel" placeholder="09xxxxxxxx">
+            </div>
+            <div class="field">
+              <label id="t-debt-due-date">Date limite (optionnel)</label>
+              <div class="date-group">
+                <input id="in-debt-due-date-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+                <input id="in-debt-due-date-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+                <input id="in-debt-due-date-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
       <button class="btn-secondary" onclick="closeSellSheet()" id="t-cancel2">Annuler</button>
     </div>
   </div>
+
 
   <div class="sheet-overlay" id="account-overlay">
     <div class="sheet">

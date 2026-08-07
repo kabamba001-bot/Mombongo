@@ -1,4 +1,6 @@
 /* ---------- Vente ---------- */
+let multiCart = {}; // { productId: qty } — utilisé seulement quand "vente plusieurs" est actif
+
 function openSellSheet(id){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   sellingProductId = id;
@@ -8,6 +10,21 @@ function openSellSheet(id){
   document.getElementById('in-client-phone').value = '';
   setDateValue('in-due-date', '');
   document.getElementById('credit-fields').style.display = 'none';
+
+  document.getElementById('in-is-multi').checked = false;
+  document.getElementById('single-sale-fields').style.display = 'block';
+  document.getElementById('multi-fields').style.display = 'none';
+  document.getElementById('in-multi-search').value = '';
+  document.getElementById('in-has-debt').checked = false;
+  document.getElementById('debt-fields').style.display = 'none';
+  document.getElementById('in-debt-amount').value = '';
+  document.getElementById('in-debt-client-name').value = '';
+  document.getElementById('in-debt-client-phone').value = '';
+  setDateValue('in-debt-due-date', '');
+  document.getElementById('debt-toggle-row').style.display = 'flex';
+  multiCart = {};
+  if(id) multiCart[id] = 1; // le produit sur lequel on a tapé "Vendre" est pré-sélectionné si on bascule en multi
+
   document.getElementById('sell-overlay').classList.add('open');
   updateSellPreview();
 }
@@ -18,6 +35,88 @@ function closeSellSheet(){
 function toggleCreditFields(){
   const isCredit = document.getElementById('in-is-credit').checked;
   document.getElementById('credit-fields').style.display = isCredit ? 'block' : 'none';
+  // Une vente est soit 100% crédit, soit partiellement en dette — pas les deux.
+  if(isCredit && document.getElementById('in-has-debt').checked){
+    document.getElementById('in-has-debt').checked = false;
+    toggleDebtFields();
+  }
+}
+function toggleMultiFields(){
+  const isMulti = document.getElementById('in-is-multi').checked;
+  document.getElementById('single-sale-fields').style.display = isMulti ? 'none' : 'block';
+  document.getElementById('multi-fields').style.display = isMulti ? 'block' : 'none';
+  if(isMulti) renderMultiProductList();
+  else {
+    document.getElementById('in-has-debt').checked = false;
+    toggleDebtFields();
+  }
+}
+function toggleDebtFields(){
+  const hasDebt = document.getElementById('in-has-debt').checked;
+  document.getElementById('debt-fields').style.display = hasDebt ? 'block' : 'none';
+  if(hasDebt && document.getElementById('in-is-credit').checked){
+    document.getElementById('in-is-credit').checked = false;
+    toggleCreditFields();
+  }
+  updateMultiTotal();
+}
+function changeMultiQty(productId, delta){
+  const product = products.find(p=>p.id===productId);
+  if(!product) return;
+  const current = multiCart[productId] || 0;
+  const next = Math.max(0, Math.min(product.qty, current + delta));
+  if(next === 0) delete multiCart[productId];
+  else multiCart[productId] = next;
+  renderMultiProductList();
+}
+function renderMultiProductList(){
+  const wrap = document.getElementById('multi-product-list');
+  const search = document.getElementById('in-multi-search').value.trim().toLowerCase();
+  const list = products.filter(p=> !search || p.name.toLowerCase().includes(search));
+  wrap.innerHTML = '';
+  list.forEach(p=>{
+    const qty = multiCart[p.id] || 0;
+    const row = document.createElement('div');
+    row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
+    row.innerHTML =
+      '<div class="info">' +
+        '<div class="name">' + p.name + '</div>' +
+        '<div class="meta">' + formatMoney(p.sell) + ' · ' + p.qty + ' disponible' + (p.qty>1?'s':'') + '</div>' +
+      '</div>' +
+      '<div class="qty-stepper">' +
+        '<button type="button" data-id="' + p.id + '" data-d="-1"' + (qty<=0?' disabled':'') + '>−</button>' +
+        '<span>' + qty + '</span>' +
+        '<button type="button" data-id="' + p.id + '" data-d="1"' + (qty>=p.qty?' disabled':'') + '>+</button>' +
+      '</div>';
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('button[data-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=> changeMultiQty(btn.dataset.id, parseInt(btn.dataset.d)));
+  });
+  updateMultiTotal();
+}
+function getMultiCartItems(){
+  return Object.keys(multiCart).map(id=>{
+    const product = products.find(p=>p.id===id);
+    const qty = multiCart[id];
+    return product ? { product, qty, total: qty*product.sell, profit: qty*(product.sell-product.buy) } : null;
+  }).filter(Boolean);
+}
+function updateMultiTotal(){
+  const items = getMultiCartItems();
+  const total = items.reduce((s,it)=>s+it.total,0);
+  document.getElementById('multi-total').textContent = formatMoney(total);
+
+  const debtPreviewEl = document.getElementById('debt-cash-preview');
+  if(document.getElementById('in-has-debt').checked){
+    const rawDebt = parseFloat(document.getElementById('in-debt-amount').value) || 0;
+    const debtAmount = toInternal(rawDebt);
+    const cashNow = Math.max(0, total - debtAmount);
+    const label = currentLang==='fr' ? 'Payé maintenant : ' : (currentLang==='ln' ? 'Efutami sikoyo : ' : 'Imelipwa sasa : ');
+    debtPreviewEl.textContent = label + formatMoney(cashNow);
+  } else if(debtPreviewEl){
+    debtPreviewEl.textContent = '';
+  }
 }
 function updateSellPreview(){
   const product = products.find(p=>p.id===sellingProductId);
@@ -30,6 +129,10 @@ function updateSellPreview(){
 }
 async function confirmSale(){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(document.getElementById('in-is-multi').checked){
+    await confirmMultiSale();
+    return;
+  }
   const product = products.find(p=>p.id===sellingProductId);
   if(!product) return;
   const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
@@ -116,6 +219,169 @@ async function confirmSale(){
     stats.todaySales += saleTotal;
     stats.todayProfit += saleProfit;
     stats.totalProfit += saleProfit;
+    saveStats();
+    await saveSales();
+    closeSellSheet();
+    showToast(dict[currentLang].sold);
+  }
+  render();
+}
+
+/* ---------- Vente plusieurs (catalogue complet + dette partielle) ---------- */
+async function confirmMultiSale(){
+  const items = getMultiCartItems();
+  if(items.length === 0){
+    showToast(currentLang==='fr' ? "Sélectionne au moins un produit" : "Pona ata produit moko");
+    return;
+  }
+  for(const it of items){
+    if(it.qty > it.product.qty){
+      showToast(currentLang==='fr' ? "Quantité invalide pour " + it.product.name : "Motángo ekoki te");
+      return;
+    }
+  }
+  const isCredit = document.getElementById('in-is-credit').checked;
+  const clientName = document.getElementById('in-client-name').value.trim();
+  if(isCredit && !clientName){
+    showToast(currentLang==='fr' ? "Indique le nom du client pour une vente à crédit" : "Pesa nkombo ya client");
+    return;
+  }
+  const clientPhone = document.getElementById('in-client-phone').value.trim();
+  const dueDate = getDateValue('in-due-date');
+
+  const grandTotal = items.reduce((s,it)=>s+it.total,0);
+  const grandProfit = items.reduce((s,it)=>s+it.profit,0);
+
+  const hasPartialDebt = document.getElementById('in-has-debt').checked;
+  let debtAmount = 0, debtClientName = '', debtClientPhone = '', debtDueDate = '';
+  if(hasPartialDebt){
+    debtClientName = document.getElementById('in-debt-client-name').value.trim();
+    if(!debtClientName){
+      showToast(currentLang==='fr' ? "Indique le nom du client pour la dette" : "Pesa nkombo ya client");
+      return;
+    }
+    const rawDebt = parseFloat(document.getElementById('in-debt-amount').value);
+    if(isNaN(rawDebt) || rawDebt <= 0){
+      showToast(currentLang==='fr' ? "Indique un montant de dette valide" : "Pesa motángo ya dette oyo ekoki");
+      return;
+    }
+    debtAmount = toInternal(rawDebt);
+    if(debtAmount > grandTotal + 0.01){
+      showToast(currentLang==='fr' ? "La dette ne peut pas dépasser le total de la vente" : "Dette ekoki koleka total te");
+      return;
+    }
+    debtClientPhone = document.getElementById('in-debt-client-phone').value.trim();
+    debtDueDate = getDateValue('in-debt-due-date');
+  }
+
+  const multiSaleId = Date.now().toString();
+  const saleRecords = items.map(it=>{
+    const product = it.product;
+    if(product.lotId){
+      const lot = lots.find(l=>l.id===product.lotId);
+      if(lot){
+        const fractionConsumed = it.qty / product.yieldPerSac;
+        lot.remainingFraction = Math.max(0, lot.remainingFraction - fractionConsumed);
+        recalcLotQuantities(product.lotId);
+        products.filter(p=>p.lotId===product.lotId).forEach(p=>{ p.lastSoldAt = Date.now(); });
+        saveLots();
+      } else {
+        product.qty -= it.qty;
+        product.lastSoldAt = Date.now();
+      }
+    } else {
+      product.qty -= it.qty;
+      product.lastSoldAt = Date.now();
+    }
+    return {
+      id: multiSaleId+'-'+product.id, multiSaleId, productId: product.id, productName: product.name,
+      qty: it.qty, total: it.total, profit: it.profit,
+      date: Date.now(), isCredit: isCredit
+    };
+  });
+  await saveProducts();
+
+  if(typeof fbq === 'function' && localStorage.getItem('mombongo:firstSaleTracked') !== '1'){
+    localStorage.setItem('mombongo:firstSaleTracked', '1');
+    fbq('track', 'Lead');
+  }
+
+  if(isCredit){
+    let debt = debts.find(d=>{
+      if(d.status!=='ouvert') return false;
+      if(d.clientName.toLowerCase() !== clientName.toLowerCase()) return false;
+      if(clientPhone && d.phone) return d.phone === clientPhone;
+      return true;
+    });
+    if(!debt){
+      debt = {
+        id: 'debt'+Date.now().toString(), clientName, phone: clientPhone, dueDate,
+        items: [], totalOwed: 0, totalProfit: 0, amountPaid: 0, payments: [],
+        createdAt: Date.now(), status: 'ouvert'
+      };
+      debts.push(debt);
+    } else {
+      if(clientPhone) debt.phone = clientPhone;
+      if(dueDate) debt.dueDate = dueDate;
+    }
+    saleRecords.forEach(sr=>{
+      sr.debtId = debt.id;
+      debt.items.push({ saleId: sr.id, productName: sr.productName, qty: sr.qty, total: sr.total, profit: sr.profit, date: Date.now() });
+    });
+    debt.totalOwed += grandTotal;
+    debt.totalProfit += grandProfit;
+    sales.push(...saleRecords);
+    saveDebts();
+    await saveSales();
+    closeSellSheet();
+    showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka na crédit ekómi");
+  } else if(hasPartialDebt){
+    // La vente entière est d'abord comptée comme payée au comptant, puis on
+    // bascule le reliquat (montant libre, pas lié à un produit précis) vers
+    // le même système `debts` que la vente 100% crédit ci-dessus.
+    sales.push(...saleRecords);
+    ensureTodayStats();
+    stats.todaySales += grandTotal;
+    stats.todayProfit += grandProfit;
+    stats.totalProfit += grandProfit;
+
+    const debtProfitShare = grandTotal > 0 ? grandProfit * (debtAmount / grandTotal) : 0;
+    let debt = debts.find(d=>{
+      if(d.status!=='ouvert') return false;
+      if(d.clientName.toLowerCase() !== debtClientName.toLowerCase()) return false;
+      if(debtClientPhone && d.phone) return d.phone === debtClientPhone;
+      return true;
+    });
+    if(!debt){
+      debt = {
+        id: 'debt'+Date.now().toString(), clientName: debtClientName, phone: debtClientPhone, dueDate: debtDueDate,
+        items: [], totalOwed: 0, totalProfit: 0, amountPaid: 0, payments: [],
+        createdAt: Date.now(), status: 'ouvert'
+      };
+      debts.push(debt);
+    } else {
+      if(debtClientPhone) debt.phone = debtClientPhone;
+      if(debtDueDate) debt.dueDate = debtDueDate;
+    }
+    const debtLabel = currentLang==='fr' ? 'Vente multiple (reliquat)' : (currentLang==='ln' ? 'Kotéka ebele (mikakatano)' : 'Uuzaji mengi (deni)');
+    debt.items.push({ saleId: multiSaleId, productName: debtLabel, qty: null, total: debtAmount, profit: debtProfitShare, date: Date.now(), partial: true });
+    debt.totalOwed += debtAmount;
+    debt.totalProfit += debtProfitShare;
+
+    stats.todaySales -= debtAmount;
+    stats.todayProfit -= debtProfitShare;
+    stats.totalProfit -= debtProfitShare;
+    saveStats();
+    saveDebts();
+    await saveSales();
+    closeSellSheet();
+    showToast(currentLang==='fr' ? "Vente enregistrée avec une dette partielle" : "Kotéka ekómi na dette moke");
+  } else {
+    sales.push(...saleRecords);
+    ensureTodayStats();
+    stats.todaySales += grandTotal;
+    stats.todayProfit += grandProfit;
+    stats.totalProfit += grandProfit;
     saveStats();
     await saveSales();
     closeSellSheet();
@@ -471,6 +737,10 @@ async function confirmVoiceSale(){
   sellingProductId = product.id;
   document.getElementById('in-sell-qty').value = qty;
   document.getElementById('in-is-credit').checked = false;
+  document.getElementById('in-is-multi').checked = false;
+  document.getElementById('single-sale-fields').style.display = 'block';
+  document.getElementById('multi-fields').style.display = 'none';
+  document.getElementById('in-has-debt').checked = false;
   closeVoiceConfirmOverlay();
   pendingVoiceSale = null;
   if(voiceRecognition){ try{ voiceRecognition.abort(); }catch(e){} }
