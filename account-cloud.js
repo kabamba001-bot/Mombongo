@@ -77,7 +77,7 @@ function updateBackupBanner(){
   const snoozed = (Date.now() - dismissedAt) < BACKUP_BANNER_SNOOZE_MS;
   const hasSold = typeof sales !== 'undefined' && Array.isArray(sales) && sales.length > 0;
   const shouldShow = !currentUser && !isEmployeeMode && hasSold && !snoozed;
-  banner.style.display = shouldShow ? 'flex' : 'none';
+  banner.classList.toggle('show', shouldShow);
 }
 function dismissBackupBanner(){
   localStorage.setItem('mombongo:backupBannerDismissedAt', Date.now().toString());

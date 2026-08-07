@@ -382,10 +382,12 @@
   .multi-total-row .val{font-family:'Sora'; font-size:19px; font-weight:800; color:var(--emerald);}
 
   .backup-banner{
-    display:flex; align-items:center; gap:10px;
+    display:none; align-items:center; gap:10px;
     background:var(--marigold-bg); border-bottom:1px solid var(--marigold);
     padding:10px 14px; font-size:12px;
   }
+  .backup-banner.show{ display:flex; }
+  .backup-banner.show + .stats-row{ margin-top:14px; }
   .backup-banner .icon{font-size:16px; flex-shrink:0;}
   .backup-banner .msg{flex:1; min-width:0; color:var(--charcoal); line-height:1.35;}
   .backup-banner .msg strong{display:block; font-size:12.5px;}

@@ -176,69 +176,6 @@ function applyDocData(data){
   setCurrency(currentCurrency);
 }
 
-/* =========================================================================
-   PROMO "20 PREMIERS" : les 20 tout premiers comptes jamais créés sur
-   Mombongo reçoivent automatiquement 2 mois VIP. Le compteur vit dans
-   /promo/first20vip (champ count), et chaque attribution crée en plus un
-   document dans /promo/first20vip/claims/{uid} qui sert à la fois de
-   preuve et de verrou anti-doublon — le tout dans UNE SEULE transaction
-   Firestore, donc impossible que deux personnes prennent la même place
-   même si elles s'inscrivent à la même seconde.
-   IMPORTANT : comme pour le parrainage, ceci doit être complété par une
-   règle de sécurité Firestore côté serveur pour être vraiment infalsifiable
-   (voir la note donnée à part) — sans cette règle, la protection ne repose
-   que sur le code du navigateur.
-   ========================================================================= */
-const FIRST20_GOAL = 20;
-const FIRST20_VIP_DAYS = 60;
-
-async function claimFirst20VipSlot(uid){
-  if(!cloudEnabled || !db) return false;
-  const counterRef = db.collection('promo').doc('first20vip');
-  const claimRef = counterRef.collection('claims').doc(uid);
-  try{
-    return await db.runTransaction(async (tx)=>{
-      const claimSnap = await tx.get(claimRef);
-      if(claimSnap.exists) return false; // déjà réclamé (sécurité, ne devrait jamais arriver)
-      const counterSnap = await tx.get(counterRef);
-      const current = counterSnap.exists ? (counterSnap.data().count || 0) : 0;
-      if(current >= FIRST20_GOAL) return false;
-      tx.set(counterRef, { count: current + 1 }, { merge:true });
-      tx.set(claimRef, { claimedAt: Date.now() });
-      return true;
-    });
-  }catch(e){
-    console.error('Erreur attribution promo 20 premiers', e);
-    return false;
-  }
-}
-
-function first20VipUntilDate(){
-  const d = new Date();
-  d.setDate(d.getDate() + FIRST20_VIP_DAYS);
-  return d.toISOString().slice(0,10);
-}
-
-// Badge public "x/20" à côté du bouton mode nuit — lit le compteur en direct,
-// visible par tout le monde (même déconnecté), disparaît tout seul à 20/20.
-function initFirst20Badge(){
-  if(!cloudEnabled || !db) return;
-  const badge = document.getElementById('promo-first20-badge');
-  if(!badge) return;
-  db.collection('promo').doc('first20vip').onSnapshot((doc)=>{
-    const count = doc.exists ? (doc.data().count || 0) : 0;
-    if(count >= FIRST20_GOAL){
-      badge.style.display = 'none';
-      return;
-    }
-    const t = dict[currentLang];
-    badge.textContent = '🎁 ' + t.first20Badge.replace('{n}', count);
-    badge.style.display = 'inline-flex';
-  }, (e)=>{
-    console.error('Erreur lecture compteur promo 20 premiers', e);
-  });
-}
-
 async function handlePostLogin(){
   if(!cloudEnabled || !db || !currentUser) return;
   try{
@@ -254,19 +191,10 @@ async function handlePostLogin(){
       stores = [{ id: legacyId, name: dict[currentLang].storesTitle, createdAt: Date.now() }];
       activeStoreId = legacyId;
       storesDataCache = { [legacyId]: { products, sales, lots, debts, expenses, stats } };
-      // Tenté AVANT de créer le document du compte, pour pouvoir inclure
-      // vipUntil dès la création (une seule écriture, pas de correctif après coup).
-      const gotFirst20 = await claimFirst20VipSlot(currentUser.uid);
-      const newUserDoc = {
+      await db.collection('mombongo_users').doc(currentUser.uid).set({
         stores, activeStoreId, storesData: storesDataCache, rate: exchangeRate, currency: currentCurrency,
         email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now()
-      };
-      if(gotFirst20){
-        vipUntil = first20VipUntilDate();
-        isVip = true;
-        newUserDoc.vipUntil = vipUntil;
-      }
-      await db.collection('mombongo_users').doc(currentUser.uid).set(newUserDoc, { merge: true });
+      }, { merge: true });
       const pendingRef = localStorage.getItem('mombongo:pendingRef');
       if(pendingRef && pendingRef !== currentUser.uid){
         try{
@@ -277,11 +205,7 @@ async function handlePostLogin(){
           });
         }catch(e){ console.error('Erreur enregistrement parrainage', e); }
       }
-      if(gotFirst20){
-        showToast(dict[currentLang].first20Welcome, 6000);
-      } else {
-        showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
-      }
+      showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
     }
   }catch(e){
     console.error('Erreur récupération cloud', e);
@@ -822,9 +746,17 @@ function applyTranslations(){
   document.getElementById('t-expenses-label').textContent = t.expensesLabel;
   document.getElementById('t-debts-label').textContent = '💳 ' + t.debtsLabel;
   document.getElementById('t-credit-toggle').textContent = t.creditToggle;
+  document.getElementById('t-backup-banner-title').textContent = t.backupBannerTitle;
+  document.getElementById('t-backup-banner-text').textContent = t.backupBannerText;
+  document.getElementById('t-backup-banner-btn').textContent = t.backupBannerBtn;
   document.getElementById('t-client-name').textContent = t.clientName;
   document.getElementById('t-client-phone').textContent = t.clientPhone;
   document.getElementById('t-due-date').textContent = t.dueDateField;
+  document.getElementById('t-multi-toggle').textContent = t.multiToggle;
+  document.getElementById('t-debt-amount').textContent = t.debtAmount;
+  document.getElementById('t-debt-client-name').textContent = t.debtClientName;
+  document.getElementById('t-debt-client-phone').textContent = t.debtClientPhone;
+  document.getElementById('t-debt-due-date').textContent = t.debtDueDate;
   document.getElementById('t-debts-title').textContent = t.debtsTitle;
   document.getElementById('t-debts-empty').textContent = t.debtsEmpty;
   document.getElementById('t-cancel5').textContent = t.close;
