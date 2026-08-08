@@ -1,5 +1,12 @@
 /* ---------- Compte Google & synchronisation cloud ---------- */
 function openAccountSheet(){
+  // Mesure combien de visiteurs vont jusqu'à ouvrir le menu de compte —
+  // première étape du parcours, avant même de voir le bouton "Connexion Google".
+  // Utile pour distinguer "personne ne trouve/n'ouvre le menu" de
+  // "les gens ouvrent le menu mais n'arrivent pas à se connecter".
+  if(typeof fbq === 'function'){
+    fbq('trackCustom', 'ClickAccountButton');
+  }
   document.getElementById('account-overlay').classList.add('open');
   renderStoresList();
   renderDevicesList();
@@ -77,7 +84,7 @@ function updateBackupBanner(){
   const snoozed = (Date.now() - dismissedAt) < BACKUP_BANNER_SNOOZE_MS;
   const hasSold = typeof sales !== 'undefined' && Array.isArray(sales) && sales.length > 0;
   const shouldShow = !currentUser && !isEmployeeMode && hasSold && !snoozed;
-  banner.classList.toggle('show', shouldShow);
+  banner.style.display = shouldShow ? 'flex' : 'none';
 }
 function dismissBackupBanner(){
   localStorage.setItem('mombongo:backupBannerDismissedAt', Date.now().toString());
@@ -99,5 +106,3 @@ window.addEventListener('load', function(){
   }
   updateBackupBanner();
 });
-
-
