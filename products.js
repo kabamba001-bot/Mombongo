@@ -167,9 +167,27 @@ function canAddMoreExpenses(){
   if(isVip) return true;
   return expenses.length < FREE_EXPENSE_LIMIT;
 }
+
+/* ---------- Suivi Meta Pixel : engagement réel avec l'app ---------- */
+// "FirstProductAdded" : la personne a réellement essayé l'outil (bien meilleur
+// signal d'intérêt que l'ouverture du menu de compte). Ne se déclenche qu'une
+// seule fois par appareil, pour ne pas gonfler artificiellement le chiffre à
+// chaque produit ajouté ensuite.
+function maybeTrackFirstProduct(){
+  if(typeof fbq !== 'function') return;
+  if(localStorage.getItem('mombongo:firstProductTracked')) return;
+  localStorage.setItem('mombongo:firstProductTracked', '1');
+  fbq('trackCustom', 'FirstProductAdded');
+}
 function openLimitSheet(reason){
   const t = dict[currentLang];
   reason = reason || 'products';
+  // "HitProductLimit" : la personne a rempli ses 30 produits gratuits — signal fort
+  // qu'elle utilise vraiment l'app pour de bon et envisage de contacter le développeur
+  // pour débloquer l'illimité.
+  if(reason === 'products' && typeof fbq === 'function'){
+    fbq('trackCustom', 'HitProductLimit');
+  }
   const link = document.getElementById('limit-whatsapp-link');
   if(!currentUser){
     document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
@@ -262,7 +280,10 @@ async function addProduct(){
   closeAddSheet();
   showToast(wasEditing ? dict[currentLang].updated : dict[currentLang].saved);
   render();
-  if(!wasEditing) maybeOfferCustomCatalogSave(name);
+  if(!wasEditing){
+    maybeOfferCustomCatalogSave(name);
+    maybeTrackFirstProduct();
+  }
 }
 
 async function addCartonProduct(){
@@ -290,6 +311,7 @@ async function addCartonProduct(){
   showToast(dict[currentLang].saved);
   render();
   maybeOfferCustomCatalogSave(name);
+  maybeTrackFirstProduct();
 }
 
 async function addSacProduct(){
@@ -336,6 +358,7 @@ async function addSacProduct(){
   showToast(dict[currentLang].saved);
   render();
   maybeOfferCustomCatalogSave(name);
+  maybeTrackFirstProduct();
 }
 
 function saveActivityLog(){
@@ -383,4 +406,3 @@ function scrollConfirmIntoView(){
     if(btn) btn.scrollIntoView({ behavior:'smooth', block:'center' });
   }, 300);
 }
-
