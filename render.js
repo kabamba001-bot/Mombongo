@@ -102,6 +102,9 @@ function render(){
       card.className = 'product-card';
       const sellBtn = canSell() ? `<button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>` : '';
       const editBtn = canEditDeleteProducts() ? `<button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>` : '';
+      // Dupliquer sert surtout pour les variantes (tailles, couleurs, parfums...) d'un produit
+      // déjà en stock — mêmes droits que l'ajout, puisque c'est une forme de création de produit.
+      const dupBtn = canAddProducts() ? `<button class="edit" onclick="duplicateProduct('${p.id}')" aria-label="${t.duplicateProductLabel}" title="${t.duplicateProductLabel}">📄</button>` : '';
       const delBtn = canEditDeleteProducts() ? `<button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>` : '';
       card.innerHTML = `
         <div class="dot ${dotClass}"></div>
@@ -110,7 +113,7 @@ function render(){
           <div class="meta">${p.qty} ${t.stockUnit}</div>
         </div>
         <div class="price">${formatMoney(p.sell)}</div>
-        ${sellBtn}${editBtn}${delBtn}
+        ${sellBtn}${editBtn}${dupBtn}${delBtn}
       `;
       list.appendChild(card);
     });

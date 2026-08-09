@@ -101,7 +101,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
         <span id="theme-btn-icon">🌙</span>
       </button>
-      <span id="promo-first20-badge" class="promo-badge" style="display:none;"></span>
+      <span id="promo-first-users-badge" class="promo-badge" style="display:none;"></span>
     </div>
   </header>
 
@@ -176,6 +176,9 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   </div>
 
   <button type="button" class="voice-fab" id="voice-sale-btn" aria-label="Maintenir pour enregistrer une vente par la voix">🎤</button>
+  <!-- Scan de code-barres pour vendre — fonctionnalité VIP (voir barcode.js). Reste visible pour
+       tout le monde selon le rôle, comme les autres boutons VIP de l'app (cadenas si pas VIP). -->
+  <button type="button" class="voice-fab barcode-fab" id="barcode-sale-btn" onclick="openBarcodeScanner('sell')" aria-label="Scanner un code-barres pour vendre">📷</button>
 
   <div class="sheet-overlay" id="voice-confirm-overlay">
     <div class="sheet">
@@ -187,6 +190,33 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </div>
 
+  <!-- Plein écran de visée caméra pour le scan de code-barres (ajout ou vente selon
+       barcodeScanMode). Un seul écran de scan pour les 2 usages. -->
+  <div class="sheet-overlay center-modal" id="barcode-scan-overlay">
+    <div class="sheet promo-card" style="text-align:center;">
+      <h3 id="t-barcode-scan-title">📷 Vise le code-barres</h3>
+      <div id="barcode-scan-region" style="width:100%; border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
+      <button class="btn-secondary" onclick="closeBarcodeScanner()" id="t-barcode-scan-cancel">Annuler</button>
+    </div>
+  </div>
+
+  <!-- Confirmation après un scan réussi côté vente : même esprit que la confirmation de
+       vente vocale, avec un +/- pour ajuster la quantité avant de valider. -->
+  <div class="sheet-overlay center-modal" id="barcode-confirm-overlay">
+    <div class="sheet promo-card">
+      <h3 id="t-barcode-confirm-title">Confirmer la vente</h3>
+      <div style="font-size:16px; font-weight:700; margin-bottom:6px;" id="barcode-confirm-name"></div>
+      <div class="qty-stepper" style="justify-content:center; margin-bottom:10px;">
+        <button type="button" id="barcode-qty-minus" onclick="changeBarcodeSaleQty(-1)">−</button>
+        <span id="barcode-confirm-qty">1</span>
+        <button type="button" id="barcode-qty-plus" onclick="changeBarcodeSaleQty(1)">+</button>
+      </div>
+      <div style="text-align:center; color:var(--emerald); font-weight:700; margin-bottom:18px;" id="barcode-confirm-total"></div>
+      <button class="btn-primary" onclick="confirmBarcodeSale()" id="t-barcode-confirm-btn">✅ Confirmer</button>
+      <button class="btn-secondary" onclick="cancelBarcodeSale()" id="t-barcode-confirm-cancel">Annuler</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="add-overlay">
     <div class="sheet" id="add-sheet-inner">
       <h3 id="t-add-title">Nouveau produit</h3>
@@ -195,7 +225,18 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <button class="mode-btn active" data-mode="simple" onclick="setAddMode('simple')" id="t-mode-simple">Produit simple</button>
         <button class="mode-btn" data-mode="carton" onclick="setAddMode('carton')" id="t-mode-carton">📦 Carton</button>
         <button class="mode-btn" data-mode="sac" onclick="setAddMode('sac')" id="t-mode-sac">🌾 Sac</button>
+        <!-- Scan de code-barres pour ajouter — fonctionnalité VIP (voir barcode.js). -->
+        <button type="button" class="mode-btn" id="barcode-add-btn" onclick="openBarcodeScanner('add')" aria-label="Scanner un code-barres">📷</button>
       </div>
+      <div id="add-barcode-badge" style="display:none; background:var(--paper-2); color:var(--emerald); font-size:12px; font-weight:700; border-radius:8px; padding:6px 10px; margin:-8px 0 16px;"></div>
+
+      <!-- Beaucoup de produits à ajouter d'un coup (ex : ouverture d'une pharmacie avec
+           des centaines de références) ? Ce bouton ouvre une liste à cocher du catalogue,
+           pour créer plusieurs produits en une seule validation au lieu de répéter tout
+           le formulaire pour chacun. -->
+      <button type="button" class="btn-secondary" id="t-bulk-catalog-open-btn"
+              style="background:var(--paper-2); border-radius:10px; margin-bottom:16px; display:none;"
+              onclick="openBulkCatalogSheet()">📋 Ajout rapide depuis le catalogue</button>
 
       <div id="mode-simple-fields">
         <div class="field">
@@ -655,6 +696,77 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </div>
 
+  <!-- Popup cadeau "50 premiers utilisateurs d'août" : centrée au milieu de l'écran
+       (contrairement aux autres fiches qui remontent du bas), affichée juste après
+       l'installation de l'app (native ou APK) — voir maybeShowPromoPopup() dans
+       debts-expenses-alerts.js -->
+  <div class="sheet-overlay center-modal" id="promo-gift-overlay">
+    <div class="sheet promo-card">
+      <div style="text-align:center; font-size:40px; margin-bottom:6px;">🎉</div>
+      <h3 style="text-align:center;" id="t-promo-popup-title">Tu fais partie des 50 premiers !</h3>
+      <p style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6; text-align:center;" id="t-promo-popup-body">
+        Mombongo offre 2 mois VIP gratuits aux 50 premiers utilisateurs inscrits en août. Connecte-toi avec Google pour recevoir ton cadeau tout de suite.
+      </p>
+      <p style="text-align:center; font-weight:700; color:var(--emerald); margin:0 0 14px;">
+        <span id="promo-gift-remaining">50</span> <span id="t-promo-popup-remaining-suffix">places restantes</span>
+      </p>
+      <button class="btn-primary" onclick="acceptPromoPopup()" id="t-promo-popup-accept">Se connecter et recevoir mon cadeau</button>
+      <button class="btn-secondary" onclick="closePromoPopup()" id="t-promo-popup-decline">Plus tard</button>
+    </div>
+  </div>
+
+  <!-- Ajout rapide en masse depuis le catalogue : coche des produits, donne un prix de
+       vente / quantité par défaut (facultatif), et crée tout d'un coup. Voir products.js
+       (openBulkCatalogSheet, confirmBulkCatalogAdd). -->
+  <div class="sheet-overlay" id="bulk-catalog-overlay">
+    <div class="sheet" style="min-height:75vh;">
+      <h3 id="t-bulk-catalog-title">📋 Ajout rapide depuis le catalogue</h3>
+      <p style="font-size:12.5px; color:var(--charcoal-soft); line-height:1.5; margin:-8px 0 14px;" id="t-bulk-catalog-desc">
+        Voici tout le catalogue de ton métier. Coche ce que tu vends — le prix de vente et la quantité par défaut ci-dessous s'appliquent à tous, tu pourras corriger chaque produit ensuite avec "Modifier". Compte gratuit : jusqu'à 30 produits. Compte VIP : illimité, avec "Tout cocher".
+      </p>
+      <div class="field">
+        <input id="in-bulk-search" type="text" placeholder="Rechercher dans le catalogue…" oninput="onBulkCatalogSearch()" autocomplete="off">
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button type="button" class="btn-secondary" id="t-bulk-select-all-btn"
+                style="flex:1; padding:8px; font-size:12.5px; display:none;"
+                onclick="selectAllBulkCatalog()">✅ Tout cocher (VIP)</button>
+        <button type="button" class="btn-secondary" id="t-bulk-deselect-all-btn"
+                style="flex:1; padding:8px; font-size:12.5px;"
+                onclick="deselectAllBulkCatalog()">◻️ Tout décocher</button>
+      </div>
+      <div id="bulk-catalog-count" style="font-size:12px; color:var(--charcoal-soft); margin:-4px 0 8px;">0/30 sélectionnés (limite gratuite)</div>
+      <div class="two-col">
+        <div class="field">
+          <label id="t-bulk-default-sell">Prix de vente par défaut</label>
+          <input id="in-bulk-default-sell" type="number" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="field">
+          <label id="t-bulk-default-qty">Quantité par défaut</label>
+          <input id="in-bulk-default-qty" type="number" inputmode="numeric" placeholder="0">
+        </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label id="t-bulk-default-threshold">Seuil d'alerte par défaut</label>
+          <input id="in-bulk-default-threshold" type="number" inputmode="numeric" placeholder="3" value="3">
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span id="bulk-catalog-count" style="font-size:12.5px; font-weight:700; color:var(--emerald);">0 sélectionnés</span>
+        <div style="display:flex; gap:6px;">
+          <!-- Réservé au VIP : un compte gratuit est de toute façon plafonné à 30 produits,
+               "tout cocher" n'a donc de sens que sans limite. -->
+          <button type="button" id="t-bulk-select-all-btn" onclick="selectAllBulkCatalog()"
+                  style="display:none; font-size:12px; font-weight:700; background:none; border:none; color:var(--emerald); padding:4px 6px;">Tout cocher</button>
+          <button type="button" id="t-bulk-deselect-all-btn" onclick="deselectAllBulkCatalog()"
+                  style="font-size:12px; font-weight:700; background:none; border:none; color:var(--charcoal-soft); padding:4px 6px;">Tout décocher</button>
+        </div>
+      </div>
+      <div id="bulk-catalog-list" style="max-height:32vh; overflow-y:auto; border:1.5px solid var(--paper-2); border-radius:10px; padding:4px 10px; margin-bottom:14px;"></div>
+      <button class="btn-primary" onclick="confirmBulkCatalogAdd()" id="t-bulk-confirm-btn" disabled>Ajouter 0 produits</button>
+      <button class="btn-secondary" onclick="closeBulkCatalogSheet()" id="t-bulk-cancel-btn">Annuler</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="history-overlay">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -839,6 +951,10 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Scan de code-barres (VIP) — voir barcode.js. Chargé en <script> classique (pas de build
+     nécessaire) ; si le téléphone n'a pas de connexion au moment du chargement, isBarcodeLibraryReady()
+     dans barcode.js détecte l'absence de la lib et affiche un message clair plutôt qu'un plantage. -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="config.js"></script>
 <script src="translations.js"></script>
 <script src="helpers.js"></script>
@@ -846,6 +962,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="stores-devices.js"></script>
 <script src="data-catalog.js"></script>
 <script src="products.js"></script>
+<script src="barcode.js"></script>
 <script src="sales.js"></script>
 <script src="render.js"></script>
 <script src="navigation.js"></script>

@@ -205,7 +205,18 @@ async function handlePostLogin(){
           });
         }catch(e){ console.error('Erreur enregistrement parrainage', e); }
       }
-      showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
+      // Promo "50 premiers utilisateurs d'août" : ce compte vient tout juste d'être créé
+      // sur Firestore (branche "nouveau compte" ci-dessus) — c'est le seul moment légitime
+      // pour tenter la réclamation, exactement comme pour le parrainage plus haut. On ne
+      // parle du tout de cette promo (même en cas d'échec) que si on est bien en août —
+      // sinon le message serait trompeur le reste de l'année.
+      if(typeof isPromoWindowOpen === 'function' && isPromoWindowOpen()){
+        const won = await tryClaimFirstUsersPromo(currentUser.uid);
+        const t = dict[currentLang];
+        showToast(won ? t.promoWonToast : t.promoMissedToast, 5000);
+      } else {
+        showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
+      }
     }
   }catch(e){
     console.error('Erreur récupération cloud', e);
@@ -803,6 +814,29 @@ function applyTranslations(){
   document.getElementById('t-install-apk-desc').textContent = t.installApkDesc;
   document.getElementById('t-install-apk-accept').textContent = t.installApkAccept;
   document.getElementById('t-install-apk-decline').textContent = t.installApkDecline;
+  document.getElementById('t-promo-popup-title').textContent = t.promoPopupTitle;
+  document.getElementById('t-promo-popup-body').textContent = t.promoPopupBody;
+  document.getElementById('t-promo-popup-accept').textContent = t.promoPopupAccept;
+  document.getElementById('t-promo-popup-decline').textContent = t.promoPopupDecline;
+  document.getElementById('t-promo-popup-remaining-suffix').textContent = t.promoPopupRemainingSuffix;
+  if(typeof initFirstUsersPromoBadge === 'function') initFirstUsersPromoBadge();
+  document.getElementById('t-bulk-catalog-open-btn').textContent = t.bulkCatalogOpenBtn;
+  document.getElementById('t-bulk-catalog-title').textContent = t.bulkCatalogTitle;
+  document.getElementById('t-bulk-catalog-desc').textContent = t.bulkCatalogDesc;
+  document.getElementById('t-bulk-default-sell').textContent = t.bulkDefaultSell;
+  document.getElementById('t-bulk-default-qty').textContent = t.bulkDefaultQty;
+  document.getElementById('t-bulk-default-threshold').textContent = t.bulkDefaultThreshold;
+  document.getElementById('in-bulk-search').placeholder = t.bulkSearchPlaceholder;
+  document.getElementById('t-bulk-cancel-btn').textContent = t.close;
+  document.getElementById('t-bulk-select-all-btn').textContent = t.bulkSelectAllBtn;
+  document.getElementById('t-bulk-deselect-all-btn').textContent = t.bulkDeselectAllBtn;
+  if(typeof updateBulkCatalogCount === 'function') updateBulkCatalogCount();
+  document.getElementById('t-barcode-scan-title').textContent = t.barcodeScanTitle;
+  document.getElementById('t-barcode-scan-cancel').textContent = t.barcodeScanCancel;
+  document.getElementById('t-barcode-confirm-title').textContent = t.barcodeConfirmTitle;
+  document.getElementById('t-barcode-confirm-btn').textContent = t.barcodeConfirmBtn;
+  document.getElementById('t-barcode-confirm-cancel').textContent = t.barcodeConfirmCancel;
+  if(typeof updateBarcodeButtonsVisibility === 'function') updateBarcodeButtonsVisibility();
 
   document.getElementById('t-stores-title').textContent = t.storesTitle;
   document.getElementById('t-add-store-btn').textContent = t.addStoreBtn;

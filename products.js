@@ -66,6 +66,11 @@ function openAddSheet(){
   setAddMode('simple');
   resetFieldCurrencies();
   updateProductNameSuggestions();
+  // Réinitialisé par défaut ici — c'est handleBarcodeForAdd() (barcode.js) qui le remet
+  // juste après cet appel quand on arrive depuis un scan de code-barres.
+  pendingBarcodeForNewProduct = null;
+  const barcodeBadge = document.getElementById('add-barcode-badge');
+  if(barcodeBadge) barcodeBadge.style.display = 'none';
   document.getElementById('add-overlay').classList.add('open');
 }
 function openEditSheet(id){
@@ -77,6 +82,8 @@ function openEditSheet(id){
   document.getElementById('t-add-title').textContent = dict[currentLang].editTitle;
   document.getElementById('t-save').textContent = dict[currentLang].saveEdit;
   document.getElementById('add-mode-row').style.display = 'none';
+  const bulkBtn = document.getElementById('t-bulk-catalog-open-btn');
+  if(bulkBtn) bulkBtn.style.display = 'none';
   resetMesurettes();
   setAddMode('simple');
   resetFieldCurrencies();
@@ -110,6 +117,9 @@ function closeAddSheet(){
   });
   resetMesurettes();
   editingProductId = null;
+  pendingBarcodeForNewProduct = null;
+  const barcodeBadge = document.getElementById('add-barcode-badge');
+  if(barcodeBadge) barcodeBadge.style.display = 'none';
 }
 
 function toInternal(raw){
@@ -199,8 +209,8 @@ function openLimitSheet(reason){
       openAccountSheet();
     };
   } else {
-    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport' }[reason];
-    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport' }[reason];
+    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode' }[reason];
+    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode' }[reason];
     document.getElementById('t-limit-desc').textContent = t[descKey];
     const msg = encodeURIComponent(t[msgKey]);
     link.textContent = t.limitUnlockBtn;
@@ -272,8 +282,13 @@ async function addProduct(){
       product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
     }
   } else {
-    if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
-    products.push({ id: Date.now().toString(), name, buy, sell, qty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now() });
+    if(!canAddMoreProducts(1)){ openLimitSheet('products'); return; }
+    products.push({
+      id: Date.now().toString(), name, buy, sell, qty, threshold, expiryDate,
+      lastSoldAt: null, createdAt: Date.now(),
+      barcode: pendingBarcodeForNewProduct || null
+    });
+    pendingBarcodeForNewProduct = null;
   }
   const wasEditing = !!editingProductId;
   await saveProducts();
@@ -296,7 +311,7 @@ async function addCartonProduct(){
     showToast(currentLang==='fr' ? "Remplis le nom, le nombre de pièces et le prix de vente" : "Pesa nkombo, motángo na ntalo ya kotéka");
     return;
   }
-  if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
+  if(!canAddMoreProducts(1)){ openLimitSheet('products'); return; }
   const cartonBuyInternal = toInternalField(rawCartonBuy, 'cartonBuy');
   const buyPerPiece = cartonBuyInternal / cartonQty;
   const sell = toInternalField(rawSell, 'cartonSell');
@@ -304,8 +319,10 @@ async function addCartonProduct(){
   const expiryDate = hasExpiry ? (getDateValue('carton-expiry-date') || null) : null;
   products.push({
     id: Date.now().toString(), name, buy: buyPerPiece, sell,
-    qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now()
+    qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
+    barcode: pendingBarcodeForNewProduct || null
   });
+  pendingBarcodeForNewProduct = null;
   await saveProducts();
   closeAddSheet();
   showToast(dict[currentLang].saved);
@@ -398,6 +415,172 @@ async function deleteAllProducts(){
   await saveProducts();
   showToast(t.allProductsDeleted);
   render();
+}
+
+/* =========================================================================
+   AJOUT RAPIDE EN MASSE DEPUIS LE CATALOGUE — sert aussi de "kit de démarrage"
+   ---------------------------------------------------------------------------
+   Pensé pour les boutiques qui démarrent avec un gros catalogue (pharmacie,
+   quincaillerie...) et n'ont pas envie d'ouvrir/remplir/valider le formulaire
+   d'ajout des centaines de fois. On voit TOUT le catalogue intégré du métier
+   de la boutique (1268 en pharmacie, 595 en quincaillerie, 415 en boutique
+   générale) et on coche ce qu'on vend.
+
+   Limite gratuite / VIP : un compte gratuit ne peut pas dépasser
+   FREE_PRODUCT_LIMIT (30) produits au total, donc la sélection ici est
+   plafonnée au nombre de places RÉELLEMENT restantes (30 moins ce qu'il a
+   déjà en stock, pas 30 dans l'absolu) — dès que ce plafond est atteint,
+   les cases non cochées se désactivent et une case supplémentaire ne peut
+   être cochée qu'en décochant une autre d'abord. Un compte VIP n'a aucune
+   limite et a en plus un bouton "Tout cocher" pour prendre le catalogue
+   entier en un clic.
+
+   Le prix d'achat par défaut reste à 0 : à la différence du nom (connu à
+   l'avance dans un catalogue métier), le prix d'achat dépend du fournisseur
+   du commerçant et n'a aucune raison d'être identique pour tous les
+   produits — mieux vaut le corriger produit par produit ensuite (via
+   "Modifier ✏️") que de figer une fausse valeur pour 500 produits.
+   ========================================================================= */
+let bulkCatalogSelection = new Set();
+
+// Places encore disponibles pour un compte gratuit (jamais négatif). VIP => illimité (Infinity).
+function remainingFreeProductSlots(){
+  if(isVip) return Infinity;
+  return Math.max(0, FREE_PRODUCT_LIMIT - products.length);
+}
+
+function openBulkCatalogSheet(){
+  if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const merged = getFullCatalogForActiveStore();
+  if(!merged || merged.length === 0){
+    showToast(currentLang==='fr' ? "Pas encore de catalogue pour cette boutique" : (currentLang==='ln' ? "Catalogue ezali nanu te" : "Bado hakuna katalogi kwa duka hili"));
+    return;
+  }
+  bulkCatalogSelection = new Set();
+  document.getElementById('in-bulk-search').value = '';
+  document.getElementById('in-bulk-default-sell').value = '';
+  document.getElementById('in-bulk-default-qty').value = '';
+  document.getElementById('in-bulk-default-threshold').value = '3';
+  const selectAllBtn = document.getElementById('t-bulk-select-all-btn');
+  if(selectAllBtn) selectAllBtn.style.display = isVip ? 'block' : 'none';
+  renderBulkCatalogList('');
+  document.getElementById('bulk-catalog-overlay').classList.add('open');
+}
+function closeBulkCatalogSheet(){
+  document.getElementById('bulk-catalog-overlay').classList.remove('open');
+}
+function renderBulkCatalogList(query){
+  const merged = getFullCatalogForActiveStore();
+  const q = (query||'').trim().toLowerCase();
+  // Affichage limité à 300 lignes à la fois pour rester fluide sur un catalogue de plus
+  // de 1000 produits — la recherche permet de retrouver le reste, la limite de sélection
+  // (gratuite/VIP) elle porte sur bulkCatalogSelection, jamais sur ce qui est affiché.
+  const list = (q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged).slice(0, 300);
+  const wrap = document.getElementById('bulk-catalog-list');
+  const remaining = remainingFreeProductSlots();
+  const atFreeLimit = remaining !== Infinity && bulkCatalogSelection.size >= remaining;
+  wrap.innerHTML = '';
+  list.forEach(name=>{
+    const checked = bulkCatalogSelection.has(name);
+    const row = document.createElement('label');
+    row.className = 'bulk-catalog-row' + (!checked && atFreeLimit ? ' disabled' : '');
+    row.innerHTML = `
+      <input type="checkbox" data-name="${escapeHtml(name)}" ${checked?'checked':''} ${(!checked && atFreeLimit)?'disabled':''}>
+      <span>${escapeHtml(name)}</span>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked){
+        if(remainingFreeProductSlots() !== Infinity && bulkCatalogSelection.size >= remainingFreeProductSlots()){
+          cb.checked = false;
+          openLimitSheet('products');
+          return;
+        }
+        bulkCatalogSelection.add(cb.dataset.name);
+      } else {
+        bulkCatalogSelection.delete(cb.dataset.name);
+      }
+      renderBulkCatalogList(document.getElementById('in-bulk-search').value);
+    });
+  });
+  updateBulkCatalogCount();
+}
+function onBulkCatalogSearch(){
+  renderBulkCatalogList(document.getElementById('in-bulk-search').value);
+}
+// VIP uniquement (bouton caché sinon) : prend tout le catalogue affiché par la recherche
+// en cours, ou tout le catalogue si aucune recherche n'est tapée.
+function selectAllBulkCatalog(){
+  if(!isVip) return;
+  const merged = getFullCatalogForActiveStore();
+  const q = document.getElementById('in-bulk-search').value.trim().toLowerCase();
+  const list = q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged;
+  list.forEach(name=>bulkCatalogSelection.add(name));
+  renderBulkCatalogList(q);
+}
+function deselectAllBulkCatalog(){
+  bulkCatalogSelection.clear();
+  renderBulkCatalogList(document.getElementById('in-bulk-search').value);
+}
+function updateBulkCatalogCount(){
+  const btn = document.getElementById('t-bulk-confirm-btn');
+  if(!btn) return;
+  const t = dict[currentLang];
+  const n = bulkCatalogSelection.size;
+  const remaining = remainingFreeProductSlots();
+  const countLabel = document.getElementById('bulk-catalog-count');
+  if(countLabel){
+    countLabel.textContent = (remaining === Infinity)
+      ? (t.bulkSelectedCountVip || '{n} sélectionnés').replace('{n}', n)
+      : (t.bulkSelectedCountFree || '{n}/{max} sélectionnés (limite gratuite)').replace('{n}', n).replace('{max}', FREE_PRODUCT_LIMIT);
+  }
+  btn.textContent = (t.bulkAddBtn || 'Ajouter {n} produits').replace('{n}', n);
+  btn.disabled = n === 0;
+}
+async function confirmBulkCatalogAdd(){
+  if(bulkCatalogSelection.size === 0) return;
+  if(!canAddMoreProducts(bulkCatalogSelection.size)){ openLimitSheet('products'); return; }
+  const rawSell = parseFloat(document.getElementById('in-bulk-default-sell').value) || 0;
+  const rawQty = parseInt(document.getElementById('in-bulk-default-qty').value) || 0;
+  const threshold = parseInt(document.getElementById('in-bulk-default-threshold').value) || 3;
+  const sell = toInternal(rawSell);
+  const names = Array.from(bulkCatalogSelection);
+  let offset = 0;
+  names.forEach(name=>{
+    offset++;
+    products.push({
+      id: (Date.now()+offset).toString(), name, buy: 0, sell,
+      qty: rawQty, threshold, expiryDate: null, lastSoldAt: null, createdAt: Date.now()
+    });
+  });
+  await saveProducts();
+  closeBulkCatalogSheet();
+  closeAddSheet();
+  const t = dict[currentLang];
+  const msg = (t.bulkAddSuccess || '{n} produits ajoutés — pense à corriger les prix un par un si besoin').replace('{n}', names.length);
+  showToast(msg, 4000);
+  render();
+}
+
+/* ---------- Dupliquer un produit (utile pour les variantes : tailles, couleurs, parfums...) ---------- */
+async function duplicateProduct(id){
+  if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  const product = products.find(p=>p.id===id);
+  if(!product) return;
+  if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
+  const copy = {
+    id: Date.now().toString(), name: product.name + ' (copie)',
+    buy: product.buy, sell: product.sell, qty: 0, threshold: product.threshold,
+    expiryDate: product.expiryDate || null, lastSoldAt: null, createdAt: Date.now()
+  };
+  // Une copie démarre comme un produit indépendant, jamais rattachée au même lot/sac
+  // que l'original — sinon vendre l'un modifierait le stock de l'autre par erreur.
+  products.push(copy);
+  await saveProducts();
+  render();
+  openEditSheet(copy.id);
 }
 
 function scrollConfirmIntoView(){

@@ -23,7 +23,123 @@ window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
   localStorage.setItem('mombongo:apkPromptSeen', '1');
   if(typeof fbq === 'function'){ fbq('trackCustom', 'InstallPWA'); }
+  // Popup cadeau "50 premiers utilisateurs d'août" — installation confirmée (voie native).
+  setTimeout(maybeShowPromoPopup, 600);
 });
+
+/* =========================================================================
+   PROMO "50 PREMIERS UTILISATEURS D'AOÛT 2026" : les 50 premiers comptes
+   Google réellement créés sur Mombongo pendant le mois d'août 2026 reçoivent
+   automatiquement 2 mois de VIP offerts, sans rien à réclamer manuellement.
+
+   Anti-fraude / anti-course : le comptage ne repose jamais sur une
+   déclaration du client. Il passe par une transaction Firestore sur un
+   document compteur partagé (mombongo_meta/promo_aug2026) : si deux
+   inscriptions arrivent en même temps, Firestore ne laisse passer qu'une
+   seule des deux écritures tant que le compteur est encore sous 50 — comme
+   pour le compteur de filleuls du parrainage, mais ici avec verrou
+   transactionnel puisque plusieurs personnes peuvent s'inscrire à la
+   même seconde (contrairement au parrainage, qui n'a qu'un seul lecteur
+   à la fois : le parrain qui clique sur "Réclamer").
+   Chaque uid ne peut gagner qu'une fois (mombongo_promo_claims/{uid}).
+   ========================================================================= */
+const PROMO_SLOTS = 50;
+const PROMO_VIP_MONTHS = 2;
+const PROMO_COUNTER_DOC = 'promo_aug2026';
+const PROMO_START = new Date(2026, 7, 1).getTime();  // 1er août 2026 00:00 (mois 0-indexé : 7 = août)
+const PROMO_END = new Date(2026, 8, 1).getTime();    // 1er septembre 2026 00:00 (fin exclusive)
+let promoPopupShown = false;
+
+function isPromoWindowOpen(){
+  const now = Date.now();
+  return now >= PROMO_START && now < PROMO_END;
+}
+
+// Tente d'accorder le cadeau à un nouveau compte tout juste créé. Renvoie true si gagné.
+// N'est appelée que depuis handlePostLogin(), uniquement pour un compte qui vient d'être
+// créé sur Firestore (jamais pour un utilisateur déjà existant) — cohérent avec l'esprit
+// "premiers utilisateurs", exactement comme le badge "nouvel utilisateur" du parrainage.
+async function tryClaimFirstUsersPromo(uid){
+  if(!cloudEnabled || !db || !isPromoWindowOpen()) return false;
+  const counterRef = db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC);
+  const claimRef = db.collection('mombongo_promo_claims').doc(uid);
+  try{
+    const won = await db.runTransaction(async (tx)=>{
+      const counterSnap = await tx.get(counterRef);
+      const claimSnap = await tx.get(claimRef);
+      if(claimSnap.exists) return false;
+      const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
+      if(claimed >= PROMO_SLOTS) return false;
+      tx.set(counterRef, { claimed: claimed + 1 }, { merge: true });
+      tx.set(claimRef, { uid, rank: claimed + 1, timestamp: Date.now() });
+      return true;
+    });
+    if(won){
+      const until = new Date();
+      until.setMonth(until.getMonth() + PROMO_VIP_MONTHS);
+      vipUntil = until.toISOString().slice(0,10);
+      isVip = true;
+      await db.collection('mombongo_users').doc(uid).set({ vipUntil }, { merge: true });
+    }
+    return won;
+  }catch(e){
+    console.error('Erreur réclamation promo 50 premiers', e);
+    return false;
+  }
+}
+
+// Fenêtre "🎁 Tu fais partie des 50 premiers" affichée au milieu du tableau de bord,
+// juste après l'installation (native ou APK) — voir appinstalled et acceptInstallApk().
+// Ne s'affiche que si : la personne n'est pas déjà connectée (son statut est déjà tranché
+// sinon), le mois d'août n'est pas terminé, elle ne l'a pas déjà vue/refusée, et il reste
+// vraiment des places (vérifié en direct sur le compteur partagé, pour ne jamais promettre
+// un cadeau qui n'existe plus).
+async function maybeShowPromoPopup(){
+  if(promoPopupShown) return;
+  if(currentUser) return;
+  if(!isPromoWindowOpen()) return;
+  if(localStorage.getItem('mombongo:promoAug2026Seen') === '1') return;
+  if(!cloudEnabled || !db) return;
+  let remaining = PROMO_SLOTS;
+  try{
+    const counterSnap = await db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC).get();
+    const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
+    remaining = PROMO_SLOTS - claimed;
+    if(remaining <= 0) return;
+  }catch(e){ return; }
+  const bodyEl = document.getElementById('promo-gift-remaining');
+  if(bodyEl) bodyEl.textContent = remaining;
+  promoPopupShown = true;
+  document.getElementById('promo-gift-overlay').classList.add('open');
+}
+function closePromoPopup(){
+  localStorage.setItem('mombongo:promoAug2026Seen', '1');
+  document.getElementById('promo-gift-overlay').classList.remove('open');
+}
+function acceptPromoPopup(){
+  localStorage.setItem('mombongo:promoAug2026Seen', '1');
+  document.getElementById('promo-gift-overlay').classList.remove('open');
+  // Direction directe vers la connexion Google du téléphone (compte déjà présent sur
+  // l'appareil dans la plupart des cas) — réutilise le flux de connexion existant.
+  signInWithGoogle();
+}
+
+// Petit badge discret dans le menu de compte, visible tant que la promo tourne et que des
+// places restent — remplace l'ancien badge "20 premiers" (initFirst20Badge), devenu
+// "50 premiers utilisateurs d'août".
+async function initFirstUsersPromoBadge(){
+  const badge = document.getElementById('promo-first-users-badge');
+  if(!badge) return;
+  if(!isPromoWindowOpen() || !cloudEnabled || !db){ badge.style.display = 'none'; return; }
+  try{
+    const counterSnap = await db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC).get();
+    const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
+    const remaining = PROMO_SLOTS - claimed;
+    if(remaining <= 0){ badge.style.display = 'none'; return; }
+    badge.textContent = dict[currentLang].promoBadgeText.replace('{n}', remaining);
+    badge.style.display = 'inline-block';
+  }catch(e){ badge.style.display = 'none'; }
+}
 
 function openDebtsSheet(){
   if(currentRole()==='magasinier'){ showToast(dict[currentLang].restrictedFeature); return; }
@@ -306,6 +422,9 @@ function acceptInstallApk(){
       if(choice.outcome === 'accepted' && typeof fbq === 'function'){
         fbq('trackCustom', 'InstallPWA');
       }
+      // Le popup cadeau ne s'affiche ici que si la personne a réellement accepté le prompt natif —
+      // sinon on laisse l'évènement 'appinstalled' s'en charger le cas échéant.
+      if(choice.outcome === 'accepted'){ setTimeout(maybeShowPromoPopup, 600); }
     }).catch(()=>{});
     return;
   }
@@ -322,6 +441,10 @@ function acceptInstallApk(){
   link.click();
   document.body.removeChild(link);
   showToast('Téléchargement en cours… ouvre le fichier une fois terminé pour installer.', 6000);
+  // Popup cadeau "50 premiers" — on ne peut pas détecter l'installation réelle de l'APK
+  // (le navigateur ne le voit jamais), donc on prend le déclenchement du téléchargement
+  // comme le même signal d'action que pour la voie native ci-dessus.
+  setTimeout(maybeShowPromoPopup, 1500);
 }
 function declineInstallApk(){
   localStorage.setItem('mombongo:apkPromptSeen', '1');
@@ -338,8 +461,12 @@ if(shouldOfferApkInstall()){
   // Plutôt que d'attendre un temps deviné pour tout le monde, on fait la
   // course : soit Chrome propose son prompt natif, soit ce délai plafond
   // s'écoule — le premier des deux déclenche l'affichage de la fenêtre.
+  // Allongé à 30s (au lieu de 10s) pour laisser à Chrome plus de temps de
+  // décider que les critères d'installation natifs sont remplis avant de
+  // retomber sur le téléchargement APK — la voie native est l'expérience
+  // "en un tap" à privilégier chaque fois qu'elle est possible.
   // Ajuste juste ce chiffre si tu veux tester une valeur différente.
-  const MAX_WAIT_FOR_NATIVE_PROMPT_MS = 10000;
+  const MAX_WAIT_FOR_NATIVE_PROMPT_MS = 30000;
   let sheetOpened = false;
   const openOnce = () => {
     if(sheetOpened) return;
@@ -358,7 +485,7 @@ if(shouldOfferApkInstall()){
 
 initVoiceSaleButton();
 loadData();
-initFirst20Badge();
+initFirstUsersPromoBadge();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

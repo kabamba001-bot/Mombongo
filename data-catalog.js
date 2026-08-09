@@ -176,6 +176,15 @@ function updateProductNameSuggestions(){
     if(arrowBtn) arrowBtn.style.display = activeCatalogForForm ? 'flex' : 'none';
     closeCatalogPanel(fieldId);
   });
+  // Le bouton "Ajout rapide depuis le catalogue" n'a de sens que pour un NOUVEAU produit
+  // (pas en modification d'un produit existant — add-mode-row sert justement de repère
+  // pour ça, il est déjà caché par openEditSheet()) et seulement s'il existe un catalogue.
+  const bulkBtn = document.getElementById('t-bulk-catalog-open-btn');
+  const addModeRow = document.getElementById('add-mode-row');
+  if(bulkBtn){
+    const isNewProductMode = addModeRow && addModeRow.style.display !== 'none';
+    bulkBtn.style.display = (activeCatalogForForm && isNewProductMode) ? 'block' : 'none';
+  }
 }
 
 function maybeOfferCustomCatalogSave(name){
