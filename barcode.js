@@ -80,10 +80,38 @@ function handleBarcodeForAdd(code){
   openAddSheet();
   pendingBarcodeForNewProduct = code;
   const badge = document.getElementById('add-barcode-badge');
+  const nameField = document.getElementById('in-name');
+  const t = dict[currentLang];
   if(badge){
     badge.style.display = 'block';
-    badge.textContent = '📷 ' + code;
+    badge.textContent = '📷 ' + code + ' — ' + (t.barcodeLookingUpName || 'recherche du nom…');
   }
+  // Recherche best-effort du nom réel du produit à partir de son code-barres, via la base
+  // ouverte et gratuite Open Food Facts (aucune clé requise). Couvre surtout les produits
+  // de marque déjà référencés ailleurs dans le monde (boissons, conserves, médicaments
+  // importés...) — un produit purement local/artisanal n'y sera presque jamais, donc on ne
+  // bloque JAMAIS le formulaire en attendant : le commerçant peut déjà taper le nom
+  // lui-même pendant que la recherche tourne en arrière-plan, et elle ne remplace le champ
+  // que s'il est encore vide au moment où la réponse arrive (pour ne jamais écraser ce que
+  // le commerçant a déjà commencé à taper).
+  fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(code) + '.json?fields=product_name')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      // Le code-barres a pu changer entre-temps (nouveau scan pendant que celui-ci cherchait) —
+      // on ignore une réponse qui ne correspond plus au scan en cours.
+      if(pendingBarcodeForNewProduct !== code) return;
+      const foundName = data && data.product && data.product.product_name;
+      if(foundName){
+        if(nameField && !nameField.value.trim()) nameField.value = foundName;
+        if(badge) badge.textContent = '📷 ' + code + ' — ' + foundName;
+      } else if(badge){
+        badge.textContent = '📷 ' + code + (t.barcodeNameNotFound ? (' — ' + t.barcodeNameNotFound) : '');
+      }
+    })
+    .catch(function(){
+      if(pendingBarcodeForNewProduct !== code) return;
+      if(badge) badge.textContent = '📷 ' + code;
+    });
 }
 
 function handleBarcodeForSale(code){

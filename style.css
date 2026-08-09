@@ -290,6 +290,13 @@
   .bulk-catalog-row:last-child{ border-bottom:none; }
   .bulk-catalog-row input[type=checkbox]{ width:18px; height:18px; flex-shrink:0; }
   .bulk-catalog-row.disabled{ opacity:0.4; cursor:not-allowed; }
+  /* Le scanner de code-barres doit toujours apparaître AU-DESSUS de n'importe quelle autre
+     fiche déjà ouverte (ex : le formulaire d'ajout de produit) — sinon la caméra reste
+     invisible derrière. On force un z-index plus haut que les .sheet-overlay classiques
+     (30) plutôt que de dépendre de l'ordre d'apparition dans le HTML, qui n'est pas fiable
+     dès que deux fiches sont ouvertes en même temps. */
+  #barcode-scan-overlay, #barcode-confirm-overlay{ z-index:45; }
+  #barcode-scan-region video{ width:100%; border-radius:12px; }
   .bulk-catalog-row.disabled{ opacity:.4; }
   .promo-badge{
     display:inline-block; background:var(--marigold); color:var(--charcoal);
