@@ -604,7 +604,26 @@ function initEmployeeModeIfAny(){
   }
   renderAccountUI();
   attachRealtimeListener(employeeOwnerUid);
+  hideBootLoading();
   return true;
+}
+
+// Écran de chargement au démarrage/rechargement : reste affiché jusqu'à ce que Firebase
+// Auth ait déterminé l'état de connexion réel (ou après un délai de sécurité) — sans ça,
+// pendant ce court instant, l'app affiche par défaut le bouton de compte "déconnecté",
+// ce qui donne l'impression trompeuse à quelqu'un déjà connecté qu'il vient d'être
+// déconnecté, et peut le pousser à essayer (inutilement) de se reconnecter.
+function hideBootLoading(){
+  const el = document.getElementById('boot-loading-overlay');
+  if(el) el.style.display = 'none';
+}
+// Filet de sécurité : si Firebase met du temps à répondre (connexion lente) ou ne répond
+// jamais (ex : requête bloquée), on ne laisse jamais l'écran de chargement bloqué pour de
+// bon — au pire, l'app démarre après ce délai avec l'état de compte qu'elle a pu déterminer.
+setTimeout(hideBootLoading, 6000);
+if(!cloudEnabled){
+  // Rien à attendre côté cloud : l'app doit rester utilisable hors-ligne sans délai.
+  hideBootLoading();
 }
 
 if(cloudEnabled){
@@ -620,11 +639,13 @@ if(cloudEnabled){
   firebase.auth().onAuthStateChanged((user)=>{
     if(user && user.isAnonymous){
       // Appareil employé : ne pas traiter comme un compte Google
+      hideBootLoading();
       return;
     }
     currentUser = user;
     renderAccountUI();
     if(user) handlePostLogin();
+    hideBootLoading();
   });
 }
 
@@ -721,6 +742,7 @@ function applyTranslations(){
   document.getElementById('t-cancel4').textContent = t.close;
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
+  document.getElementById('t-boot-loading-text').textContent = t.bootLoadingText;
   document.getElementById('t-seo-subtitle').textContent = t.seoSubtitle;
   document.getElementById('t-today').textContent = t.today;
   document.getElementById('t-profit-today').textContent = t.profitToday;
@@ -831,6 +853,11 @@ function applyTranslations(){
   document.getElementById('t-bulk-select-all-btn').textContent = t.bulkSelectAllBtn;
   document.getElementById('t-bulk-deselect-all-btn').textContent = t.bulkDeselectAllBtn;
   if(typeof updateBulkCatalogCount === 'function') updateBulkCatalogCount();
+  document.getElementById('t-discover-btn').textContent = t.discoverBtn;
+  document.getElementById('t-discover-title').textContent = t.discoverTitle;
+  document.getElementById('t-discover-intro').textContent = t.discoverIntro;
+  document.getElementById('t-discover-close-btn').textContent = t.close;
+  if(typeof renderDiscoverContent === 'function') renderDiscoverContent();
   document.getElementById('t-barcode-scan-title').textContent = t.barcodeScanTitle;
   document.getElementById('t-barcode-scan-cancel').textContent = t.barcodeScanCancel;
   document.getElementById('t-barcode-confirm-title').textContent = t.barcodeConfirmTitle;

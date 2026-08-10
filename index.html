@@ -63,6 +63,13 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code --><script src="webview-guard.js"></script>
 </head>
 <body>
+<!-- Écran de chargement au démarrage/rechargement — voir hideBootLoading() dans
+     stores-devices.js. Placé tout en haut du body pour s'afficher le plus tôt possible,
+     avant même que les scripts n'aient fini de se charger. -->
+<div id="boot-loading-overlay">
+  <div class="boot-spinner"></div>
+  <p id="t-boot-loading-text">Chargement de Mombongo…</p>
+</div>
 <div id="app">
 
   <header class="top">
@@ -82,6 +89,12 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           <button id="btn-usd" class="active" onclick="setCurrency('usd')">USD</button>
           <button id="btn-cdf" onclick="setCurrency('cdf')">FC</button>
         </div>
+        <!-- Placé sous le sélecteur USD/FC (et non dans la rangée Compte/Historique/Découvrir)
+             pour éviter que la rangée du bas ne se casse en 2 lignes en français, où les
+             libellés sont plus longs qu'en lingala/swahili. -->
+        <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
+          <span id="theme-btn-icon">🌙</span>
+        </button>
       </div>
     </div>
     <div id="rate-row">
@@ -101,9 +114,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       <button id="discover-btn" onclick="openDiscoverSheet()">
         <span>💡</span>
         <span id="t-discover-btn">Découvrir</span>
-      </button>
-      <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
-        <span id="theme-btn-icon">🌙</span>
       </button>
       <span id="promo-first-users-badge" class="promo-badge" style="display:none;"></span>
     </div>
