@@ -1,15 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://kabamba001-bot.github.io/Mombongo/</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html"/>
+    <xhtml:link rel="alternate" hreflang="ln" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-ln.html"/>
+    <xhtml:link rel="alternate" hreflang="sw" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-sw.html"/>
+  </url>
+  <url>
+    <loc>https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-ln.html</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html"/>
+    <xhtml:link rel="alternate" hreflang="ln" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-ln.html"/>
+    <xhtml:link rel="alternate" hreflang="sw" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-sw.html"/>
+  </url>
+  <url>
+    <loc>https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-sw.html</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html"/>
+    <xhtml:link rel="alternate" hreflang="ln" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-ln.html"/>
+    <xhtml:link rel="alternate" hreflang="sw" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-sw.html"/>
   </url>
 </urlset>

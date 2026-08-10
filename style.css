@@ -71,8 +71,8 @@
     font-size:13px; font-family:'Inter'; font-weight:600;
   }
   #rate-row span{font-size:12px; margin-left:6px;}
-  #account-row{margin-top:10px; position:relative; z-index:1;}
-  #account-btn, #history-btn{
+  #account-row{margin-top:10px; position:relative; z-index:1; flex-wrap:wrap; row-gap:6px;}
+  #account-btn, #history-btn, #discover-btn{
     display:flex; align-items:center; gap:6px;
     background:rgba(0,0,0,0.18); border:none; border-radius:999px;
     color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
@@ -265,6 +265,12 @@
     left:calc(50% + 62px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
   }
+  /* z-index au-dessus des .sheet-overlay (30) : ce bouton doit rester cliquable PENDANT
+     qu'une fiche de vente est ouverte, contrairement au micro/scanner qui sont masqués
+     par le fond assombri des fiches. */
+  .multi-confirm-fab{
+    z-index:33; bottom:20px; background:var(--emerald); font-size:28px;
+  }
   @keyframes voiceWave{
     0%{ box-shadow:0 0 0 0 rgba(192,57,43,0.55), 0 0 0 0 rgba(192,57,43,0.35); }
     60%{ box-shadow:0 0 0 18px rgba(192,57,43,0), 0 0 0 34px rgba(192,57,43,0); }
@@ -290,6 +296,27 @@
   .bulk-catalog-row:last-child{ border-bottom:none; }
   .bulk-catalog-row input[type=checkbox]{ width:18px; height:18px; flex-shrink:0; }
   .bulk-catalog-row.disabled{ opacity:0.4; cursor:not-allowed; }
+  /* Onglet "💡 Découvrir" : FAQ à accordéon */
+  .discover-item{ border-bottom:1px solid var(--paper-2); }
+  .discover-item:last-child{ border-bottom:none; }
+  .discover-item-header{
+    width:100%; display:flex; align-items:center; gap:10px; background:none; border:none;
+    padding:14px 2px; font-family:'Inter'; font-size:14px; font-weight:700; color:var(--charcoal);
+    cursor:pointer; text-align:left; -webkit-tap-highlight-color:transparent;
+  }
+  .discover-item-icon{ font-size:18px; flex-shrink:0; }
+  .discover-item-title{ flex:1; }
+  .discover-chevron{
+    font-size:20px; color:var(--charcoal-soft); flex-shrink:0;
+    transition:transform .2s ease;
+  }
+  .discover-item.open .discover-chevron{ transform:rotate(90deg); color:var(--emerald); }
+  .discover-item-body{
+    max-height:0; overflow:hidden; transition:max-height .25s ease;
+    font-size:13.3px; color:var(--charcoal-soft); line-height:1.65;
+  }
+  .discover-item-body p{ margin:0 0 14px 2px; }
+  .discover-item.open .discover-item-body{ max-height:600px; }
   /* Le scanner de code-barres doit toujours apparaître AU-DESSUS de n'importe quelle autre
      fiche déjà ouverte (ex : le formulaire d'ajout de produit) — sinon la caméra reste
      invisible derrière. On force un z-index plus haut que les .sheet-overlay classiques

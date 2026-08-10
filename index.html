@@ -98,6 +98,10 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <span>🧾</span>
         <span id="t-history-btn">Historique</span>
       </button>
+      <button id="discover-btn" onclick="openDiscoverSheet()">
+        <span>💡</span>
+        <span id="t-discover-btn">Découvrir</span>
+      </button>
       <button id="theme-btn" onclick="toggleTheme()" aria-label="Mode nuit">
         <span id="theme-btn-icon">🌙</span>
       </button>
@@ -179,6 +183,11 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <!-- Scan de code-barres pour vendre — fonctionnalité VIP (voir barcode.js). Reste visible pour
        tout le monde selon le rôle, comme les autres boutons VIP de l'app (cadenas si pas VIP). -->
   <button type="button" class="voice-fab barcode-fab" id="barcode-sale-btn" onclick="openBarcodeScanner('sell')" aria-label="Scanner un code-barres pour vendre">📷</button>
+  <!-- Confirmer une "vente plusieurs" sans devoir descendre jusqu'en bas d'une liste de
+       centaines/milliers de produits — flotte au-dessus de la fiche de vente, uniquement
+       visible quand le mode "Vente plusieurs" est activé (voir toggleMultiFields() dans
+       sales.js). Même cercle que le micro de vente vocale, pour rester cohérent visuellement. -->
+  <button type="button" class="voice-fab multi-confirm-fab" id="multi-confirm-fab" onclick="confirmSale()" aria-label="Confirmer la vente" style="display:none;">✅</button>
 
   <div class="sheet-overlay" id="voice-confirm-overlay">
     <div class="sheet">
@@ -767,6 +776,19 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </div>
 
+  <!-- Onglet "💡 Découvrir" : FAQ à accordéon listant toutes les fonctionnalités de l'app,
+       entièrement pilotée par les traductions (voir discover.js / renderDiscoverContent). -->
+  <div class="sheet-overlay" id="discover-overlay">
+    <div class="sheet" style="min-height:80vh;">
+      <h3 id="t-discover-title">💡 Découvrir Mombongo</h3>
+      <p style="font-size:12.5px; color:var(--charcoal-soft); line-height:1.5; margin:-8px 0 14px;" id="t-discover-intro">
+        Touche une fonctionnalité pour voir comment l'utiliser.
+      </p>
+      <div id="discover-list"></div>
+      <button class="btn-secondary" onclick="closeDiscoverSheet()" id="t-discover-close-btn" style="margin-top:16px;">Fermer</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="history-overlay">
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -963,6 +985,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="data-catalog.js"></script>
 <script src="products.js"></script>
 <script src="barcode.js"></script>
+<script src="discover.js"></script>
 <script src="sales.js"></script>
 <script src="render.js"></script>
 <script src="navigation.js"></script>

@@ -17,6 +17,7 @@ function openSellSheet(id){
   document.getElementById('in-multi-search').value = '';
   document.getElementById('in-has-debt').checked = false;
   document.getElementById('debt-fields').style.display = 'none';
+  document.getElementById('multi-confirm-fab').style.display = 'none';
   document.getElementById('in-debt-amount').value = '';
   document.getElementById('in-debt-client-name').value = '';
   document.getElementById('in-debt-client-phone').value = '';
@@ -30,6 +31,7 @@ function openSellSheet(id){
 }
 function closeSellSheet(){
   document.getElementById('sell-overlay').classList.remove('open');
+  document.getElementById('multi-confirm-fab').style.display = 'none';
   sellingProductId = null;
 }
 function toggleCreditFields(){
@@ -45,6 +47,9 @@ function toggleMultiFields(){
   const isMulti = document.getElementById('in-is-multi').checked;
   document.getElementById('single-sale-fields').style.display = isMulti ? 'none' : 'block';
   document.getElementById('multi-fields').style.display = isMulti ? 'block' : 'none';
+  // Bouton flottant ✅ : évite de devoir descendre jusqu'en bas d'un catalogue de
+  // plusieurs centaines/milliers de produits juste pour valider le panier.
+  document.getElementById('multi-confirm-fab').style.display = isMulti ? 'flex' : 'none';
   if(isMulti) renderMultiProductList();
   else {
     document.getElementById('in-has-debt').checked = false;

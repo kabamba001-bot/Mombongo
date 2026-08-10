@@ -6,6 +6,10 @@
 <title>Comment suivre les ventes et le stock de sa boutique sans se tromper (RDC)</title>
 <meta name="description" content="Cahier de compte, stock, dettes, bénéfice réel : le guide pratique pour bien suivre son commerce en RDC — boutique, pharmacie ou quincaillerie, à Kinshasa, Lubumbashi, Goma et ailleurs.">
 <link rel="canonical" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html">
+<link rel="alternate" hreflang="fr" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html">
+<link rel="alternate" hreflang="ln" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-ln.html">
+<link rel="alternate" hreflang="sw" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique-sw.html">
+<link rel="alternate" hreflang="x-default" href="https://kabamba001-bot.github.io/Mombongo/guide-suivi-boutique.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Mombongo">
 <meta property="og:locale" content="fr_CD">
@@ -66,13 +70,19 @@
     font-weight:800;
     font-size:1.15rem;
   }
-  .top-bar-inner a{
+  .top-bar-inner .back-link{
     color:#fff;
     opacity:0.85;
     text-decoration:none;
     font-size:0.85rem;
     margin-left:auto;
   }
+  .lang-switch{ display:flex; gap:6px; margin-left:14px; }
+  .lang-switch a{
+    color:#fff; text-decoration:none; font-weight:700; font-size:0.75rem;
+    padding:3px 8px; border-radius:7px; background:rgba(255,255,255,0.14); opacity:0.75;
+  }
+  .lang-switch a.active{ opacity:1; background:rgba(255,255,255,0.3); }
   main{
     max-width:680px;
     margin:0 auto;
@@ -146,7 +156,12 @@
 <div class="top-bar">
   <div class="top-bar-inner">
     <span class="logo">Mombongo</span>
-    <a href="./index.html">← Retour à l'app</a>
+    <div class="lang-switch">
+      <a href="./guide-suivi-boutique.html" class="active">FR</a>
+      <a href="./guide-suivi-boutique-ln.html">LN</a>
+      <a href="./guide-suivi-boutique-sw.html">SW</a>
+    </div>
+    <a href="./index.html" class="back-link">← Retour à l'app</a>
   </div>
 </div>
 
