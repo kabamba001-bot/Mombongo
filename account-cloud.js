@@ -84,7 +84,14 @@ function updateBackupBanner(){
   const snoozed = (Date.now() - dismissedAt) < BACKUP_BANNER_SNOOZE_MS;
   const hasSold = typeof sales !== 'undefined' && Array.isArray(sales) && sales.length > 0;
   const shouldShow = !currentUser && !isEmployeeMode && hasSold && !snoozed;
-  banner.style.display = shouldShow ? 'flex' : 'none';
+  // Bascule la classe .show plutôt que style.display directement : la fiche des chiffres
+  // juste en dessous (.stats-row) remonte volontairement de 18px pour chevaucher joliment
+  // le bandeau vert du haut quand ce message n'est PAS affiché — la règle CSS
+  // « .backup-banner.show + .stats-row » annule ce chevauchement uniquement quand la
+  // classe .show est présente. Passer par style.display directement ne déclenchait jamais
+  // cette règle (elle ne réagit qu'à la classe), d'où le chevauchement visuel avec le
+  // message "Sauvegarde inactive".
+  banner.classList.toggle('show', shouldShow);
 }
 function dismissBackupBanner(){
   localStorage.setItem('mombongo:backupBannerDismissedAt', Date.now().toString());

@@ -57,7 +57,12 @@ function render(){
   const debtRow = document.querySelector('.sub-debt');
   if(debtRow) debtRow.style.display = (role==='magasinier') ? 'none' : '';
 
-  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  // Un produit jamais vendu (ex : tout juste importé du catalogue intégré avec une
+  // quantité à 0 par défaut) n'a jamais été réellement "en rupture" — il n'a simplement
+  // pas encore été mis en vente. On ne le compte en "stock faible" qu'à partir du moment
+  // où il a été vendu au moins une fois (lastSoldAt renseigné), pour éviter qu'un import
+  // en masse de centaines de produits ne déclenche autant de fausses alertes d'un coup.
+  const lowStock = products.filter(p=>p.qty <= p.threshold && p.lastSoldAt);
   const dormant = products.filter(p=>{
     const ref = p.lastSoldAt || p.createdAt;
     return daysSince(ref) >= 14;
@@ -457,7 +462,9 @@ function renderAlertsSheet(){
   const t = dict[currentLang];
   const list = document.getElementById('alerts-sheet-list');
   const empty = document.getElementById('alerts-sheet-empty');
-  const lowStock = products.filter(p=>p.qty <= p.threshold);
+  // Même règle que pour le compteur du tableau de bord : un produit jamais vendu ne
+  // s'affiche pas dans "stock faible" tant qu'il n'a pas été vendu au moins une fois.
+  const lowStock = products.filter(p=>p.qty <= p.threshold && p.lastSoldAt);
   const dormant = products.filter(p=>{
     const ref = p.lastSoldAt || p.createdAt;
     return daysSince(ref) >= 14;
