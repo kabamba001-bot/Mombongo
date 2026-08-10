@@ -181,10 +181,14 @@ function updateProductNameSuggestions(){
   // pour ça, il est déjà caché par openEditSheet()) et seulement s'il existe un catalogue.
   const bulkBtn = document.getElementById('t-bulk-catalog-open-btn');
   const addModeRow = document.getElementById('add-mode-row');
+  const isNewProductMode = addModeRow && addModeRow.style.display !== 'none';
   if(bulkBtn){
-    const isNewProductMode = addModeRow && addModeRow.style.display !== 'none';
     bulkBtn.style.display = (activeCatalogForForm && isNewProductMode) ? 'block' : 'none';
   }
+  // La saisie rapide en tableau ne dépend elle d'aucun catalogue (c'est de la saisie
+  // manuelle) — uniquement du mode "nouveau produit".
+  const gridBtn = document.getElementById('t-grid-add-open-btn');
+  if(gridBtn) gridBtn.style.display = isNewProductMode ? 'block' : 'none';
 }
 
 function maybeOfferCustomCatalogSave(name){

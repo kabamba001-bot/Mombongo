@@ -254,8 +254,15 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
            pour créer plusieurs produits en une seule validation au lieu de répéter tout
            le formulaire pour chacun. -->
       <button type="button" class="btn-secondary" id="t-bulk-catalog-open-btn"
-              style="background:var(--paper-2); border-radius:10px; margin-bottom:16px; display:none;"
+              style="background:var(--paper-2); border-radius:10px; margin-bottom:10px; display:none;"
               onclick="openBulkCatalogSheet()">📋 Ajout rapide depuis le catalogue</button>
+
+      <!-- Saisie rapide en tableau : pour taper beaucoup de produits à la suite sans rouvrir
+           ce formulaire à chaque fois — utile même quand les produits ne sont PAS dans le
+           catalogue intégré (fait main, nom inconnu du catalogue...). -->
+      <button type="button" class="btn-secondary" id="t-grid-add-open-btn"
+              style="background:var(--paper-2); border-radius:10px; margin-bottom:16px; display:none;"
+              onclick="openGridAddSheet()">🧮 Saisie rapide en tableau</button>
 
       <div id="mode-simple-fields">
         <div class="field">
@@ -769,20 +776,34 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           <input id="in-bulk-default-threshold" type="number" inputmode="numeric" placeholder="3" value="3">
         </div>
       </div>
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-        <span id="bulk-catalog-count" style="font-size:12.5px; font-weight:700; color:var(--emerald);">0 sélectionnés</span>
-        <div style="display:flex; gap:6px;">
-          <!-- Réservé au VIP : un compte gratuit est de toute façon plafonné à 30 produits,
-               "tout cocher" n'a donc de sens que sans limite. -->
-          <button type="button" id="t-bulk-select-all-btn" onclick="selectAllBulkCatalog()"
-                  style="display:none; font-size:12px; font-weight:700; background:none; border:none; color:var(--emerald); padding:4px 6px;">Tout cocher</button>
-          <button type="button" id="t-bulk-deselect-all-btn" onclick="deselectAllBulkCatalog()"
-                  style="font-size:12px; font-weight:700; background:none; border:none; color:var(--charcoal-soft); padding:4px 6px;">Tout décocher</button>
-        </div>
-      </div>
       <div id="bulk-catalog-list" style="max-height:32vh; overflow-y:auto; border:1.5px solid var(--paper-2); border-radius:10px; padding:4px 10px; margin-bottom:14px;"></div>
       <button class="btn-primary" onclick="confirmBulkCatalogAdd()" id="t-bulk-confirm-btn" disabled>Ajouter 0 produits</button>
       <button class="btn-secondary" onclick="closeBulkCatalogSheet()" id="t-bulk-cancel-btn">Annuler</button>
+    </div>
+  </div>
+
+  <!-- Saisie rapide en tableau : plusieurs produits tapés à la suite (nom | achat | vente |
+       qté) sans rouvrir le formulaire à chaque fois — seuil d'alerte fixé à 3 pour tous,
+       pas de champ dédié pour rester rapide. Voir openGridAddSheet() / confirmGridAdd()
+       dans products.js. -->
+  <div class="sheet-overlay" id="grid-add-overlay">
+    <div class="sheet" style="min-height:80vh;">
+      <h3 id="t-grid-add-title">🧮 Saisie rapide en tableau</h3>
+      <p style="font-size:12.5px; color:var(--charcoal-soft); line-height:1.5; margin:-8px 0 12px;" id="t-grid-add-desc">
+        Remplis une ligne par produit — laisse une ligne vide si tu n'en as pas besoin. Le seuil d'alerte est fixé à 3 pour tous ces produits ; tu pourras l'ajuster ensuite avec "Modifier" si besoin.
+      </p>
+      <div class="grid-add-header">
+        <span id="t-grid-col-name">Nom</span>
+        <span id="t-grid-col-buy">Achat</span>
+        <span id="t-grid-col-sell">Vente</span>
+        <span id="t-grid-col-qty">Qté</span>
+        <span></span>
+      </div>
+      <div id="grid-add-rows"></div>
+      <button type="button" class="btn-secondary" id="t-grid-add-row-btn"
+              style="margin-bottom:14px;" onclick="addGridRow()">+ Ajouter une ligne</button>
+      <button class="btn-primary" onclick="confirmGridAdd()" id="t-grid-confirm-btn" disabled>Enregistrer 0 produits</button>
+      <button class="btn-secondary" onclick="closeGridAddSheet()" id="t-grid-cancel-btn">Annuler</button>
     </div>
   </div>
 

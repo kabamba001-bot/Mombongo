@@ -16,6 +16,7 @@ const DISCOVER_SECTIONS = [
   { icon:'📦', key:'addCarton' },
   { icon:'🌾', key:'addSac' },
   { icon:'📋', key:'addBulkCatalog' },
+  { icon:'🧮', key:'gridAdd' },
   { icon:'📷', key:'addBarcode' },
   { icon:'📄', key:'duplicateProduct' },
   { icon:'✏️', key:'editDeleteProduct' },

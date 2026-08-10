@@ -332,6 +332,24 @@
   }
   .discover-item-body p{ margin:0 0 14px 2px; }
   .discover-item.open .discover-item-body{ max-height:600px; }
+  /* Saisie rapide en tableau */
+  .grid-add-header{
+    display:grid; grid-template-columns:2.1fr 1fr 1fr 0.85fr 22px; gap:6px;
+    font-size:11px; font-weight:700; color:var(--charcoal-soft); text-transform:uppercase;
+    padding:0 2px 6px; letter-spacing:.02em;
+  }
+  .grid-add-row{
+    display:grid; grid-template-columns:2.1fr 1fr 1fr 0.85fr 22px; gap:6px;
+    align-items:center; margin-bottom:8px;
+  }
+  .grid-add-row input{
+    width:100%; padding:9px 8px; border-radius:8px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:13px; font-family:'Inter'; color:var(--charcoal); min-width:0;
+  }
+  .grid-add-row input:focus{ outline:2px solid var(--emerald-light); border-color:transparent; }
+  .grid-add-row .grid-row-del{
+    background:none; border:none; color:var(--alert); font-size:16px; padding:2px; cursor:pointer;
+  }
   /* Le scanner de code-barres doit toujours apparaître AU-DESSUS de n'importe quelle autre
      fiche déjà ouverte (ex : le formulaire d'ajout de produit) — sinon la caméra reste
      invisible derrière. On force un z-index plus haut que les .sheet-overlay classiques

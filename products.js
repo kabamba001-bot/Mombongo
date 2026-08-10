@@ -84,6 +84,8 @@ function openEditSheet(id){
   document.getElementById('add-mode-row').style.display = 'none';
   const bulkBtn = document.getElementById('t-bulk-catalog-open-btn');
   if(bulkBtn) bulkBtn.style.display = 'none';
+  const gridBtn = document.getElementById('t-grid-add-open-btn');
+  if(gridBtn) gridBtn.style.display = 'none';
   resetMesurettes();
   setAddMode('simple');
   resetFieldCurrencies();
@@ -581,6 +583,101 @@ async function duplicateProduct(id){
   await saveProducts();
   render();
   openEditSheet(copy.id);
+}
+
+/* =========================================================================
+   SAISIE RAPIDE EN TABLEAU
+   ---------------------------------------------------------------------------
+   Une grille façon tableur — une ligne par produit (nom | achat | vente | qté)
+   — pour taper plusieurs produits à la suite sans rouvrir/fermer le formulaire
+   d'ajout habituel à chaque fois. Contrairement à l'ajout depuis le catalogue,
+   ça ne dépend d'aucun catalogue existant : utile pour des produits faits
+   maison ou spécifiques à la boutique, dont le nom n'est dans aucune liste.
+   Le seuil d'alerte est fixé à GRID_DEFAULT_THRESHOLD pour tous les produits
+   créés ici (pas de colonne dédiée, pour garder la grille rapide à remplir) —
+   modifiable ensuite produit par produit avec "Modifier ✏️" si besoin.
+   ========================================================================= */
+const GRID_DEFAULT_THRESHOLD = 3;
+const GRID_INITIAL_ROWS = 8;
+
+function openGridAddSheet(){
+  if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  document.getElementById('grid-add-rows').innerHTML = '';
+  for(let i=0; i<GRID_INITIAL_ROWS; i++) addGridRow();
+  updateGridConfirmCount();
+  document.getElementById('grid-add-overlay').classList.add('open');
+}
+function closeGridAddSheet(){
+  document.getElementById('grid-add-overlay').classList.remove('open');
+}
+function addGridRow(){
+  const t = dict[currentLang];
+  const row = document.createElement('div');
+  row.className = 'grid-add-row';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text'; nameInput.className = 'grid-name';
+  nameInput.placeholder = t.gridColName || 'Nom';
+  nameInput.addEventListener('input', updateGridConfirmCount);
+
+  const buyInput = document.createElement('input');
+  buyInput.type = 'number'; buyInput.inputMode = 'decimal'; buyInput.className = 'grid-buy'; buyInput.placeholder = '0';
+
+  const sellInput = document.createElement('input');
+  sellInput.type = 'number'; sellInput.inputMode = 'decimal'; sellInput.className = 'grid-sell'; sellInput.placeholder = '0';
+
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number'; qtyInput.inputMode = 'numeric'; qtyInput.className = 'grid-qty'; qtyInput.placeholder = '0';
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button'; delBtn.className = 'grid-row-del'; delBtn.textContent = '✕';
+  delBtn.setAttribute('aria-label', t.gridRemoveRowLabel || 'Supprimer la ligne');
+  delBtn.addEventListener('click', function(){ row.remove(); updateGridConfirmCount(); });
+
+  row.appendChild(nameInput); row.appendChild(buyInput); row.appendChild(sellInput);
+  row.appendChild(qtyInput); row.appendChild(delBtn);
+  document.getElementById('grid-add-rows').appendChild(row);
+}
+function updateGridConfirmCount(){
+  const rows = document.querySelectorAll('#grid-add-rows .grid-add-row');
+  let n = 0;
+  rows.forEach(row=>{
+    if(row.querySelector('.grid-name').value.trim()) n++;
+  });
+  const btn = document.getElementById('t-grid-confirm-btn');
+  if(!btn) return;
+  const t = dict[currentLang];
+  btn.textContent = (t.gridConfirmBtn || 'Enregistrer {n} produits').replace('{n}', n);
+  btn.disabled = n === 0;
+}
+async function confirmGridAdd(){
+  const rows = document.querySelectorAll('#grid-add-rows .grid-add-row');
+  const toCreate = [];
+  rows.forEach(row=>{
+    const name = row.querySelector('.grid-name').value.trim();
+    if(!name) return; // ligne laissée vide, simplement ignorée
+    const rawBuy = parseFloat(row.querySelector('.grid-buy').value) || 0;
+    const rawSell = parseFloat(row.querySelector('.grid-sell').value) || 0;
+    const qty = parseInt(row.querySelector('.grid-qty').value, 10) || 0;
+    toCreate.push({ name, buy: toInternal(rawBuy), sell: toInternal(rawSell), qty });
+  });
+  if(toCreate.length === 0) return;
+  if(!canAddMoreProducts(toCreate.length)){ openLimitSheet('products'); return; }
+  let offset = 0;
+  toCreate.forEach(item=>{
+    offset++;
+    products.push({
+      id: (Date.now()+offset).toString(), name: item.name, buy: item.buy, sell: item.sell,
+      qty: item.qty, threshold: GRID_DEFAULT_THRESHOLD, expiryDate: null, lastSoldAt: null, createdAt: Date.now()
+    });
+  });
+  await saveProducts();
+  closeGridAddSheet();
+  closeAddSheet();
+  const t = dict[currentLang];
+  const msg = (t.gridAddSuccess || '{n} produits ajoutés').replace('{n}', toCreate.length);
+  showToast(msg, 3500);
+  render();
 }
 
 function scrollConfirmIntoView(){
