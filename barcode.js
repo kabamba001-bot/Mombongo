@@ -18,7 +18,7 @@
    ========================================================================= */
 
 let pendingBarcodeForNewProduct = null; // consommé par addProduct()/addCartonProduct() dans products.js
-let pendingBarcodeNameWasUnknown = false; // vrai si ni la base communautaire ni Open Food Facts n'avaient de nom pour ce code
+let pendingBarcodeLookupResult = null;  // 'community' | 'off' | 'none' | null — résultat du DERNIER scan "ajout"
 let barcodeScannerInstance = null;
 let barcodeScanMode = null;   // 'add' | 'sell'
 let pendingBarcodeSale = null; // { product, qty }
@@ -69,49 +69,7 @@ function onBarcodeDetected(code){
   else handleBarcodeForSale(code);
 }
 
-/* =========================================================================
-   BASE COMMUNAUTAIRE DE NOMS DE PRODUITS (codes-barres locaux)
-   ---------------------------------------------------------------------------
-   Open Food Facts ne connaît que les produits internationaux — un produit
-   local (fabriqué ou reconditionné en RDC, sans code officiellement
-   enregistré) n'y figure presque jamais. Cette base comble le trou :
-   quand un commerçant tape lui-même le nom d'un code inconnu, ce nom est
-   mémorisé dans Firestore (collection "community_barcodes", un document par
-   code) pour que TOUS les autres utilisateurs de Mombongo — pas seulement
-   lui — reconnaissent automatiquement ce même code au prochain scan.
-   Un nom, une fois soumis, n'est plus jamais écrasé par quelqu'un d'autre
-   (voir firestore.rules : create seulement, update/delete bloqués) — ça
-   évite qu'un scan hâtif ou une faute de frappe remplace un nom correct
-   déjà en place.
-   ========================================================================= */
-async function lookupCommunityBarcodeName(code){
-  if(!cloudEnabled || !db) return null;
-  try{
-    const doc = await db.collection('community_barcodes').doc(code).get();
-    return (doc.exists && doc.data().name) ? doc.data().name : null;
-  }catch(e){
-    return null; // pas grave : on retombe simplement sur Open Food Facts / la saisie manuelle
-  }
-}
-
-async function maybeContributeBarcodeName(code, name){
-  if(!code || !name || !name.trim() || !cloudEnabled || !db) return;
-  try{
-    // .set() sur un document qui n'existe pas encore est traité comme un "create" par
-    // Firestore (voir firestore.rules) — s'il existe déjà (quelqu'un d'autre a contribué
-    // entre-temps), la règle bloque la mise à jour et cet appel échoue silencieusement,
-    // ce qui est le comportement voulu : le premier nom correct soumis reste définitif.
-    await db.collection('community_barcodes').doc(code).set({
-      name: name.trim(),
-      addedAt: Date.now()
-    });
-  }catch(e){
-    // Écriture refusée (nom déjà présent) ou hors-ligne : sans conséquence pour
-    // l'utilisateur, son produit est déjà enregistré localement dans tous les cas.
-  }
-}
-
-function handleBarcodeForAdd(code){
+async function handleBarcodeForAdd(code){
   const existing = products.find(function(p){ return p.barcode === code; });
   if(existing){
     // Ce code existe déjà sur un autre produit — on ouvre sa fiche pour corriger plutôt
@@ -122,7 +80,7 @@ function handleBarcodeForAdd(code){
   }
   openAddSheet();
   pendingBarcodeForNewProduct = code;
-  pendingBarcodeNameWasUnknown = false; // sera mis à jour une fois les deux sources vérifiées
+  pendingBarcodeLookupResult = null;
   const badge = document.getElementById('add-barcode-badge');
   const nameField = document.getElementById('in-name');
   const t = dict[currentLang];
@@ -131,49 +89,43 @@ function handleBarcodeForAdd(code){
     badge.textContent = '📷 ' + code + ' — ' + (t.barcodeLookingUpName || 'recherche du nom…');
   }
 
-  // Étape 1 : la base communautaire Mombongo — spécifique aux produits locaux, donc
-  // vérifiée en premier (plus pertinente qu'Open Food Facts pour ce marché, et un
-  // appel Firestore est généralement plus rapide qu'un appel à une API externe).
-  lookupCommunityBarcodeName(code).then(function(communityName){
-    // Le code-barres a pu changer entre-temps (nouveau scan pendant la recherche) —
-    // on ignore une réponse qui ne correspond plus au scan en cours.
-    if(pendingBarcodeForNewProduct !== code) return;
-    if(communityName){
-      if(nameField && !nameField.value.trim()) nameField.value = communityName;
-      if(badge) badge.textContent = '📷 ' + code + ' — ' + communityName;
-      pendingBarcodeNameWasUnknown = false;
-      return;
-    }
-    // Étape 2 : rien dans la base communautaire — on tente Open Food Facts en
-    // secours, pour les produits de marque internationale déjà référencés ailleurs
-    // dans le monde (boissons, conserves, médicaments importés...). On ne bloque
-    // JAMAIS le formulaire en attendant : le commerçant peut déjà taper le nom
-    // lui-même pendant que la recherche tourne en arrière-plan, et elle ne remplace
-    // le champ que s'il est encore vide au moment où la réponse arrive.
-    fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(code) + '.json?fields=product_name')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(pendingBarcodeForNewProduct !== code) return;
-        const foundName = data && data.product && data.product.product_name;
-        if(foundName){
-          if(nameField && !nameField.value.trim()) nameField.value = foundName;
-          if(badge) badge.textContent = '📷 ' + code + ' — ' + foundName;
-          pendingBarcodeNameWasUnknown = false;
-        } else {
-          // Ni la base communautaire ni Open Food Facts ne connaissent ce code — très
-          // probablement un produit local. On l'indique clairement : le nom que le
-          // commerçant va taper sera mémorisé pour que Mombongo reconnaisse ce même
-          // code automatiquement au prochain scan, par n'importe quel utilisateur.
-          pendingBarcodeNameWasUnknown = true;
-          if(badge) badge.textContent = '📷 ' + code + (t.barcodeNameNotFound ? (' — ' + t.barcodeNameNotFound) : '');
-        }
-      })
-      .catch(function(){
-        if(pendingBarcodeForNewProduct !== code) return;
-        pendingBarcodeNameWasUnknown = true;
+  // 1) D'abord le catalogue communautaire Mombongo (voir community-catalog.js) — des
+  // produits déjà vus et confirmés localement par d'autres commerçants, bien plus
+  // pertinents ici que la base internationale.
+  const communityMatch = await lookupBarcodeInCommunityCatalog(code);
+  if(pendingBarcodeForNewProduct !== code) return; // le scan a changé entre-temps, on ignore
+  if(communityMatch){
+    pendingBarcodeLookupResult = 'community';
+    if(nameField && !nameField.value.trim()) nameField.value = communityMatch.name;
+    if(badge) badge.textContent = '📷 ' + code + ' — ' + communityMatch.name + ' (🌍 ' + t.communityCatalogBadge + ')';
+    confirmCommunityCatalogEntry(code); // meilleur effort, fait grandir la confiance dans cette entrée
+    return;
+  }
+
+  // 2) Repli : Open Food Facts, surtout utile pour les produits de marque importés
+  // (boissons, conserves, médicaments importés...) qu'on ne trouvera pas forcément
+  // encore dans le catalogue communautaire tant que personne ne les a scannés ici.
+  fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(code) + '.json?fields=product_name')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      // Le code-barres a pu changer entre-temps (nouveau scan pendant que celui-ci cherchait) —
+      // on ignore une réponse qui ne correspond plus au scan en cours.
+      if(pendingBarcodeForNewProduct !== code) return;
+      const foundName = data && data.product && data.product.product_name;
+      if(foundName){
+        pendingBarcodeLookupResult = 'off';
+        if(nameField && !nameField.value.trim()) nameField.value = foundName;
+        if(badge) badge.textContent = '📷 ' + code + ' — ' + foundName;
+      } else {
+        pendingBarcodeLookupResult = 'none';
         if(badge) badge.textContent = '📷 ' + code + (t.barcodeNameNotFound ? (' — ' + t.barcodeNameNotFound) : '');
-      });
-  });
+      }
+    })
+    .catch(function(){
+      if(pendingBarcodeForNewProduct !== code) return;
+      pendingBarcodeLookupResult = 'none';
+      if(badge) badge.textContent = '📷 ' + code;
+    });
 }
 
 function handleBarcodeForSale(code){

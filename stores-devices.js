@@ -17,7 +17,7 @@ let pairingWaitUnsub = null;
 // synchronisés) qui écraseraient les vraies données du patron dans le cloud.
 let employeeSyncReady = false;
 let pinCountdownTimer = null;
-let selectedJoinRole = 'patron';
+let selectedGenerateRole = 'caissier';
 
 function currentRole(){
   if(isEmployeeMode) return employeeRole || 'patron';
@@ -315,6 +315,20 @@ async function renameStore(storeId){
   showToast(t.storeRenamed);
 }
 
+async function editStorePhone(storeId){
+  const t = dict[currentLang];
+  const store = stores.find(s=>s.id===storeId);
+  if(!store) return;
+  const newPhone = window.prompt(t.storePhonePrompt, store.phone || '');
+  if(newPhone === null) return; // annulé
+  const trimmed = newPhone.trim();
+  if(trimmed === (store.phone || '')) return;
+  store.phone = trimmed;
+  await pushToCloud();
+  renderStoresList();
+  showToast(t.storePhoneUpdated);
+}
+
 async function switchStore(storeId){
   if(!canManageStoresAndDevices() || storeId === activeStoreId) return;
   await pushToCloud(); // sauvegarde la boutique quittée
@@ -426,9 +440,19 @@ async function removeDevice(deviceUid){
 
 function openGeneratePinSheet(){
   if(!isVip){ closeAccountSheet(); openLimitSheet('devices'); return; }
+  selectedGenerateRole = 'caissier';
+  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role==='caissier'));
   document.getElementById('generate-pin-overlay').classList.add('open');
   generateNewPin();
   watchForDevicePairing();
+}
+function selectGenerateRole(role, btn){
+  selectedGenerateRole = role;
+  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  // Un code déjà affiché reste lié au rôle avec lequel il a été généré : on en
+  // génère un nouveau tout de suite pour que le code affiché corresponde
+  // toujours exactement au rôle actuellement sélectionné à l'écran.
+  generateNewPin();
 }
 function closeGeneratePinSheet(){
   document.getElementById('generate-pin-overlay').classList.remove('open');
@@ -481,7 +505,7 @@ async function generateNewPin(){
   const expiresAt = Date.now() + 10 * 60 * 1000;
   try{
     await db.collection('pairing_codes').doc(pin).set({
-      ownerUid: ownerUid, storeId: activeStoreId, createdAt: Date.now(), expiresAt
+      ownerUid: ownerUid, storeId: activeStoreId, role: selectedGenerateRole, createdAt: Date.now(), expiresAt
     });
     currentPin = pin;
     currentPinExpiresAt = expiresAt;
@@ -507,16 +531,10 @@ function updatePinCountdown(){
 function openJoinWithCodeSheet(){
   document.getElementById('in-join-pin').value = '';
   document.getElementById('in-join-device-name').value = '';
-  selectedJoinRole = 'patron';
-  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role==='patron'));
   document.getElementById('join-with-code-overlay').classList.add('open');
 }
 function closeJoinWithCodeSheet(){
   document.getElementById('join-with-code-overlay').classList.remove('open');
-}
-function selectJoinRole(role, btn){
-  selectedJoinRole = role;
-  document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b===btn));
 }
 async function confirmJoinWithPin(){
   const t = dict[currentLang];
@@ -533,14 +551,18 @@ async function confirmJoinWithPin(){
     const codeData = codeDoc.data();
     if(codeData.expiresAt < Date.now()){ showToast(t.pinExpired); return; }
     const myUid = firebase.auth().currentUser.uid;
+    // Le rôle vient du code lui-même (choisi par le patron en le générant), jamais d'un
+    // choix fait ici — "usedPin" permet aux règles Firestore de vérifier que ce rôle
+    // correspond bien à celui du code utilisé, avant d'accepter la création du document.
+    const grantedRole = codeData.role || 'caissier';
     await db.collection('mombongo_users').doc(codeData.ownerUid).collection('devices').doc(myUid).set({
-      role: selectedJoinRole, name: name || '', storeId: codeData.storeId, addedAt: Date.now()
+      role: grantedRole, name: name || '', storeId: codeData.storeId, addedAt: Date.now(), usedPin: pin
     });
     try{ await db.collection('pairing_codes').doc(pin).delete(); }catch(e){}
 
     isEmployeeMode = true;
     employeeOwnerUid = codeData.ownerUid;
-    employeeRole = selectedJoinRole;
+    employeeRole = grantedRole;
     employeeStoreId = codeData.storeId;
     employeeDeviceName = name || '';
     localSet('mombongo:employeeOwnerUid', employeeOwnerUid);

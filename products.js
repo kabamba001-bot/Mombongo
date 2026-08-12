@@ -66,6 +66,7 @@ function openAddSheet(){
   setAddMode('simple');
   resetFieldCurrencies();
   updateProductNameSuggestions();
+  if(typeof loadCommunityCatalogForActiveStore === 'function') loadCommunityCatalogForActiveStore();
   // Réinitialisé par défaut ici — c'est handleBarcodeForAdd() (barcode.js) qui le remet
   // juste après cet appel quand on arrive depuis un scan de code-barres.
   pendingBarcodeForNewProduct = null;
@@ -84,6 +85,8 @@ function openEditSheet(id){
   document.getElementById('add-mode-row').style.display = 'none';
   const bulkBtn = document.getElementById('t-bulk-catalog-open-btn');
   if(bulkBtn) bulkBtn.style.display = 'none';
+  const gridBtn = document.getElementById('t-grid-add-open-btn');
+  if(gridBtn) gridBtn.style.display = 'none';
   resetMesurettes();
   setAddMode('simple');
   resetFieldCurrencies();
@@ -259,6 +262,10 @@ async function handleAddSave(){
 
 async function addProduct(){
   const name = document.getElementById('in-name').value.trim();
+  if(hasNegativeInputs(['in-buy','in-sell','in-qty','in-threshold'])){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
   const rawBuy = parseFloat(document.getElementById('in-buy').value) || 0;
   const rawSell = parseFloat(document.getElementById('in-sell').value) || 0;
   // Chaque champ (achat/vente) convertit selon sa propre devise sélectionnée
@@ -288,16 +295,11 @@ async function addProduct(){
       lastSoldAt: null, createdAt: Date.now(),
       barcode: pendingBarcodeForNewProduct || null
     });
-    // Si ce code-barres n'était reconnu ni par la base communautaire ni par Open Food
-    // Facts, le nom que le commerçant vient de taper est justement celui qui manquait —
-    // on le partage pour que Mombongo reconnaisse ce code au prochain scan, chez
-    // n'importe quel utilisateur.
-    if(pendingBarcodeForNewProduct && pendingBarcodeNameWasUnknown){
-      maybeContributeBarcodeName(pendingBarcodeForNewProduct, name);
-    }
-    pendingBarcodeForNewProduct = null;
-    pendingBarcodeNameWasUnknown = false;
   }
+  // Capturés AVANT closeAddSheet() (qui remet pendingBarcodeForNewProduct à null) — on en a
+  // besoin après pour, le cas échéant, proposer de contribuer au catalogue communautaire.
+  const scannedBarcode = pendingBarcodeForNewProduct;
+  const scannedLookupResult = pendingBarcodeLookupResult;
   const wasEditing = !!editingProductId;
   await saveProducts();
   closeAddSheet();
@@ -306,11 +308,18 @@ async function addProduct(){
   if(!wasEditing){
     maybeOfferCustomCatalogSave(name);
     maybeTrackFirstProduct();
+    if(typeof maybeContributeScannedProduct === 'function'){
+      maybeContributeScannedProduct(scannedBarcode, name, scannedLookupResult);
+    }
   }
 }
 
 async function addCartonProduct(){
   const name = document.getElementById('carton-name').value.trim();
+  if(hasNegativeInputs(['carton-qty','carton-buy','carton-sell','carton-threshold'])){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
   const cartonQty = parseInt(document.getElementById('carton-qty').value) || 0;
   const rawCartonBuy = parseFloat(document.getElementById('carton-buy').value) || 0;
   const rawSell = parseFloat(document.getElementById('carton-sell').value) || 0;
@@ -330,11 +339,7 @@ async function addCartonProduct(){
     qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
     barcode: pendingBarcodeForNewProduct || null
   });
-  if(pendingBarcodeForNewProduct && pendingBarcodeNameWasUnknown){
-    maybeContributeBarcodeName(pendingBarcodeForNewProduct, name);
-  }
   pendingBarcodeForNewProduct = null;
-  pendingBarcodeNameWasUnknown = false;
   await saveProducts();
   closeAddSheet();
   showToast(dict[currentLang].saved);
@@ -345,6 +350,10 @@ async function addCartonProduct(){
 
 async function addSacProduct(){
   const name = document.getElementById('sac-name').value.trim();
+  if(hasNegativeInputs(['sac-buy','sac-threshold'])){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
   const rawSacBuy = parseFloat(document.getElementById('sac-buy').value) || 0;
   const threshold = parseInt(document.getElementById('sac-threshold').value) || 3;
   if(!name || !rawSacBuy){
@@ -353,6 +362,15 @@ async function addSacProduct(){
   }
   const sacBuyInternal = toInternalField(rawSacBuy, 'sacBuy');
   const rows = document.querySelectorAll('#mesurettes-list .mesurette-row');
+  const rowIds = [];
+  rows.forEach((row)=>{
+    const idx = row.id.replace('mesurette-row-','');
+    rowIds.push('mesurette-sell-'+idx, 'mesurette-qty-'+idx);
+  });
+  if(hasNegativeInputs(rowIds)){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
   const validRows = [];
   rows.forEach((row)=>{
     const idx = row.id.replace('mesurette-row-','');
@@ -554,6 +572,10 @@ function updateBulkCatalogCount(){
 async function confirmBulkCatalogAdd(){
   if(bulkCatalogSelection.size === 0) return;
   if(!canAddMoreProducts(bulkCatalogSelection.size)){ openLimitSheet('products'); return; }
+  if(hasNegativeInputs(['in-bulk-default-sell','in-bulk-default-qty','in-bulk-default-threshold'])){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
   const rawSell = parseFloat(document.getElementById('in-bulk-default-sell').value) || 0;
   const rawQty = parseInt(document.getElementById('in-bulk-default-qty').value) || 0;
   const threshold = parseInt(document.getElementById('in-bulk-default-threshold').value) || 3;
@@ -593,6 +615,113 @@ async function duplicateProduct(id){
   await saveProducts();
   render();
   openEditSheet(copy.id);
+}
+
+/* =========================================================================
+   SAISIE RAPIDE EN TABLEAU
+   ---------------------------------------------------------------------------
+   Une grille façon tableur — une ligne par produit (nom | achat | vente | qté)
+   — pour taper plusieurs produits à la suite sans rouvrir/fermer le formulaire
+   d'ajout habituel à chaque fois. Contrairement à l'ajout depuis le catalogue,
+   ça ne dépend d'aucun catalogue existant : utile pour des produits faits
+   maison ou spécifiques à la boutique, dont le nom n'est dans aucune liste.
+   Le seuil d'alerte est fixé à GRID_DEFAULT_THRESHOLD pour tous les produits
+   créés ici (pas de colonne dédiée, pour garder la grille rapide à remplir) —
+   modifiable ensuite produit par produit avec "Modifier ✏️" si besoin.
+   ========================================================================= */
+const GRID_DEFAULT_THRESHOLD = 3;
+const GRID_INITIAL_ROWS = 8;
+
+function openGridAddSheet(){
+  if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  document.getElementById('grid-add-rows').innerHTML = '';
+  for(let i=0; i<GRID_INITIAL_ROWS; i++) addGridRow();
+  updateGridConfirmCount();
+  document.getElementById('grid-add-overlay').classList.add('open');
+}
+function closeGridAddSheet(){
+  document.getElementById('grid-add-overlay').classList.remove('open');
+}
+function addGridRow(){
+  const t = dict[currentLang];
+  const row = document.createElement('div');
+  row.className = 'grid-add-row';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text'; nameInput.className = 'grid-name';
+  nameInput.placeholder = t.gridColName || 'Nom';
+  nameInput.addEventListener('input', updateGridConfirmCount);
+
+  const buyInput = document.createElement('input');
+  buyInput.type = 'number'; buyInput.inputMode = 'decimal'; buyInput.className = 'grid-buy'; buyInput.placeholder = '0';
+
+  const sellInput = document.createElement('input');
+  sellInput.type = 'number'; sellInput.inputMode = 'decimal'; sellInput.className = 'grid-sell'; sellInput.placeholder = '0';
+
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number'; qtyInput.inputMode = 'numeric'; qtyInput.className = 'grid-qty'; qtyInput.placeholder = '0';
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button'; delBtn.className = 'grid-row-del'; delBtn.textContent = '✕';
+  delBtn.setAttribute('aria-label', t.gridRemoveRowLabel || 'Supprimer la ligne');
+  delBtn.addEventListener('click', function(){ row.remove(); updateGridConfirmCount(); });
+
+  row.appendChild(nameInput); row.appendChild(buyInput); row.appendChild(sellInput);
+  row.appendChild(qtyInput); row.appendChild(delBtn);
+  document.getElementById('grid-add-rows').appendChild(row);
+}
+function updateGridConfirmCount(){
+  const rows = document.querySelectorAll('#grid-add-rows .grid-add-row');
+  let n = 0;
+  rows.forEach(row=>{
+    if(row.querySelector('.grid-name').value.trim()) n++;
+  });
+  const btn = document.getElementById('t-grid-confirm-btn');
+  if(!btn) return;
+  const t = dict[currentLang];
+  btn.textContent = (t.gridConfirmBtn || 'Enregistrer {n} produits').replace('{n}', n);
+  btn.disabled = n === 0;
+}
+async function confirmGridAdd(){
+  const rows = document.querySelectorAll('#grid-add-rows .grid-add-row');
+  const toCreate = [];
+  let hasNegative = false;
+  rows.forEach(row=>{
+    const name = row.querySelector('.grid-name').value.trim();
+    if(!name) return; // ligne laissée vide, simplement ignorée
+    const buyEl = row.querySelector('.grid-buy');
+    const sellEl = row.querySelector('.grid-sell');
+    const qtyEl = row.querySelector('.grid-qty');
+    if(!isNonNegativeInput(buyEl.value) || !isNonNegativeInput(sellEl.value) || !isNonNegativeInput(qtyEl.value)){
+      hasNegative = true;
+      return;
+    }
+    const rawBuy = parseFloat(buyEl.value) || 0;
+    const rawSell = parseFloat(sellEl.value) || 0;
+    const qty = parseInt(qtyEl.value, 10) || 0;
+    toCreate.push({ name, buy: toInternal(rawBuy), sell: toInternal(rawSell), qty });
+  });
+  if(hasNegative){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
+  if(toCreate.length === 0) return;
+  if(!canAddMoreProducts(toCreate.length)){ openLimitSheet('products'); return; }
+  let offset = 0;
+  toCreate.forEach(item=>{
+    offset++;
+    products.push({
+      id: (Date.now()+offset).toString(), name: item.name, buy: item.buy, sell: item.sell,
+      qty: item.qty, threshold: GRID_DEFAULT_THRESHOLD, expiryDate: null, lastSoldAt: null, createdAt: Date.now()
+    });
+  });
+  await saveProducts();
+  closeGridAddSheet();
+  closeAddSheet();
+  const t = dict[currentLang];
+  const msg = (t.gridAddSuccess || '{n} produits ajoutés').replace('{n}', toCreate.length);
+  showToast(msg, 3500);
+  render();
 }
 
 function scrollConfirmIntoView(){

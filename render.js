@@ -244,6 +244,7 @@ function renderStoresList(){
     const typeIcons = { boutique:'🏪', pharmacie:'🏥', quincaillerie:'🔧', autre:'❓' };
     const typeBadge = s.type ? `<span style="font-size:11px; color:var(--charcoal-soft);">${typeIcons[s.type]||''}</span> ` : '';
     const renameBtn = `<button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--paper-2); border-radius:8px; margin:0 0 0 6px;" onclick="renameStore('${s.id}')" aria-label="Renommer">✏️</button>`;
+    const phoneBtn = `<button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--paper-2); border-radius:8px; margin:0 0 0 6px;" onclick="editStorePhone('${s.id}')" aria-label="Téléphone">☎️</button>`;
     const delBtn = stores.length > 1
       ? `<button class="btn-secondary" style="width:auto; padding:6px 10px; background:var(--alert-bg); color:var(--alert); border-radius:8px; margin:0 0 0 6px;" onclick="deleteStore('${s.id}')" aria-label="Supprimer">🗑</button>`
       : '';
@@ -254,6 +255,7 @@ function renderStoresList(){
       <div style="display:flex; align-items:center;">
         ${active ? '' : `<button class="btn-secondary" style="width:auto; padding:6px 12px; background:var(--paper-2); border-radius:8px; margin:0;" onclick="switchStore('${s.id}')">${currentLang==='fr'?'Choisir':'Poná'}</button>`}
         ${renameBtn}
+        ${phoneBtn}
         ${delBtn}
       </div>
     `;
@@ -397,6 +399,9 @@ function renderHistory(){
           ? `<button class="del-entry" onclick="openDeleteSaleReasonSheet('${entry.id}')" aria-label="Supprimer">🗑</button>`
           : `<button class="del-entry" onclick="deleteHistoryEntry('${entry.type}','${entry.id}')" aria-label="Supprimer">🗑</button>`)
       : '';
+    const receiptBtn = entry.type==='sale'
+      ? `<button class="del-entry" onclick="reprintReceipt('${entry.id}')" aria-label="Reçu" title="${dict[currentLang].receiptViewBtn}">🧾</button>`
+      : '';
     div.innerHTML = `
       <div class="info">
         <div class="name">${escapeHtml(entry.label)}</div>
@@ -406,6 +411,7 @@ function renderHistory(){
         ${entry.type==='activity' ? '' : `<div class="${amountClass}">${entry.amount < 0 ? '-' : ''}${formatMoney(Math.abs(entry.amount))}</div>`}
         ${entry.sub ? `<div class="profit">${entry.sub}</div>` : ''}
       </div>
+      ${receiptBtn}
       ${delBtn}
     `;
     list.appendChild(div);

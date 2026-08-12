@@ -85,7 +85,7 @@ function renderMultiProductList(){
     row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
     row.innerHTML =
       '<div class="info">' +
-        '<div class="name">' + p.name + '</div>' +
+        '<div class="name">' + escapeHtml(p.name) + '</div>' +
         '<div class="meta">' + formatMoney(p.sell) + ' · ' + p.qty + ' disponible' + (p.qty>1?'s':'') + '</div>' +
       '</div>' +
       '<div class="qty-stepper">' +
@@ -218,6 +218,7 @@ async function confirmSale(){
     await saveSales();
     closeSellSheet();
     showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka ya nyongo ekómi");
+    if(typeof offerReceiptForSingleSale === 'function') offerReceiptForSingleSale(saleRecord);
   } else {
     sales.push(saleRecord);
     ensureTodayStats();
@@ -228,6 +229,7 @@ async function confirmSale(){
     await saveSales();
     closeSellSheet();
     showToast(dict[currentLang].sold);
+    if(typeof offerReceiptForSingleSale === 'function') offerReceiptForSingleSale(saleRecord);
   }
   render();
   if(typeof updateBackupBanner === 'function') updateBackupBanner();
@@ -341,6 +343,7 @@ async function confirmMultiSale(){
     await saveSales();
     closeSellSheet();
     showToast(currentLang==='fr' ? "Vente à crédit enregistrée" : "Kotéka ya nyongo ekómi");
+    if(typeof offerReceiptForMultiSale === 'function') offerReceiptForMultiSale(saleRecords, grandTotal, true);
   } else if(hasPartialDebt){
     // La vente entière est d'abord comptée comme payée au comptant, puis on
     // bascule le reliquat (montant libre, pas lié à un produit précis) vers
@@ -382,6 +385,7 @@ async function confirmMultiSale(){
     await saveSales();
     closeSellSheet();
     showToast(currentLang==='fr' ? "Vente enregistrée avec une dette partielle" : "Kotéka ekómi na nyongo moke");
+    if(typeof offerReceiptForMultiSale === 'function') offerReceiptForMultiSale(saleRecords, grandTotal, false);
   } else {
     sales.push(...saleRecords);
     ensureTodayStats();
@@ -392,6 +396,7 @@ async function confirmMultiSale(){
     await saveSales();
     closeSellSheet();
     showToast(dict[currentLang].sold);
+    if(typeof offerReceiptForMultiSale === 'function') offerReceiptForMultiSale(saleRecords, grandTotal, false);
   }
   render();
   if(typeof updateBackupBanner === 'function') updateBackupBanner();

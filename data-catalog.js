@@ -159,9 +159,13 @@ const CATALOG_FIELD_IDS = ['in-name', 'carton-name', 'sac-name'];
 
 function getFullCatalogForActiveStore(){
   const shared = getCatalogForStore(activeStoreId) || [];
+  // Voir community-catalog.js : produits ajoutés par SCAN par n'importe quel utilisateur
+  // Mombongo du même type de commerce — se comporte comme une extension vivante du
+  // catalogue statique ci-dessus, sans action supplémentaire de la part de l'utilisateur.
+  const community = (typeof getCommunityCatalogNames === 'function') ? getCommunityCatalogNames() : [];
   const seen = new Set();
   const merged = [];
-  [...customCatalog, ...shared].forEach(n=>{
+  [...customCatalog, ...community, ...shared].forEach(n=>{
     const key = n.toLowerCase();
     if(!seen.has(key)){ seen.add(key); merged.push(n); }
   });

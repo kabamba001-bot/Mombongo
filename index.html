@@ -672,6 +672,14 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <div class="sheet-overlay" id="generate-pin-overlay">
     <div class="sheet">
       <h3 id="t-generate-pin-title">Connecter un appareil</h3>
+      <div class="field">
+        <label id="t-choose-role-title">Quel rôle veux-tu donner à cet appareil ?</label>
+        <div class="method-row">
+          <button type="button" class="join-role-btn" data-role="patron" onclick="selectGenerateRole('patron', this)" id="t-role-patron">Patron</button>
+          <button type="button" class="join-role-btn active" data-role="caissier" onclick="selectGenerateRole('caissier', this)" id="t-role-caissier">Caissier</button>
+          <button type="button" class="join-role-btn" data-role="magasinier" onclick="selectGenerateRole('magasinier', this)" id="t-role-magasinier">Magasinier</button>
+        </div>
+      </div>
       <p style="font-size:13px; color:var(--charcoal-soft); line-height:1.6;" id="t-generate-pin-desc">
         Sur le nouvel appareil, ouvre Mombongo, appuie sur « Rejoindre avec un code » et entre ce code avant qu'il n'expire :
       </p>
@@ -692,14 +700,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </p>
       <div class="field">
         <input id="in-join-pin" type="text" inputmode="numeric" maxlength="5" placeholder="Code à 5 chiffres" style="width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:20px; text-align:center; letter-spacing:6px; font-family:'Sora'; font-weight:700;">
-      </div>
-      <div class="field">
-        <label id="t-choose-role-title">Quel est ton rôle sur cet appareil ?</label>
-        <div class="method-row">
-          <button type="button" class="join-role-btn active" data-role="patron" onclick="selectJoinRole('patron', this)" id="t-role-patron">Patron</button>
-          <button type="button" class="join-role-btn" data-role="caissier" onclick="selectJoinRole('caissier', this)" id="t-role-caissier">Caissier</button>
-          <button type="button" class="join-role-btn" data-role="magasinier" onclick="selectJoinRole('magasinier', this)" id="t-role-magasinier">Magasinier</button>
-        </div>
       </div>
       <div class="field">
         <label id="t-device-name">Nom de cet appareil (optionnel)</label>
@@ -1014,10 +1014,12 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="account-cloud.js"></script>
 <script src="stores-devices.js"></script>
 <script src="data-catalog.js"></script>
+<script src="community-catalog.js"></script>
 <script src="products.js"></script>
 <script src="barcode.js"></script>
 <script src="discover.js"></script>
 <script src="sales.js"></script>
+<script src="receipt.js"></script>
 <script src="render.js"></script>
 <script src="navigation.js"></script>
 <script src="export.js"></script>
