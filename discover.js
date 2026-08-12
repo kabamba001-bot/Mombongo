@@ -27,6 +27,8 @@ const DISCOVER_SECTIONS = [
   { icon:'➗', key:'sellPartialDebt' },
   { icon:'🎤', key:'sellVoice' },
   { icon:'📷', key:'sellBarcode' },
+  { icon:'🌍', key:'communityCatalog' },
+  { icon:'📃', key:'receipt' },
   { icon:'📊', key:'dashboard' },
   { icon:'🧾', key:'history' },
   { icon:'🗑️', key:'deleteSale' },

@@ -28,7 +28,6 @@ function isBarcodeLibraryReady(){
 }
 
 function openBarcodeScanner(mode){
-  if(!isVip){ openLimitSheet('barcode'); return; }
   if(mode === 'add' && !canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(mode === 'sell' && !canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(!isBarcodeLibraryReady()){
@@ -128,10 +127,19 @@ async function handleBarcodeForAdd(code){
     });
 }
 
-function handleBarcodeForSale(code){
+async function handleBarcodeForSale(code){
+  const t = dict[currentLang];
   const product = products.find(function(p){ return p.barcode === code; });
   if(!product){
-    showToast(currentLang==='fr' ? "Produit non reconnu pour ce code-barres." : "Produit eyebani te na code oyo.", 4000);
+    // Le produit peut très bien être connu de Mombongo (via le catalogue communautaire)
+    // sans être dans LE STOCK de cet utilisateur — ce n'est pas la même chose que "code
+    // totalement inconnu", donc le message ne doit pas dire la même chose.
+    const communityMatch = await lookupBarcodeInCommunityCatalog(code);
+    if(communityMatch){
+      showToast(t.barcodeNotInYourStock.replace('{name}', communityMatch.name), 5500);
+    } else {
+      showToast(t.barcodeUnrecognized, 4000);
+    }
     return;
   }
   if(product.qty <= 0){
@@ -184,23 +192,21 @@ async function confirmBarcodeSale(){
   await confirmSale();
 }
 
-// Les boutons restent visibles pour tout le monde (permission de rôle uniquement) — comme les
-// autres fonctions VIP de l'app (ex. notifications), on affiche un cadenas plutôt que de les
-// cacher : ça montre que la fonctionnalité existe et donne envie de débloquer le VIP. Appelée
-// depuis applyTranslations() (stores-devices.js) pour rester à jour à chaque connexion/langue.
+// Les boutons restent visibles selon la permission de rôle uniquement — le scan
+// code-barres est gratuit pour tous les utilisateurs Mombongo. Appelée depuis
+// applyTranslations() (stores-devices.js) pour rester à jour à chaque connexion/langue.
 function updateBarcodeButtonsVisibility(){
-  const t = dict[currentLang];
   const addBtn = document.getElementById('barcode-add-btn');
   const sellBtn = document.getElementById('barcode-sale-btn');
   if(addBtn){
     addBtn.style.display = canAddProducts() ? 'inline-flex' : 'none';
-    addBtn.textContent = isVip ? '📷' : '🔒📷';
-    addBtn.title = isVip ? '' : t.limitDescBarcode;
+    addBtn.textContent = '📷';
+    addBtn.title = '';
   }
   if(sellBtn){
     sellBtn.style.display = canSell() ? 'inline-flex' : 'none';
-    sellBtn.textContent = isVip ? '📷' : '🔒📷';
-    sellBtn.title = isVip ? '' : t.limitDescBarcode;
+    sellBtn.textContent = '📷';
+    sellBtn.title = '';
   }
 }
 

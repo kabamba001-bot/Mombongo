@@ -185,7 +185,7 @@ const dict = {
     discoverTitle_gridAdd:"Saisie rapide en tableau",
     discoverBody_gridAdd:"Pratique pour taper plusieurs produits à la suite sans rouvrir le formulaire à chaque fois — même des produits qui ne sont dans aucun catalogue.\nDans le formulaire d'ajout, touche « 🧮 Saisie rapide en tableau ».\nRemplis une ligne par produit : nom, prix d'achat, prix de vente, quantité. Ajoute des lignes avec « + Ajouter une ligne », ou supprime-en une avec ✕.\nLe seuil d'alerte est fixé à 3 pour tous les produits créés ici (pas de colonne dédiée, pour rester rapide) — ajustable ensuite avec « Modifier ✏️ » si besoin.\nTouche « Enregistrer » : toutes les lignes remplies sont créées d'un coup, les lignes vides sont simplement ignorées.",
     discoverTitle_addBarcode:"Ajouter un produit en scannant son code-barres",
-    discoverBody_addBarcode:"Fonctionnalité VIP.\nDans le formulaire d'ajout, touche l'icône 📷.\nVise le code-barres du produit avec la caméra : dès qu'il est reconnu, le formulaire s'ouvre avec le code enregistré et, si le produit est connu dans la base publique utilisée, son nom est rempli automatiquement (ça marche surtout pour les produits de marque déjà répertoriés ailleurs dans le monde — un produit purement local ne sera pas toujours reconnu, tu tapes alors le nom toi-même).\nComplète le prix d'achat, le prix de vente, la quantité et enregistre.",
+    discoverBody_addBarcode:"Dans le formulaire d'ajout, touche l'icône 📷.\nVise le code-barres du produit avec la caméra. Mombongo cherche d'abord dans son catalogue communautaire (des produits déjà vus par d'autres commerçants locaux), puis si besoin dans une base internationale — dès qu'un nom est trouvé, il se remplit automatiquement (tu peux toujours le corriger). Si personne ne le connaît encore, tape le nom toi-même : Mombongo te demandera alors sa catégorie pour l'ajouter au catalogue communautaire et aider les prochains commerçants à le retrouver.\nComplète le prix d'achat, le prix de vente, la quantité et enregistre. Gratuit pour tous.",
     discoverTitle_duplicateProduct:"Dupliquer un produit",
     discoverBody_duplicateProduct:"Pratique pour les variantes d'un même produit (tailles, couleurs, parfums...).\nSur la fiche d'un produit déjà en stock, touche le bouton 📄.\nUne copie du produit s'ouvre en modification, prête à être ajustée (nouveau nom, nouveau prix) puis enregistrée comme un nouveau produit indépendant.",
     discoverTitle_editDeleteProduct:"Modifier ou supprimer un produit",
@@ -203,7 +203,13 @@ const dict = {
     discoverTitle_sellVoice:"Vente à la voix",
     discoverBody_sellVoice:"Bouton micro 🎤 en bas de l'écran : maintiens-le appuyé et dis le nom du produit et la quantité, par exemple « deux pains ».\nMombongo reconnaît le produit même si la prononciation n'est pas parfaite.\nUne fiche de confirmation s'affiche avec le produit trouvé et la quantité, modifiable avec +/− avant de valider.",
     discoverTitle_sellBarcode:"Vente en scannant un code-barres",
-    discoverBody_sellBarcode:"Fonctionnalité VIP.\nBouton 📷 à côté du micro : vise le code-barres du produit à vendre.\nSi le produit (déjà enregistré avec ce code) est reconnu, une fiche de confirmation s'ouvre avec +/− pour ajuster la quantité avant de valider la vente.",
+    discoverBody_sellBarcode:"Bouton 📷 à côté du micro : vise le code-barres du produit à vendre.\nSi le produit (déjà enregistré avec ce code dans ton stock) est reconnu, une fiche de confirmation s'ouvre avec +/− pour ajuster la quantité avant de valider la vente.\nSi Mombongo connaît ce produit (catalogue communautaire) mais qu'il n'est pas encore dans TON stock, un message te le précise clairement — ajoute-le d'abord avec 📷 Ajouter. Gratuit pour tous.",
+
+    discoverTitle_communityCatalog:"Catalogue communautaire Mombongo",
+    discoverBody_communityCatalog:"Quand un produit scanné n'est reconnu par personne, Mombongo te demande sa catégorie (boutique, pharmacie, quincaillerie ou autre) puis l'ajoute à un catalogue partagé entre TOUS les utilisateurs Mombongo. La prochaine fois que toi ou un autre commerçant du même type de commerce scanne ou tape ce produit, il apparaît directement dans les suggestions et dans l'ajout rapide depuis le catalogue — plus Mombongo a d'utilisateurs, plus ce catalogue devient complet pour tout le monde.",
+
+    discoverTitle_receipt:"Reçu client après chaque vente",
+    discoverBody_receipt:"Après chaque vente (simple, multiple, vocale ou par scan), une fiche « Vente enregistrée » s'ouvre avec deux boutons : Partager le reçu (WhatsApp, SMS...) ou Télécharger le PDF.\nTu peux aussi revoir le reçu de n'importe quelle vente passée : ouvre l'historique et touche 🧾 à côté de la vente.\nAstuce : ajoute le numéro de téléphone de ta boutique (Menu compte → Boutiques → ☎️) pour qu'il apparaisse sur tous tes reçus.",
     discoverTitle_dashboard:"Tableau de bord",
     discoverBody_dashboard:"C'est l'écran d'accueil de l'app : il montre en un coup d'œil les ventes du jour, le bénéfice du jour, le bénéfice total, les dépenses, les dettes en cours et le nombre d'alertes actives.",
     discoverTitle_history:"Consulter l'historique",
@@ -301,7 +307,10 @@ const dict = {
     categoryPromptTitle:"À quelle catégorie appartient ce produit ?",
     categoryPromptDesc:"Ça aide d'autres commerçants à retrouver ce produit la prochaine fois qu'ils le scannent.",
     categoryPromptSkip:"Ne pas partager",
-    communityCatalogContributed:"Merci ! Ce produit aidera d'autres commerçants à le retrouver plus vite"
+    communityCatalogContributed:"Merci ! Ce produit aidera d'autres commerçants à le retrouver plus vite",
+
+    barcodeNotInYourStock:"Mombongo connaît « {name} » mais il n'est pas encore dans ton stock — ajoute-le d'abord avec 📷 Ajouter",
+    barcodeUnrecognized:"Produit non reconnu pour ce code-barres"
   },
   ln: {
     appname:"Mombongo", tagline:"Talá mombongo na yo na pete",
@@ -488,7 +497,7 @@ const dict = {
     discoverTitle_gridAdd:"Kokoma noki na tableau",
     discoverBody_gridAdd:"Esalisi mpo na kokoma biloko mingi na mbala moko soki te kofungola formulaire mbala na mbala — ata biloko oyo ezali te na catalogue.\nNa formulaire ya kobakisa, simbá « 🧮 Kokoma noki na tableau ».\nTondisa ligne moko mpo na produit moko : nkombo, ntalo ya kosomba, ntalo ya kotéka, motángo. Bakisa ba lignes na « + Bakisa ligne », to longola moko na ✕.\nSeuil ya alerte ezali fixé na 3 mpo na biloko nyonso oyo ekelami awa (colonne ya sikisiki te, mpo na kotikala noki) — okoki kobongisa yango na nsima na « Kobongisa ✏️ » soki esengeli.\nSimbá « Bomba » : ba lignes nyonso oyo etondisami ekelami na mbala moko, ba lignes ya polele elekisami kaka.",
     discoverTitle_addBarcode:"Kobakisa produit na kotánga code-barres na yango",
-    discoverBody_addBarcode:"Likambo ya VIP.\nNa formulaire ya kobakisa, simbá icône 📷.\nTalisa code-barres ya produit na caméra : soki eyebani, formulaire efungwami na code ebombami mpe, soki produit eyebani na base publique oyo esalelami, nkombo na yango etondisami automatiquement (esalaka mingi mpo na biloko ya marque oyo eyebani esika mosusu ya mokili — produit ya mboka kaka ekoyebana ntango nyonso te, na yango okoki kokoma nkombo yo moko).\nBongisa ntalo ya kosomba, ntalo ya kotéka, motángo mpe bomba.",
+    discoverBody_addBarcode:"Na formulaire ya kobakisa, simbá icône 📷.\nTalisa code-barres ya produit na caméra. Mombongo elukaka liboso na catalogue ya bato nyonso (biloko oyo ba commerçants mosusu ya mboka bamoná déjà), mpe soki esengeli, na base internationale — soki nkombo emonani, etondisami automatiquement (okoki kobongola yango ntango nyonso). Soki moto moko ayebi yango naino te, koma nkombo yo moko : Mombongo akotuna yo catégorie na yango mpo na kobakisa yango na catalogue ya bato nyonso mpe kosunga ba commerçants oyo bakolanda.\nBongisa ntalo ya kosomba, ntalo ya kotéka, motángo mpe bomba. Ezali ofele mpo na bato nyonso.",
     discoverTitle_duplicateProduct:"Kosala produit mbala mibale",
     discoverBody_duplicateProduct:"Esalisi mpo na ba variantes ya produit moko (bonene, langi, solo...).\nNa fiche ya produit oyo ezali na stock, simbá bouton 📄.\nCopie ya produit efungwami mpo na kobongisa (nkombo ya sika, ntalo ya sika) mpe bomba lokola produit ya sika.",
     discoverTitle_editDeleteProduct:"Kobongisa to kolongola produit",
@@ -506,7 +515,13 @@ const dict = {
     discoverTitle_sellVoice:"Kotéka na mongongo",
     discoverBody_sellVoice:"Bouton micro 🎤 na se ya écran : simbá yango mpe loba nkombo ya produit na motángo, ndakisa « mampa mibale ».\nMombongo ayebi produit ata soki kolobela ezali malamu te mpenza.\nFiche ya confirmation emonanaka na produit oyo emonani mpe motángo, ekoki kobongisama na +/− liboso ya kokonfirma.",
     discoverTitle_sellBarcode:"Kotéka na kotánga code-barres",
-    discoverBody_sellBarcode:"Likambo ya VIP.\nBouton 📷 pembeni ya micro : talisa code-barres ya produit olingi kotéka.\nSoki produit (esili kokomama na code oyo) eyebani, fiche ya confirmation efungwami na +/− mpo na kobongisa motángo liboso ya kokonfirma kotéka.",
+    discoverBody_sellBarcode:"Bouton 📷 pembeni ya micro : talisa code-barres ya produit olingi kotéka.\nSoki produit (esili kokomama na code oyo na stock na yo) eyebani, fiche ya confirmation efungwami na +/− mpo na kobongisa motángo liboso ya kokonfirma kotéka.\nSoki Mombongo eyebi produit oyo (catalogue ya bato nyonso) kasi ezali naino te na STOCK NA YO, message ekolakisa yo yango polele — bakisá yango liboso na 📷 Kobakisa. Ezali ofele mpo na bato nyonso.",
+
+    discoverTitle_communityCatalog:"Catalogue ya bato nyonso ya Mombongo",
+    discoverBody_communityCatalog:"Soki produit oyo otángi na code-barres eyebani na moto moko te, Mombongo akotuna yo catégorie na yango (boutique, pharmacie, quincaillerie to autre) mpe akobakisa yango na catalogue oyo esalelami na BATO NYONSO ya Mombongo. Mbala ya mosusu yo moko to commerçant mosusu ya commerce ya lolenge moko akotánga to akokoma produit yango, ekomonana mbala moko na ba suggestions mpe na kobakisa noki longwa na catalogue — mingi Mombongo ezali na bato, mingi catalogue oyo ekokóma kokoka mpo na bato nyonso.",
+
+    discoverTitle_receipt:"Resu ya client sima ya kotéka nyonso",
+    discoverBody_receipt:"Sima ya kotéka nyonso (simple, ebele, na mongongo to na scan), fiche « Kotéka ekómi » efungwamaka na ba bouton mibale : Kokabola resu (WhatsApp, SMS...) to Kokitisa PDF.\nOkoki mpe kozongela resu ya kotéka nyonso ya kala : fungola history mpe simbá 🧾 pembeni ya kotéka yango.\nLikanisi : bakisá numéro ya telefone ya boutique na yo (Menu compte → Ba boutiques → ☎️) mpo emonana na barecu na yo nyonso.",
     discoverTitle_dashboard:"Tableau de bord",
     discoverBody_dashboard:"Ezali écran ya liboso ya application : emonisi na miso moko kotéka ya mokolo, bénéfice ya mokolo, bénéfice mobimba, ba dépenses, ba nyongo oyo ezali mpe motángo ya ba alertes oyo ezali active.",
     discoverTitle_history:"Kotala historique",
@@ -605,7 +620,10 @@ const dict = {
     categoryPromptTitle:"Produit oyo ezali ya catégorie nini ?",
     categoryPromptDesc:"Esungaka ba commerçants mosusu bázwa produit oyo noki na mbala ya mosusu.",
     categoryPromptSkip:"Kokabola te",
-    communityCatalogContributed:"Melesi ! Produit oyo ekosunga ba commerçants mosusu bázwa yango noki"
+    communityCatalogContributed:"Melesi ! Produit oyo ekosunga ba commerçants mosusu bázwa yango noki",
+
+    barcodeNotInYourStock:"Mombongo eyebi « {name} » kasi ezali naino te na stock na yo — bakisá yango liboso na 📷 Kobakisa",
+    barcodeUnrecognized:"Produit eyebani te na code-barres oyo"
   },
   sw: {
     appname:"Mombongo", tagline:"Fuatilia biashara yako kwa urahisi",
@@ -792,7 +810,7 @@ const dict = {
     discoverTitle_gridAdd:"Uandishi wa haraka wa jedwali",
     discoverBody_gridAdd:"Inafaa kuandika bidhaa nyingi mfululizo bila kufungua fomu kila mara — hata bidhaa zisizo kwenye katalogi yoyote.\nKwenye fomu ya kuongeza, gusa « 🧮 Uandishi wa haraka wa jedwali ».\nJaza mstari mmoja kwa kila bidhaa : jina, bei ya ununuzi, bei ya kuuza, kiasi. Ongeza mistari kwa « + Ongeza mstari », au futa mmoja kwa ✕.\nKizingiti cha tahadhari kimewekwa 3 kwa bidhaa zote zitakazoundwa hapa (hakuna safu maalum, ili kubaki haraka) — unaweza kukirekebisha baadaye kwa « Hariri ✏️ » ikihitajika.\nGusa « Hifadhi » : mistari yote iliyojazwa inaundwa mara moja, mistari mitupu inapuuzwa tu.",
     discoverTitle_addBarcode:"Kuongeza bidhaa kwa kusoma bakodi yake",
-    discoverBody_addBarcode:"Kipengele cha VIP.\nKwenye fomu ya kuongeza, gusa aikoni 📷.\nLenga bakodi ya bidhaa na kamera : mara ikitambuliwa, fomu inafunguka na bakodi imehifadhiwa na, ikiwa bidhaa inajulikana kwenye hifadhidata ya umma inayotumika, jina lake linajazwa kiotomatiki (inafanya kazi zaidi kwa bidhaa za chapa zinazojulikana mahali pengine duniani — bidhaa ya kienyeji tu haitatambuliwa kila wakati, hapo unaandika jina wewe mwenyewe).\nKamilisha bei ya ununuzi, bei ya kuuza, kiasi kisha uhifadhi.",
+    discoverBody_addBarcode:"Kwenye fomu ya kuongeza, gusa aikoni 📷.\nLenga bakodi ya bidhaa na kamera. Mombongo hutafuta kwanza kwenye katalogi yake ya jamii (bidhaa ambazo tayari zimeonekana na wafanyabiashara wengine wa hapa), kisha ikibidi kwenye hifadhidata ya kimataifa — jina likipatikana, linajazwa kiotomatiki (unaweza kulirekebisha wakati wowote). Ikiwa hakuna anayeijua bado, andika jina wewe mwenyewe : Mombongo utakuuliza kisha aina yake ili kuiongeza kwenye katalogi ya jamii na kusaidia wafanyabiashara wengine watakaokuja.\nKamilisha bei ya ununuzi, bei ya kuuza, kiasi kisha uhifadhi. Bure kwa wote.",
     discoverTitle_duplicateProduct:"Kunakili bidhaa",
     discoverBody_duplicateProduct:"Inafaa kwa aina tofauti za bidhaa moja (ukubwa, rangi, harufu...).\nKwenye kadi ya bidhaa iliyopo stoo, gusa kitufe 📄.\nNakala ya bidhaa inafunguka kwa kuhaririwa (jina jipya, bei mpya) kisha kuhifadhiwa kama bidhaa mpya huru.",
     discoverTitle_editDeleteProduct:"Kuhariri au kufuta bidhaa",
@@ -810,7 +828,13 @@ const dict = {
     discoverTitle_sellVoice:"Mauzo kwa sauti",
     discoverBody_sellVoice:"Kitufe cha maikrofoni 🎤 chini ya skrini : kishikilie na useme jina la bidhaa na kiasi, mfano « mikate miwili ».\nMombongo inatambua bidhaa hata matamshi si kamili.\nKadi ya uthibitisho inaonekana ikiwa na bidhaa iliyopatikana na kiasi, inayoweza kurekebishwa kwa +/− kabla ya kuthibitisha.",
     discoverTitle_sellBarcode:"Mauzo kwa kusoma bakodi",
-    discoverBody_sellBarcode:"Kipengele cha VIP.\nKitufe 📷 karibu na maikrofoni : lenga bakodi ya bidhaa unayotaka kuuza.\nIkiwa bidhaa (iliyosajiliwa na bakodi hiyo) itatambuliwa, kadi ya uthibitisho inafunguka na +/− kurekebisha kiasi kabla ya kuthibitisha mauzo.",
+    discoverBody_sellBarcode:"Kitufe 📷 karibu na maikrofoni : lenga bakodi ya bidhaa unayotaka kuuza.\nIkiwa bidhaa (iliyosajiliwa na bakodi hiyo kwenye stoku yako) itatambuliwa, kadi ya uthibitisho inafunguka na +/− kurekebisha kiasi kabla ya kuthibitisha mauzo.\nIkiwa Mombongo inaijua bidhaa hii (katalogi ya jamii) lakini bado haipo kwenye STOKU YAKO, ujumbe utakuambia hivyo wazi — iongeze kwanza kwa 📷 Ongeza. Bure kwa wote.",
+
+    discoverTitle_communityCatalog:"Katalogi ya jamii ya Mombongo",
+    discoverBody_communityCatalog:"Bidhaa inaposomwa na hakuna anayeitambua, Mombongo utakuuliza aina yake (duka, famasi, maduka ya vifaa au nyingine) kisha kuiongeza kwenye katalogi inayoshirikiwa na WATUMIAJI WOTE wa Mombongo. Wakati mwingine wewe au mfanyabiashara mwingine wa aina moja ya biashara akisoma au kuandika bidhaa hiyo, itaonekana moja kwa moja kwenye mapendekezo na kwenye uongezaji wa haraka kutoka katalogi — watumiaji wa Mombongo wanavyoongezeka, ndivyo katalogi hii inavyokuwa kamili zaidi kwa wote.",
+
+    discoverTitle_receipt:"Risiti ya mteja baada ya kila mauzo",
+    discoverBody_receipt:"Baada ya kila mauzo (moja, mengi, kwa sauti au kwa skani), kadi « Mauzo yamehifadhiwa » inafunguka na vitufe viwili : Shiriki risiti (WhatsApp, SMS...) au Pakua PDF.\nUnaweza pia kuona tena risiti ya mauzo yoyote ya zamani : fungua historia na ugusa 🧾 karibu na mauzo hayo.\nUshauri : ongeza namba ya simu ya duka lako (Menyu ya akaunti → Maduka → ☎️) ili ionekane kwenye risiti zako zote.",
     discoverTitle_dashboard:"Dashibodi",
     discoverBody_dashboard:"Ni skrini ya kwanza ya programu : inaonyesha kwa muhtasari mauzo ya siku, faida ya siku, faida jumla, matumizi, madeni yaliyopo na idadi ya tahadhari zilizopo.",
     discoverTitle_history:"Kuangalia historia",
@@ -909,6 +933,9 @@ const dict = {
     categoryPromptTitle:"Bidhaa hii ni ya aina gani ?",
     categoryPromptDesc:"Hii inasaidia wafanyabiashara wengine kuipata bidhaa hii haraka wakati mwingine.",
     categoryPromptSkip:"Usishiriki",
-    communityCatalogContributed:"Asante ! Bidhaa hii itasaidia wafanyabiashara wengine kuipata haraka"
+    communityCatalogContributed:"Asante ! Bidhaa hii itasaidia wafanyabiashara wengine kuipata haraka",
+
+    barcodeNotInYourStock:"Mombongo inaijua « {name} » lakini bado haipo kwenye stoku yako — iongeze kwanza kwa 📷 Ongeza",
+    barcodeUnrecognized:"Bidhaa haitambuliki kwa bakodi hii"
   }
 };
