@@ -350,6 +350,18 @@
   .grid-add-row .grid-row-del{
     background:none; border:none; color:var(--alert); font-size:16px; padding:2px; cursor:pointer;
   }
+  /* Lignes d'articles achetés dans "Enregistrer un achat" (voir suppliers.js) : produit
+     (menu déroulant), quantité, coût unitaire, suppression — même esprit visuel que
+     .grid-add-row ci-dessus, mais avec un <select> à la place du champ nom libre. */
+  .purchase-item-row{
+    display:grid; grid-template-columns:2fr 0.8fr 1fr 22px; gap:6px;
+    align-items:center; margin-bottom:8px;
+  }
+  .purchase-item-row select, .purchase-item-row input{
+    width:100%; padding:9px 8px; border-radius:8px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:13px; font-family:'Inter'; color:var(--charcoal); min-width:0;
+  }
+  .purchase-item-row select:focus, .purchase-item-row input:focus{ outline:2px solid var(--emerald-light); border-color:transparent; }
   /* Le scanner de code-barres doit toujours apparaître AU-DESSUS de n'importe quelle autre
      fiche déjà ouverte (ex : le formulaire d'ajout de produit) — sinon la caméra reste
      invisible derrière. On force un z-index plus haut que les .sheet-overlay classiques

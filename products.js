@@ -212,8 +212,8 @@ function openLimitSheet(reason){
       openAccountSheet();
     };
   } else {
-    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode' }[reason];
-    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode' }[reason];
+    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode', suppliers:'limitDescSuppliers' }[reason];
+    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode', suppliers:'limitWhatsappMsgSuppliers' }[reason];
     document.getElementById('t-limit-desc').textContent = t[descKey];
     const msg = encodeURIComponent(t[msgKey]);
     link.textContent = t.limitUnlockBtn;

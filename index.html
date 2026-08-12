@@ -115,6 +115,10 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <span>💡</span>
         <span id="t-discover-btn">Découvrir</span>
       </button>
+      <button id="suppliers-header-btn" onclick="openSuppliersSheet()" style="display:none;">
+        <span>🚚</span>
+        <span id="t-suppliers-header-btn">Fournisseurs</span>
+      </button>
       <span id="promo-first-users-badge" class="promo-badge" style="display:none;"></span>
     </div>
   </header>
@@ -574,6 +578,17 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         </div>
 
         <div style="margin-top:16px;">
+          <div class="toggle-row">
+            <span id="t-suppliers-toggle-label">🚚 Gestion fournisseurs (VIP)</span>
+            <label class="switch">
+              <input type="checkbox" id="in-suppliers-toggle" onchange="toggleSuppliersFeature()">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+          <p style="font-size:12px; color:var(--charcoal-soft); margin-top:0;" id="t-suppliers-toggle-desc">Suis tes fournisseurs, tes réapprovisionnements et ce que tu leur dois.</p>
+        </div>
+
+        <div style="margin-top:16px;">
           <h3 style="font-size:14px; margin:0 0 10px;" id="t-devices-title">Appareils connectés</h3>
           <p style="font-size:12px; color:var(--charcoal-soft); margin-top:0;" id="t-devices-desc">Relie 2 ou 3 téléphones à ce compte pour ton caissier ou ton magasinier.</p>
           <div id="devices-list-inline"></div>
@@ -951,6 +966,104 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </div>
 
+  <div class="sheet-overlay" id="suppliers-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h3 style="margin:0;" id="t-suppliers-title">Fournisseurs</h3>
+        <button onclick="closeSuppliersSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <p style="font-size:12.5px; color:var(--charcoal-soft); margin-top:0;">
+        <span id="t-suppliers-total-label">Total dû aux fournisseurs :</span>
+        <strong id="suppliers-total-owed" style="color:var(--alert);">0 $</strong>
+      </p>
+      <div id="suppliers-list"></div>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:10px;" onclick="openSupplierFormSheet(null)" id="t-add-supplier-btn">+ Nouveau fournisseur</button>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openPurchaseHistorySheet()" id="t-purchase-history-btn">🧾 Historique des achats</button>
+      <button class="btn-secondary" onclick="closeSuppliersSheet()" id="t-cancel-suppliers">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="supplier-form-overlay">
+    <div class="sheet">
+      <h3 id="t-supplier-form-title">Nouveau fournisseur</h3>
+      <div class="field">
+        <label id="t-supplier-name-label">Nom du fournisseur</label>
+        <input id="in-supplier-name" type="text" placeholder="Ex : Grossiste Kin Sucre">
+      </div>
+      <div class="field">
+        <label id="t-supplier-phone-label">Numéro de téléphone (optionnel)</label>
+        <input id="in-supplier-phone" type="tel" placeholder="09xxxxxxxx">
+      </div>
+      <button class="btn-primary" onclick="confirmSaveSupplier()" id="t-supplier-form-save">Enregistrer</button>
+      <button class="btn-secondary" onclick="closeSupplierFormSheet()" id="t-cancel-supplier-form">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="record-purchase-overlay">
+    <div class="sheet">
+      <h3 id="t-record-purchase-title">Enregistrer un achat</h3>
+      <div class="field">
+        <label id="t-purchase-supplier-label">Fournisseur</label>
+        <select id="in-purchase-supplier"></select>
+      </div>
+      <div class="field">
+        <label id="t-purchase-items-label">Produits achetés</label>
+        <div id="purchase-items-rows"></div>
+        <button type="button" class="btn-secondary" style="background:var(--paper-2); border-radius:8px; margin-top:2px;" onclick="addPurchaseItemRow()" id="t-purchase-add-row">+ Ajouter une ligne</button>
+      </div>
+      <div class="toggle-row">
+        <span id="t-purchase-is-credit-label">Achat à crédit ?</span>
+        <label class="switch">
+          <input type="checkbox" id="in-purchase-is-credit" onchange="togglePurchaseCreditFields()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div id="purchase-credit-fields" style="display:none;">
+        <div class="field">
+          <label id="t-purchase-paid-now-label">Déjà payé maintenant (optionnel)</label>
+          <input id="in-purchase-paid-now" type="number" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="field">
+          <label id="t-purchase-due-label">Date limite de paiement</label>
+          <input id="in-purchase-due" type="date">
+        </div>
+      </div>
+      <p style="font-size:14px; font-weight:700; text-align:right; margin:10px 0;">
+        <span id="t-purchase-total-label">Total :</span> <span id="purchase-total-display">0 $</span>
+      </p>
+      <button class="btn-primary" onclick="confirmRecordPurchase()" id="t-record-purchase-save">Enregistrer l'achat</button>
+      <button class="btn-secondary" onclick="closeRecordPurchaseSheet()" id="t-cancel-record-purchase">Annuler</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="purchase-history-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;" id="t-purchase-history-title">Historique des achats</h3>
+        <button onclick="closePurchaseHistorySheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="purchase-history-list"></div>
+      <button class="btn-secondary" onclick="closePurchaseHistorySheet()" id="t-cancel-purchase-history">Fermer</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="pay-supplier-overlay">
+    <div class="sheet">
+      <h3 id="t-pay-supplier-title">Régler un fournisseur</h3>
+      <div class="field">
+        <label id="t-pay-supplier-who-label">Fournisseur</label>
+        <input id="pay-supplier-display" type="text" disabled>
+      </div>
+      <div class="field">
+        <label id="t-pay-supplier-amount-label">Montant versé</label>
+        <input id="in-pay-supplier-amount" type="number" inputmode="decimal">
+      </div>
+      <button class="btn-primary" onclick="confirmPaySupplier()" id="t-pay-supplier-save">Confirmer le paiement</button>
+      <button class="btn-secondary" onclick="closePaySupplierSheet()" id="t-cancel-pay-supplier">Annuler</button>
+    </div>
+  </div>
+
+
   <!-- Pas de bouton pour fermer : ce panneau ne se lève que tout seul, dès que checkVipExpiryLive()
        détecte que le VIP a été renouvelé. Volontaire — l'appareil doit rester bloqué entre-temps. -->
   <div class="sheet-overlay" id="vip-expired-block-overlay" style="z-index:60;">
@@ -1024,6 +1137,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="navigation.js"></script>
 <script src="export.js"></script>
 <script src="debts-expenses-alerts.js"></script>
+<script src="suppliers.js"></script>
 </body>
 </html>
 

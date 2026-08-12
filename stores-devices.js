@@ -46,6 +46,7 @@ function emptyStoreData(){
   return {
     products: [], sales: [], lots: [], debts: [], expenses: [], activityLog: [], historyClearedAt: 0,
     customCatalog: [],
+    suppliers: [], purchases: [], suppliersFeatureEnabled: false,
     stats: { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 }
   };
 }
@@ -60,6 +61,9 @@ function loadStoreDataIntoWorkingArrays(storeData){
   expenses = d.expenses || [];
   activityLog = d.activityLog || [];
   historyClearedAt = d.historyClearedAt || 0;
+  suppliers = d.suppliers || [];
+  purchases = d.purchases || [];
+  suppliersFeatureEnabled = !!d.suppliersFeatureEnabled;
   stats = d.stats || { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
   if(typeof stats.totalExpenses !== 'number') stats.totalExpenses = 0;
   localSet('mombongo:products', JSON.stringify(products));
@@ -70,7 +74,11 @@ function loadStoreDataIntoWorkingArrays(storeData){
   localSet('mombongo:expenses', JSON.stringify(expenses));
   localSet('mombongo:activityLog', JSON.stringify(activityLog));
   localSet('mombongo:historyClearedAt', String(historyClearedAt));
+  localSet('mombongo:suppliers', JSON.stringify(suppliers));
+  localSet('mombongo:purchases', JSON.stringify(purchases));
+  localSet('mombongo:suppliersFeatureEnabled', JSON.stringify(suppliersFeatureEnabled));
   localSet('mombongo:stats', JSON.stringify(stats));
+  if(typeof updateHeaderSuppliersButtonVisibility === 'function') updateHeaderSuppliersButtonVisibility();
 }
 
 let lastSyncOk = true;
@@ -93,7 +101,7 @@ async function pushToCloud(){
   if(isEmployeeMode && !employeeSyncReady) return;
   const storeId = getActiveStoreIdForWrites();
   if(!storeId) return;
-  storesDataCache[storeId] = { products, sales, lots, debts, expenses, activityLog, stats, historyClearedAt, customCatalog };
+  storesDataCache[storeId] = { products, sales, lots, debts, expenses, activityLog, stats, historyClearedAt, customCatalog, suppliers, purchases, suppliersFeatureEnabled };
   try{
     const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
     if(!isEmployeeMode){
@@ -953,5 +961,35 @@ function applyTranslations(){
   document.getElementById('t-export-format-pdf').textContent = t.exportFormatPdf;
   document.getElementById('t-export-format-excel').textContent = t.exportFormatExcel;
   document.getElementById('t-export-btn').textContent = t.exportBtn;
+
+  document.getElementById('t-suppliers-header-btn').textContent = t.suppliersHeaderBtn;
+  document.getElementById('t-suppliers-toggle-label').textContent = t.suppliersToggleLabel;
+  document.getElementById('t-suppliers-toggle-desc').textContent = t.suppliersToggleDesc;
+  document.getElementById('t-suppliers-title').textContent = t.suppliersTitle;
+  document.getElementById('t-suppliers-total-label').textContent = t.suppliersTotalLabel;
+  document.getElementById('t-add-supplier-btn').textContent = t.addSupplierBtn;
+  document.getElementById('t-purchase-history-btn').textContent = t.purchaseHistoryBtn;
+  document.getElementById('t-cancel-suppliers').textContent = t.close;
+  document.getElementById('t-supplier-name-label').textContent = t.supplierNameLabel;
+  document.getElementById('t-supplier-phone-label').textContent = t.supplierPhoneLabel;
+  document.getElementById('t-supplier-form-save').textContent = t.supplierFormSave;
+  document.getElementById('t-cancel-supplier-form').textContent = t.cancel;
+  document.getElementById('t-record-purchase-title').textContent = t.recordPurchaseTitle;
+  document.getElementById('t-purchase-supplier-label').textContent = t.purchaseSupplierLabel;
+  document.getElementById('t-purchase-items-label').textContent = t.purchaseItemsLabel;
+  document.getElementById('t-purchase-add-row').textContent = t.purchaseAddRow;
+  document.getElementById('t-purchase-is-credit-label').textContent = t.purchaseIsCreditLabel;
+  document.getElementById('t-purchase-paid-now-label').textContent = t.purchasePaidNowLabel;
+  document.getElementById('t-purchase-due-label').textContent = t.purchaseDueLabel;
+  document.getElementById('t-purchase-total-label').textContent = t.purchaseTotalLabel;
+  document.getElementById('t-record-purchase-save').textContent = t.recordPurchaseSave;
+  document.getElementById('t-cancel-record-purchase').textContent = t.cancel;
+  document.getElementById('t-purchase-history-title').textContent = t.purchaseHistoryTitle;
+  document.getElementById('t-cancel-purchase-history').textContent = t.close;
+  document.getElementById('t-pay-supplier-title').textContent = t.paySupplierTitle;
+  document.getElementById('t-pay-supplier-who-label').textContent = t.paySupplierWhoLabel;
+  document.getElementById('t-pay-supplier-amount-label').textContent = t.paySupplierAmountLabel;
+  document.getElementById('t-pay-supplier-save').textContent = t.paySupplierSave;
+  document.getElementById('t-cancel-pay-supplier').textContent = t.cancel;
 }
 

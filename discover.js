@@ -47,6 +47,7 @@ const DISCOVER_SECTIONS = [
   { icon:'🔕', key:'notifications' },
   { icon:'📡', key:'offlineMode' },
   { icon:'🌙', key:'darkMode' },
+  { icon:'🚚', key:'suppliers' },
   { icon:'◀️', key:'androidBack' },
 ];
 

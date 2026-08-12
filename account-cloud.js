@@ -10,6 +10,8 @@ function openAccountSheet(){
   document.getElementById('account-overlay').classList.add('open');
   renderStoresList();
   renderDevicesList();
+  const suppliersToggle = document.getElementById('in-suppliers-toggle');
+  if(suppliersToggle) suppliersToggle.checked = !!suppliersFeatureEnabled;
 }
 function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
 
@@ -51,6 +53,9 @@ function signOutGoogle(){
     debts = [];
     expenses = [];
     activityLog = [];
+    suppliers = [];
+    purchases = [];
+    suppliersFeatureEnabled = false;
     isVip = false;
     vipUntil = null;
     stores = [];
@@ -63,7 +68,11 @@ function signOutGoogle(){
     localSet('mombongo:debts', JSON.stringify(debts));
     localSet('mombongo:expenses', JSON.stringify(expenses));
     localSet('mombongo:activityLog', JSON.stringify(activityLog));
+    localSet('mombongo:suppliers', JSON.stringify(suppliers));
+    localSet('mombongo:purchases', JSON.stringify(purchases));
+    localSet('mombongo:suppliersFeatureEnabled', JSON.stringify(suppliersFeatureEnabled));
     localSet('mombongo:stats', JSON.stringify(stats));
+    if(typeof updateHeaderSuppliersButtonVisibility === 'function') updateHeaderSuppliersButtonVisibility();
     renderStoresList();
     render();
     showToast(currentLang==='fr' ? "Déconnecté, données locales effacées" : "Ekangwami te lisusu");

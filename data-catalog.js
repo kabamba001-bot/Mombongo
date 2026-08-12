@@ -8,6 +8,11 @@ let historyClearedAt = 0;
 let expenses = [];
 let stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
 let sellingProductId = null;
+// Fournisseurs & achats — voir suppliers.js. Fonctionnalité VIP, désactivée par défaut :
+// suppliersFeatureEnabled est le réglage (par boutique) qui affiche ou masque tout ça.
+let suppliers = [];
+let purchases = [];
+let suppliersFeatureEnabled = false;
 
 function saveLots(){
   localSet('mombongo:lots', JSON.stringify(lots));
@@ -19,6 +24,18 @@ function saveDebts(){
 }
 function saveExpenses(){
   localSet('mombongo:expenses', JSON.stringify(expenses));
+  pushToCloud();
+}
+function saveSuppliers(){
+  localSet('mombongo:suppliers', JSON.stringify(suppliers));
+  pushToCloud();
+}
+function savePurchases(){
+  localSet('mombongo:purchases', JSON.stringify(purchases));
+  pushToCloud();
+}
+function saveSuppliersFeatureEnabled(){
+  localSet('mombongo:suppliersFeatureEnabled', JSON.stringify(suppliersFeatureEnabled));
   pushToCloud();
 }
 
