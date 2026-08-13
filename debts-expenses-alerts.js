@@ -253,6 +253,9 @@ async function confirmRepay(){
   stats.totalProfit += profitPortion;
   saveStats();
   saveDebts();
+  if(currentRole() !== 'patron'){
+    logActivity('debt_repay', dict[currentLang].logDebtRepaid + ' : ' + debt.clientName + ' — ' + formatMoney(amount));
+  }
   closeRepaySheet();
   showToast(dict[currentLang].repaySaved);
   render();
@@ -280,6 +283,9 @@ async function confirmExpense(){
   stats.totalExpenses += amount;
   saveStats();
   await saveExpenses();
+  if(currentRole() !== 'patron'){
+    logActivity('expense_add', dict[currentLang].logExpenseAdded + ' : ' + desc + ' — ' + formatMoney(amount));
+  }
   closeExpenseSheet();
   showToast(dict[currentLang].expenseSaved);
   render();

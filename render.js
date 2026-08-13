@@ -71,7 +71,10 @@ function render(){
   const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
   const expiringSoon = products.filter(p => p.expiryDate && p.expiryDate >= todayStr && daysUntilExpiry(p.expiryDate) <= EXPIRY_WARNING_DAYS);
   const dueSoonDebts = (role==='magasinier') ? [] : getDueSoonDebts();
-  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id), ...expired.map(p=>p.id), ...expiringSoon.map(p=>p.id)]).size + dueSoonDebts.length;
+  // Réservé au patron (voir renderAlertsSheet() pour le détail) : les gestes des employés
+  // des 7 derniers jours comptent aussi comme une alerte à passer en revue.
+  const recentActivityCount = (role==='patron') ? (activityLog||[]).filter(a => Date.now() - a.date < 7*24*60*60*1000).length : 0;
+  const alertCount = new Set([...lowStock.map(p=>p.id), ...dormant.map(p=>p.id), ...expired.map(p=>p.id), ...expiringSoon.map(p=>p.id)]).size + dueSoonDebts.length + recentActivityCount;
   document.getElementById('stat-alerts').textContent = alertCount;
 
   const alertsSection = document.getElementById('alerts-section');
@@ -480,11 +483,24 @@ function renderAlertsSheet(){
   const expiringSoon = products.filter(p => p.expiryDate && p.expiryDate >= todayStr && daysUntilExpiry(p.expiryDate) <= EXPIRY_WARNING_DAYS)
     .sort((a,b)=>daysUntilExpiry(a.expiryDate)-daysUntilExpiry(b.expiryDate));
   const dueSoonDebts = (currentRole()==='magasinier') ? [] : getDueSoonDebts();
+  // Réservé au patron : les gestes des employés (voir logActivity() dans products.js,
+  // appelée depuis debts-expenses-alerts.js et suppliers.js) restent visibles en détail
+  // dans l'historique 👁️, et les 7 derniers jours réapparaissent aussi ici, en alerte,
+  // pour que le patron n'ait pas besoin d'aller les chercher pour les remarquer.
+  const recentActivity = isPatron() ? (activityLog||[]).filter(a => Date.now() - a.date < 7*24*60*60*1000) : [];
 
   const debtsTabBtn = document.getElementById('t-alerts-tab-debts');
   if(debtsTabBtn){
     debtsTabBtn.style.display = dueSoonDebts.length > 0 ? '' : 'none';
     if(dueSoonDebts.length === 0 && alertsTab === 'debts'){
+      alertsTab = 'stock';
+      document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab==='stock'));
+    }
+  }
+  const activityTabBtn = document.getElementById('t-alerts-tab-activity');
+  if(activityTabBtn){
+    activityTabBtn.style.display = recentActivity.length > 0 ? '' : 'none';
+    if(recentActivity.length === 0 && alertsTab === 'activity'){
       alertsTab = 'stock';
       document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab==='stock'));
     }
@@ -502,6 +518,10 @@ function renderAlertsSheet(){
     dueSoonDebts.forEach(d=>{
       const remaining = Math.max(0, d.totalOwed - d.amountPaid);
       items.push(`💳 <b>${escapeHtml(d.clientName)}</b> — ${dueDateLabel(t, daysUntilDue(d.dueDate))} (${formatMoney(remaining)})`);
+    });
+  } else if(alertsTab === 'activity'){
+    recentActivity.forEach(a=>{
+      items.push(`👁️ ${escapeHtml(a.label)} — <b>${escapeHtml(a.who)}</b> · ${formatDateTime(a.date)}`);
     });
   }
 

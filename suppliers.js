@@ -151,6 +151,7 @@ async function confirmSaveSupplier(){
   const name = document.getElementById('in-supplier-name').value.trim();
   const phone = document.getElementById('in-supplier-phone').value.trim();
   if(!name){ showToast(t.supplierNameRequired); return; }
+  const wasEditing = !!editingSupplierId;
   if(editingSupplierId){
     const supplier = suppliers.find(s=>s.id===editingSupplierId);
     if(supplier){ supplier.name = name; supplier.phone = phone; }
@@ -158,6 +159,9 @@ async function confirmSaveSupplier(){
     suppliers.push({ id: Date.now().toString(), name, phone, createdAt: Date.now() });
   }
   await saveSuppliers();
+  if(currentRole() !== 'patron'){
+    logActivity(wasEditing ? 'supplier_edit' : 'supplier_add', (wasEditing ? t.logSupplierEdited : t.logSupplierAdded) + ' : ' + name);
+  }
   closeSupplierFormSheet();
   renderSuppliersList();
   showToast(t.supplierSaved);
@@ -313,6 +317,10 @@ async function confirmRecordPurchase(){
 
   await savePurchases();
   await saveProducts();
+  if(currentRole() !== 'patron'){
+    const creditNote = isCredit ? ' (' + t.creditOpenBadge + ')' : ' (' + t.cashBadge + ')';
+    logActivity('purchase_add', t.logPurchaseSaved + ' : ' + supplier.name + ' — ' + formatMoney(totalAmount) + creditNote);
+  }
   closeRecordPurchaseSheet();
   renderSuppliersList();
   render();
@@ -385,6 +393,7 @@ async function confirmPaySupplier(){
   }
   let amount = toInternal(parseFloat(document.getElementById('in-pay-supplier-amount').value) || 0);
   if(amount <= 0){ showToast(t.invalidAmount); return; }
+  const originalAmount = amount;
 
   // On règle les achats à crédit les plus anciens en premier (comme une file d'attente),
   // jusqu'à épuisement du montant versé.
@@ -401,6 +410,10 @@ async function confirmPaySupplier(){
     amount -= applied;
   }
   await savePurchases();
+  if(currentRole() !== 'patron'){
+    const supplier = suppliers.find(s=>s.id===payingSupplierId);
+    logActivity('supplier_pay', t.logSupplierPaid + ' : ' + (supplier ? supplier.name : '') + ' — ' + formatMoney(originalAmount));
+  }
   closePaySupplierSheet();
   renderSuppliersList();
   showToast(t.paymentSaved);

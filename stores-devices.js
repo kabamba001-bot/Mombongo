@@ -796,6 +796,7 @@ function applyTranslations(){
   document.getElementById('t-alerts-tab-stock').textContent = t.alertsTabStock;
   document.getElementById('t-alerts-tab-expired').textContent = t.alertsTabExpired;
   document.getElementById('t-alerts-tab-debts').textContent = t.alertsTabDebts;
+  document.getElementById('t-alerts-tab-activity').textContent = t.alertsTabActivity;
   document.getElementById('t-alerts-sheet-empty').textContent = t.alertsSheetEmpty;
   document.getElementById('t-cancel10').textContent = t.close;
   document.getElementById('t-products-title').textContent = t.productsTitle;
