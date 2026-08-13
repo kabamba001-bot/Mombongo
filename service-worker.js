@@ -15,14 +15,45 @@
    se rafraîchisse toute seule en arrière-plan.
 */
 
-const CACHE_NAME = 'mombongo-cache-v7';
+const CACHE_NAME = 'mombongo-cache-v6';
 const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './style.css',
+  './webview-guard.js',
+  './config.js',
+  './translations.js',
+  './helpers.js',
+  './account-cloud.js',
+  './stores-devices.js',
+  './data-catalog.js',
+  './community-catalog.js',
+  './products.js',
+  './barcode.js',
+  './discover.js',
+  './sales.js',
+  './receipt.js',
+  './render.js',
+  './navigation.js',
+  './export.js',
+  './debts-expenses-alerts.js',
+  './suppliers.js'
 ];
+// ⚠️ Les bibliothèques externes (Firebase, jsPDF, XLSX, html5-qrcode — chargées
+// depuis gstatic.com/cdnjs.cloudflare.com/jsdelivr.net dans index.html) NE SONT
+// PAS précachées ici : le navigateur ne permet pas à un service worker de mettre
+// en cache des ressources cross-origin lors de l'installation sans configuration
+// CORS supplémentaire côté CDN. C'est sans gravité pour le fonctionnement hors
+// ligne de base : chaque fonctionnalité qui en dépend (connexion Google, export
+// PDF/Excel, scan code-barres, notifications) vérifie déjà si la bibliothèque
+// s'est bien chargée avant de s'en servir, et se dégrade proprement (message
+// clair) si elle est indisponible faute de réseau — voir par exemple
+// isBarcodeLibraryReady() dans barcode.js. Le suivi du stock, des ventes, des
+// dettes, des dépenses et des fournisseurs, lui, reste 100% utilisable hors
+// ligne grâce à la liste ci-dessus.
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
