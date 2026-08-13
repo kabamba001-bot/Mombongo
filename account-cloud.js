@@ -47,6 +47,10 @@ function signOutGoogle(){
   removeFcmToken();
   firebase.auth().signOut().then(()=>{
     if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
+    if(typeof detachSalesListener === 'function') detachSalesListener();
+    if(typeof detachProductsListener === 'function') detachProductsListener();
+    syncedSaleIds = new Set();
+    syncedProductsSnapshot = {};
     products = [];
     sales = [];
     lots = [];

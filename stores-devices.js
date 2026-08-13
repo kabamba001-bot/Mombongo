@@ -101,7 +101,10 @@ async function pushToCloud(){
   if(isEmployeeMode && !employeeSyncReady) return;
   const storeId = getActiveStoreIdForWrites();
   if(!storeId) return;
-  storesDataCache[storeId] = { products, sales, lots, debts, expenses, activityLog, stats, historyClearedAt, customCatalog, suppliers, purchases, suppliersFeatureEnabled };
+  // "sales" et "products" ne sont plus inclus ici : ils se synchronisent séparément, par
+  // élément, via saveSales()/saveProducts() (sales-sync.js / products-sync.js — protégés
+  // par rôle, voir firestore.rules).
+  storesDataCache[storeId] = { lots, debts, expenses, activityLog, stats, historyClearedAt, customCatalog, suppliers, purchases, suppliersFeatureEnabled };
   try{
     const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
     if(!isEmployeeMode){
@@ -167,12 +170,16 @@ function applyDocData(data){
     // Caissier ou magasinier : figé sur la boutique reçue au moment du couplage par code.
     if(!storesDataCache[employeeStoreId]) storesDataCache[employeeStoreId] = emptyStoreData();
     loadStoreDataIntoWorkingArrays(storesDataCache[employeeStoreId]);
+    if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), employeeStoreId);
   } else {
     // Propriétaire réel, OU appareil secondaire connecté en rôle "patron" (aucune
     // restriction pour ce cas, comme demandé) : accès dynamique à la boutique active.
     activeStoreId = data.activeStoreId && stores.find(s=>s.id===data.activeStoreId) ? data.activeStoreId : stores[0].id;
     if(!storesDataCache[activeStoreId]) storesDataCache[activeStoreId] = emptyStoreData();
     loadStoreDataIntoWorkingArrays(storesDataCache[activeStoreId]);
+    if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), activeStoreId);
   }
 
   // Le taux de change et la devise choisis par le patron doivent s'afficher pareil
@@ -343,6 +350,8 @@ async function switchStore(storeId){
   activeStoreId = storeId;
   if(!storesDataCache[storeId]) storesDataCache[storeId] = emptyStoreData();
   loadStoreDataIntoWorkingArrays(storesDataCache[storeId]);
+  if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), storeId);
+  if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), storeId);
   await pushToCloud(); // persiste activeStoreId
   renderStoresList();
   render();
@@ -592,6 +601,10 @@ async function confirmJoinWithPin(){
 
 function leaveDeviceCleanup(){
   if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
+  if(typeof detachSalesListener === 'function') detachSalesListener();
+  if(typeof detachProductsListener === 'function') detachProductsListener();
+  syncedSaleIds = new Set();
+  syncedProductsSnapshot = {};
   employeeSyncReady = false;
   isEmployeeMode = false;
   employeeOwnerUid = null; employeeRole = null; employeeStoreId = null; employeeDeviceName = '';

@@ -260,13 +260,9 @@ function pickCatalogItem(fieldId, name){
   closeCatalogPanel(fieldId);
 }
 
-async function saveProducts(){
-  localSet('mombongo:products', JSON.stringify(products));
-  localSet('mombongo:customCatalog', JSON.stringify(customCatalog));
-  pushToCloud();
-}
-async function saveSales(){
-  localSet('mombongo:sales', JSON.stringify(sales));
-  pushToCloud();
-}
+// saveProducts() vit maintenant dans products-sync.js (suite de l'étape 2 du chantier de
+// sécurité par rôle) — les produits ont leur propre collection Firestore protégée par rôle.
+// saveSales() vit maintenant dans sales-sync.js (étape 2 du chantier de sécurité par
+// rôle) — les ventes ont leur propre collection Firestore protégée par rôle, au lieu
+// d'être un champ de plus dans le même document que produits/dettes/dépenses.
 
