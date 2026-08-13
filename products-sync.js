@@ -105,35 +105,42 @@ async function saveProducts(){
 
   if(ops.length === 0 && removedIds.length === 0) return;
 
-  try{
-    for(let i=0; i<ops.length; i+=450){
-      const chunk = ops.slice(i, i+450);
-      const batch = db.batch();
-      chunk.forEach(op=>{ op.isCreate ? batch.set(op.ref, op.data) : batch.update(op.ref, op.data); });
-      await batch.commit();
-      chunk.forEach(op=>{
-        const current = products.find(p=>p.id===op.id);
-        if(current) syncedProductsSnapshot[op.id] = Object.assign({}, current);
-      });
+  // Marqué "synchronisé" tout de suite, de façon optimiste — voir le même commentaire
+  // dans saveSales() (sales-sync.js) pour la raison.
+  ops.forEach(op=>{
+    const current = products.find(p=>p.id===op.id);
+    if(current) syncedProductsSnapshot[op.id] = Object.assign({}, current);
+  });
+  removedIds.forEach(id=>{ delete syncedProductsSnapshot[id]; });
+
+  // CRITIQUE : ne JAMAIS attendre ces commits ici (voir le commentaire détaillé dans
+  // saveSales()) — l'ajout/la modification d'un produit ne doit jamais rester bloqué(e)
+  // à l'écran en attendant le réseau. Tout se termine en arrière-plan ; l'échec éventuel
+  // est simplement journalisé (pas de retour en arrière ici : products.js retentera de
+  // lui-même la prochaine fois que ce produit sera modifié, puisque syncedProductsSnapshot
+  // ne reflète alors plus fidèlement ce qui est vraiment confirmé côté serveur — un léger
+  // désaccord temporaire préférable à bloquer l'utilisateur).
+  (async ()=>{
+    try{
+      for(let i=0; i<ops.length; i+=450){
+        const chunk = ops.slice(i, i+450);
+        const batch = db.batch();
+        chunk.forEach(op=>{ op.isCreate ? batch.set(op.ref, op.data) : batch.update(op.ref, op.data); });
+        await batch.commit();
+      }
+      for(let i=0; i<removedIds.length; i+=450){
+        const chunk = removedIds.slice(i, i+450);
+        const batch = db.batch();
+        chunk.forEach(id=>{ batch.delete(col.doc(id)); });
+        await batch.commit();
+      }
+      lastSyncOk = true;
+      updateSyncStatusUI();
+    }catch(e){
+      console.error('Erreur synchronisation produits', e);
+      lastSyncOk = false;
+      lastSyncErrorMsg = e.code || e.message || String(e);
+      updateSyncStatusUI();
     }
-    for(let i=0; i<removedIds.length; i+=450){
-      const chunk = removedIds.slice(i, i+450);
-      const batch = db.batch();
-      chunk.forEach(id=>{ batch.delete(col.doc(id)); });
-      await batch.commit();
-      chunk.forEach(id=>{ delete syncedProductsSnapshot[id]; });
-    }
-    lastSyncOk = true;
-    updateSyncStatusUI();
-  }catch(e){
-    // Contrairement à saveSales() (qui annule son delta en cas d'échec), on ne retire
-    // rien ici : syncedProductsSnapshot ne bouge que pour les opérations qui ont
-    // RÉELLEMENT réussi (voir les .forEach juste après chaque commit ci-dessus) — un
-    // échec partiel se retente donc automatiquement, produit par produit, au prochain
-    // saveProducts(), sans rien perdre ni rien resynchroniser en trop.
-    console.error('Erreur synchronisation produits', e);
-    lastSyncOk = false;
-    lastSyncErrorMsg = e.code || e.message || String(e);
-    updateSyncStatusUI();
-  }
+  })();
 }

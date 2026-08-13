@@ -132,10 +132,21 @@ function updateSellPreview(){
   document.getElementById('preview-total').textContent = formatMoney(total);
   document.getElementById('preview-profit').textContent = formatMoney(profit);
 }
+let saveInProgress = false; // garde-fou partagé contre les doubles clics (vente, produit)
+
 async function confirmSale(){
+  if(saveInProgress) return; // un appui précédent est déjà en train d'être traité
+  saveInProgress = true;
+  try{
+    await confirmSaleInner();
+  } finally {
+    saveInProgress = false;
+  }
+}
+async function confirmSaleInner(){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(document.getElementById('in-is-multi').checked){
-    await confirmMultiSale();
+    await confirmMultiSaleInner();
     return;
   }
   const product = products.find(p=>p.id===sellingProductId);
@@ -237,6 +248,15 @@ async function confirmSale(){
 
 /* ---------- Vente plusieurs (catalogue complet + dette partielle) ---------- */
 async function confirmMultiSale(){
+  if(saveInProgress) return;
+  saveInProgress = true;
+  try{
+    await confirmMultiSaleInner();
+  } finally {
+    saveInProgress = false;
+  }
+}
+async function confirmMultiSaleInner(){
   const items = getMultiCartItems();
   if(items.length === 0){
     showToast(currentLang==='fr' ? "Sélectionne au moins un produit" : "Pona ata produit moko");

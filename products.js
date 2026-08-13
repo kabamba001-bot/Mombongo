@@ -261,6 +261,15 @@ async function handleAddSave(){
 }
 
 async function addProduct(){
+  if(typeof saveInProgress !== 'undefined' && saveInProgress) return; // un appui précédent est déjà en train d'être traité
+  if(typeof saveInProgress !== 'undefined') saveInProgress = true;
+  try{
+    await addProductInner();
+  } finally {
+    if(typeof saveInProgress !== 'undefined') saveInProgress = false;
+  }
+}
+async function addProductInner(){
   const name = document.getElementById('in-name').value.trim();
   if(hasNegativeInputs(['in-buy','in-sell','in-qty','in-threshold'])){
     showToast(dict[currentLang].negativeValueError);

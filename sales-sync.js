@@ -108,19 +108,28 @@ async function saveSales(){
   const batch = db.batch();
   toAdd.forEach(s=>{ batch.set(col.doc(s.id), Object.assign({}, s, { storeId })); });
   toRemove.forEach(id=>{ batch.delete(col.doc(id)); });
-  try{
-    await batch.commit();
-    toAdd.forEach(s=>syncedSaleIds.add(s.id));
-    toRemove.forEach(id=>syncedSaleIds.delete(id));
+
+  // Marqué "synchronisé" tout de suite, de façon optimiste — sinon une deuxième vente
+  // juste après celle-ci recalculerait le même delta et l'enverrait deux fois avant que
+  // le premier envoi n'ait eu le temps de se terminer.
+  toAdd.forEach(s=>syncedSaleIds.add(s.id));
+  toRemove.forEach(id=>syncedSaleIds.delete(id));
+
+  // CRITIQUE : ne JAMAIS attendre ce commit ici. La fermeture de la fiche de vente, le
+  // toast de confirmation et la mise à jour des chiffres à l'écran ne doivent jamais
+  // dépendre de la vitesse du réseau — exactement comme le faisait déjà pushToCloud()
+  // avant cette migration. La synchro continue en arrière-plan, sans bloquer l'interface ;
+  // en cas d'échec réel, on annule l'optimisme ci-dessus pour que ça se retente tout seul
+  // au prochain saveSales().
+  batch.commit().then(()=>{
     lastSyncOk = true;
     updateSyncStatusUI();
-  }catch(e){
-    // commit() est atomique : en cas d'échec, RIEN n'a été écrit — on ne touche donc pas
-    // non plus à syncedSaleIds, pour que la prochaine tentative retente exactement le
-    // même delta au lieu de croire, à tort, que c'est déjà synchronisé.
+  }).catch((e)=>{
     console.error('Erreur synchronisation ventes', e);
+    toAdd.forEach(s=>syncedSaleIds.delete(s.id));
+    toRemove.forEach(id=>syncedSaleIds.add(id));
     lastSyncOk = false;
     lastSyncErrorMsg = e.code || e.message || String(e);
     updateSyncStatusUI();
-  }
+  });
 }
