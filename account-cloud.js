@@ -49,8 +49,18 @@ function signOutGoogle(){
     if(unsubscribeListener){ unsubscribeListener(); unsubscribeListener = null; }
     if(typeof detachSalesListener === 'function') detachSalesListener();
     if(typeof detachProductsListener === 'function') detachProductsListener();
+    if(typeof detachDebtsListener === 'function') detachDebtsListener();
+    if(typeof detachExpensesListener === 'function') detachExpensesListener();
+    if(typeof detachSuppliersListener === 'function') detachSuppliersListener();
+    if(typeof detachPurchasesListener === 'function') detachPurchasesListener();
+    if(typeof detachActivityLogListener === 'function') detachActivityLogListener();
     syncedSaleIds = new Set();
     syncedProductsSnapshot = {};
+    syncedDebtsSnapshot = {};
+    syncedExpenseIds = new Set();
+    syncedSuppliersSnapshot = {};
+    syncedPurchasesSnapshot = {};
+    syncedActivityLogIds = new Set();
     products = [];
     sales = [];
     lots = [];

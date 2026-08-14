@@ -30,6 +30,27 @@ function getFilteredProducts(){
   return products.filter(p=>p.name.toLowerCase().includes(q));
 }
 
+/* ---------- Pagination de la liste produits ----------
+   Sans ça, render() (appelée après CHAQUE vente, ajout, changement d'onglet...)
+   reconstruit un <div class="product-card"> pour la totalité du catalogue à chaque
+   fois — invisible avec une trentaine de produits, mais ça devient lent sur un
+   téléphone d'entrée de gamme dès que le catalogue atteint plusieurs centaines de
+   références (grande pharmacie, quincaillerie bien fournie...). On affiche donc les
+   produits par lots de PRODUCTS_PAGE_SIZE, avec un bouton "Afficher plus" qui révèle
+   le lot suivant sans jamais redemander à l'utilisateur de le retaper.
+   productsRevealCount doit survivre à un simple re-rendu (ex: une vente qui vient de
+   se conclure ailleurs) pour ne pas ramener l'utilisateur en haut de la liste au
+   milieu de sa lecture — seule une recherche qui change réellement la liste filtrée
+   repart de zéro, voir la comparaison avec lastProductsSearchQuery ci-dessous. */
+const PRODUCTS_PAGE_SIZE = 60;
+let productsRevealCount = PRODUCTS_PAGE_SIZE;
+let lastProductsSearchQuery = null;
+
+function loadMoreProducts(){
+  productsRevealCount += PRODUCTS_PAGE_SIZE;
+  render();
+}
+
 function render(){
   const t = dict[currentLang];
   ensureTodayStats();
@@ -84,9 +105,19 @@ function render(){
   const list = document.getElementById('products-list');
   const empty = document.getElementById('empty-state');
   const noResults = document.getElementById('no-results');
+  const loadMoreBtn = document.getElementById('load-more-products-btn');
   const deleteAllBtn = document.getElementById('delete-all-products-btn');
   const filtered = getFilteredProducts();
   list.innerHTML = '';
+
+  // Une recherche qui change réellement la liste repart de la première page ; un
+  // re-rendu déclenché par autre chose (vente, sync temps réel...) garde la position
+  // de lecture déjà atteinte — voir le commentaire sur productsRevealCount plus haut.
+  const currentSearchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+  if(currentSearchQuery !== lastProductsSearchQuery){
+    productsRevealCount = PRODUCTS_PAGE_SIZE;
+    lastProductsSearchQuery = currentSearchQuery;
+  }
 
   if(isPatron() && products.length > 0){
     deleteAllBtn.style.display = 'block';
@@ -98,13 +129,16 @@ function render(){
   if(products.length === 0){
     empty.style.display = 'block';
     noResults.style.display = 'none';
+    if(loadMoreBtn) loadMoreBtn.style.display = 'none';
   } else if(filtered.length === 0){
     empty.style.display = 'none';
     noResults.style.display = 'block';
+    if(loadMoreBtn) loadMoreBtn.style.display = 'none';
   } else {
     empty.style.display = 'none';
     noResults.style.display = 'none';
-    filtered.forEach(p=>{
+    const visible = filtered.slice(0, productsRevealCount);
+    visible.forEach(p=>{
       const dotClass = p.qty === 0 ? 'red' : (p.qty <= p.threshold ? 'amber' : 'green');
       const card = document.createElement('div');
       card.className = 'product-card';
@@ -125,6 +159,15 @@ function render(){
       `;
       list.appendChild(card);
     });
+    if(loadMoreBtn){
+      const remaining = filtered.length - visible.length;
+      if(remaining > 0){
+        loadMoreBtn.style.display = 'block';
+        loadMoreBtn.textContent = t.loadMoreProductsBtn.replace('{n}', remaining);
+      } else {
+        loadMoreBtn.style.display = 'none';
+      }
+    }
   }
 }
 

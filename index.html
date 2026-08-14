@@ -178,6 +178,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit...">
       </div>
       <div id="products-list"></div>
+      <button id="load-more-products-btn" class="load-more-btn" onclick="loadMoreProducts()" style="display:none;"></button>
       <button id="delete-all-products-btn" onclick="deleteAllProducts()" style="display:none;width:100%;margin-top:10px;padding:12px;border:1px solid #c0392b;color:#c0392b;background:transparent;border-radius:10px;font-size:14px;cursor:pointer;"></button>
       <div id="empty-state" class="empty" style="display:none;">
         <span id="t-empty">Aucun produit pour l'instant. Ajoute ton premier produit avec le bouton en bas.</span>
@@ -1129,6 +1130,11 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="stores-devices.js"></script>
 <script src="sales-sync.js"></script>
 <script src="products-sync.js"></script>
+<script src="debts-sync.js"></script>
+<script src="expenses-sync.js"></script>
+<script src="suppliers-sync.js"></script>
+<script src="purchases-sync.js"></script>
+<script src="activity-log-sync.js"></script>
 <script src="data-catalog.js"></script>
 <script src="community-catalog.js"></script>
 <script src="products.js"></script>

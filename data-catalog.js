@@ -18,22 +18,13 @@ function saveLots(){
   localSet('mombongo:lots', JSON.stringify(lots));
   pushToCloud();
 }
-function saveDebts(){
-  localSet('mombongo:debts', JSON.stringify(debts));
-  pushToCloud();
-}
-function saveExpenses(){
-  localSet('mombongo:expenses', JSON.stringify(expenses));
-  pushToCloud();
-}
-function saveSuppliers(){
-  localSet('mombongo:suppliers', JSON.stringify(suppliers));
-  pushToCloud();
-}
-function savePurchases(){
-  localSet('mombongo:purchases', JSON.stringify(purchases));
-  pushToCloud();
-}
+// saveDebts() vit maintenant dans debts-sync.js (dettes dans leur propre collection
+// Firestore, protégée par rôle — voir firestore.rules).
+// saveExpenses() vit maintenant dans expenses-sync.js (dépenses dans leur propre
+// collection Firestore, protégée par rôle — voir firestore.rules).
+// saveSuppliers() vit maintenant dans suppliers-sync.js, savePurchases() dans
+// purchases-sync.js (fournisseurs et achats dans leurs propres collections
+// Firestore, protégées par rôle — voir firestore.rules).
 function saveSuppliersFeatureEnabled(){
   localSet('mombongo:suppliersFeatureEnabled', JSON.stringify(suppliersFeatureEnabled));
   pushToCloud();
@@ -80,13 +71,27 @@ async function archiveOldData(){
   const cutoff = getHistoryRetentionCutoff();
   const oldSalesCount = sales.filter(s => s.date < cutoff).length;
   const oldExpensesCount = expenses.filter(e => e.date < cutoff).length;
-  if(oldSalesCount === 0 && oldExpensesCount === 0) return;
+  // Une dette/un achat n'est archivé QUE s'il est déjà réglé — de l'argent encore dû ne
+  // doit jamais disparaître silencieusement, même si la dette/l'achat est ancien(ne).
+  // On se base sur createdAt (dette) / date (achat), qui ne bougent plus une fois le
+  // statut passé à "réglé".
+  const oldDebtsCount = debts.filter(d => d.status === 'réglé' && (d.createdAt||0) < cutoff).length;
+  const oldPurchasesCount = purchases.filter(p => p.status === 'réglé' && (p.date||0) < cutoff).length;
+  // Le journal d'activité n'a pas de statut "en cours" à protéger — purge inconditionnelle.
+  const oldActivityCount = (activityLog||[]).filter(a => a.date < cutoff).length;
+  if(oldSalesCount === 0 && oldExpensesCount === 0 && oldDebtsCount === 0 && oldPurchasesCount === 0 && oldActivityCount === 0) return;
   // Les compteurs de bénéfices/dépenses (stats) sont indépendants de ces listes détaillées :
   // les supprimer ici ne change donc rien aux totaux déjà affichés, seule la mémoire est libérée.
   sales = sales.filter(s => s.date >= cutoff);
   expenses = expenses.filter(e => e.date >= cutoff);
+  debts = debts.filter(d => !(d.status === 'réglé' && (d.createdAt||0) < cutoff));
+  purchases = purchases.filter(p => !(p.status === 'réglé' && (p.date||0) < cutoff));
+  activityLog = (activityLog||[]).filter(a => a.date >= cutoff);
   await saveSales();
   saveExpenses();
+  saveDebts();
+  savePurchases();
+  if(typeof saveActivityLog === 'function') saveActivityLog();
 }
 
 async function loadData(){

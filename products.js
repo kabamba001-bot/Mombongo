@@ -417,10 +417,8 @@ async function addSacProduct(){
   maybeTrackFirstProduct();
 }
 
-function saveActivityLog(){
-  localSet('mombongo:activityLog', JSON.stringify(activityLog));
-  pushToCloud();
-}
+// saveActivityLog() vit maintenant dans activity-log-sync.js (journal d'activité dans
+// sa propre collection Firestore, avec purge automatique — voir firestore.rules).
 function logActivity(action, label, extra){
   const roleLabel = { patron:'Patron', caissier:'Caissier', magasinier:'Magasinier' };
   const who = employeeDeviceName ? `${roleLabel[currentRole()]} (${employeeDeviceName})` : roleLabel[currentRole()];

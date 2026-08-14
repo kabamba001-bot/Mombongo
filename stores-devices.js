@@ -101,10 +101,17 @@ async function pushToCloud(){
   if(isEmployeeMode && !employeeSyncReady) return;
   const storeId = getActiveStoreIdForWrites();
   if(!storeId) return;
-  // "sales" et "products" ne sont plus inclus ici : ils se synchronisent séparément, par
-  // élément, via saveSales()/saveProducts() (sales-sync.js / products-sync.js — protégés
-  // par rôle, voir firestore.rules).
-  storesDataCache[storeId] = { lots, debts, expenses, activityLog, stats, historyClearedAt, customCatalog, suppliers, purchases, suppliersFeatureEnabled };
+  // "sales", "products", "debts", "expenses", "suppliers", "purchases" et
+  // "activityLog" ne sont plus inclus ici : ils se synchronisent séparément, par
+  // élément, via saveSales()/saveProducts()/saveDebts()/saveExpenses()/
+  // saveSuppliers()/savePurchases()/saveActivityLog() (sales-sync.js /
+  // products-sync.js / debts-sync.js / expenses-sync.js / suppliers-sync.js /
+  // purchases-sync.js / activityLog-sync.js — protégés par rôle, voir
+  // firestore.rules). Ce qui reste ici (lots, stats, historyClearedAt,
+  // customCatalog, suppliersFeatureEnabled) n'a ni le même historique qui grossit
+  // sans fin, ni besoin d'une règle différente par rôle — voir la note en bas de
+  // firestore.rules.
+  storesDataCache[storeId] = { lots, stats, historyClearedAt, customCatalog, suppliersFeatureEnabled };
   try{
     const update = { updatedAt: Date.now(), storesData: { [storeId]: storesDataCache[storeId] } };
     if(!isEmployeeMode){
@@ -172,6 +179,11 @@ function applyDocData(data){
     loadStoreDataIntoWorkingArrays(storesDataCache[employeeStoreId]);
     if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), employeeStoreId);
     if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachDebtsListener === 'function') attachDebtsListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachExpensesListener === 'function') attachExpensesListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachSuppliersListener === 'function') attachSuppliersListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachPurchasesListener === 'function') attachPurchasesListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachActivityLogListener === 'function') attachActivityLogListener(getDataOwnerUid(), employeeStoreId);
   } else {
     // Propriétaire réel, OU appareil secondaire connecté en rôle "patron" (aucune
     // restriction pour ce cas, comme demandé) : accès dynamique à la boutique active.
@@ -180,6 +192,11 @@ function applyDocData(data){
     loadStoreDataIntoWorkingArrays(storesDataCache[activeStoreId]);
     if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), activeStoreId);
     if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachDebtsListener === 'function') attachDebtsListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachExpensesListener === 'function') attachExpensesListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachSuppliersListener === 'function') attachSuppliersListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachPurchasesListener === 'function') attachPurchasesListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachActivityLogListener === 'function') attachActivityLogListener(getDataOwnerUid(), activeStoreId);
   }
 
   // Le taux de change et la devise choisis par le patron doivent s'afficher pareil
