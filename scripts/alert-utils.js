@@ -38,9 +38,13 @@ function daysUntilExpiry(expiryDate){
 }
 
 // Recalcule les alertes d'une boutique, exactement comme render() côté client.
-function computeStoreAlerts(storeData){
+// "debts" est maintenant passé séparément (et non plus lu depuis storeData.debts) :
+// les dettes vivent dans leur propre collection Firestore depuis debts-sync.js —
+// voir les appelants dans send-new-alerts.js / send-daily-recap.js, qui la récupèrent
+// avec le SDK Admin (qui contourne les règles de sécurité, donc peut lire directement).
+function computeStoreAlerts(storeData, debts){
   const products = (storeData && storeData.products) || [];
-  const debts = (storeData && storeData.debts) || [];
+  debts = debts || [];
   const todayStr = new Date().toISOString().slice(0,10);
 
   const lowStock = products.filter(p => typeof p.qty === 'number' && typeof p.threshold === 'number' && p.qty <= p.threshold);

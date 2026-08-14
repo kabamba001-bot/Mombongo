@@ -39,7 +39,13 @@ async function run(){
       const storeData = storesData[storeId];
       if(!storeData) continue;
 
-      const { lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData);
+      // Les dettes ne vivent plus dans storeData (voir debts-sync.js côté app) — on les
+      // récupère directement dans leur propre collection, scopées à cette boutique.
+      const debtsSnap = await db.collection('mombongo_users').doc(ownerUid).collection('debts')
+        .where('storeId', '==', storeId).get();
+      const storeDebts = debtsSnap.docs.map(d => d.data());
+
+      const { lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData, storeDebts);
       if(lowStock.length === 0 && expired.length === 0 && expiringSoon.length === 0 && (!dueSoonDebts || dueSoonDebts.length === 0)) continue;
 
       const { title, body } = buildMessage(store.name, lowStock, expired, expiringSoon, dueSoonDebts, '🔔 Rappel —');

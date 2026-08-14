@@ -38,7 +38,13 @@ async function run(){
       const storeData = storesData[storeId];
       if(!storeData) continue;
 
-      const { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData);
+      // Les dettes ne vivent plus dans storeData (voir debts-sync.js côté app) — on les
+      // récupère directement dans leur propre collection, scopées à cette boutique.
+      const debtsSnap = await db.collection('mombongo_users').doc(ownerUid).collection('debts')
+        .where('storeId', '==', storeId).get();
+      const storeDebts = debtsSnap.docs.map(d => d.data());
+
+      const { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData, storeDebts);
 
       const stateRef = db.collection('mombongo_users').doc(ownerUid).collection('notifState').doc(storeId);
       const stateDoc = await stateRef.get();
