@@ -365,7 +365,7 @@ const dict = {
     invalidAmount:"Montant invalide",
     paymentSaved:"Paiement enregistré",
 
-    discoverTitle_suppliers:"Gestion fournisseurs (VIP)",
+    discoverTitle_suppliers:"Gestion fournisseurs",
     discoverBody_suppliers:"Fonctionnalité VIP, à activer soi-même : Menu compte → active l'interrupteur « 🚚 Gestion fournisseurs ». Une fois activée, un bouton 🚚 apparaît en haut de l'écran.\nDedans : ajoute tes fournisseurs (nom, téléphone), enregistre un achat (choisis un ou plusieurs produits déjà dans ton stock, la quantité et le coût unitaire — le stock et le prix d'achat de chaque produit se mettent à jour automatiquement), au comptant ou à crédit.\nSi tu achètes à crédit, Mombongo suit ce que tu dois à chaque fournisseur, avec une date limite optionnelle — règle en un tap depuis 💳. L'historique complet de tes achats reste consultable avec 🧾.\nUne fois activée, seuls le patron et le caissier y ont accès.",
 
     logDebtRepaid:"Remboursement enregistré",
@@ -742,7 +742,7 @@ const dict = {
     invalidAmount:"Motángo ekoki te",
     paymentSaved:"Kofuta ebombami",
 
-    discoverTitle_suppliers:"Kotambwisa ba fournisseurs (VIP)",
+    discoverTitle_suppliers:"Kotambwisa ba fournisseurs",
     discoverBody_suppliers:"Likambo ya VIP, osengeli komifungolela yango : Menu compte → fungolá interrupteur « 🚚 Kotambwisa ba fournisseurs ». Soki efungwami, bouton 🚚 ekomonana likolo ya écran.\nNa kati : bakisá ba fournisseurs na yo (nkombo, telefone), bomba achat (poná produit moko to mingi oyo esili kozala na stock na yo, motángo mpe ntalo ya moko — stock na ntalo ya kosomba ya produit nyonso ebongwanaka automatiquement), cash to na nyongo.\nSoki osombi na nyongo, Mombongo elandaka oyo ozali na nyongo epai ya fournisseur moko na moko, na date ya suka soki olingi. Futá na tap moko longwa na 💳. Histoire mobimba ya ba achats na yo ezali komonana na 🧾.\nSoki efungwami, kaka patron na caissier bakoki kokota kuna.",
 
     logDebtRepaid:"Kofuta ebombami",
@@ -1119,7 +1119,7 @@ const dict = {
     invalidAmount:"Kiasi si sahihi",
     paymentSaved:"Malipo yamehifadhiwa",
 
-    discoverTitle_suppliers:"Usimamizi wa wasambazaji (VIP)",
+    discoverTitle_suppliers:"Usimamizi wa wasambazaji",
     discoverBody_suppliers:"Kipengele cha VIP, unachowasha mwenyewe : Menyu ya akaunti → washa kitufe « 🚚 Usimamizi wa wasambazaji ». Kikishawashwa, kitufe 🚚 kinaonekana juu ya skrini.\nNdani : ongeza wasambazaji wako (jina, simu), sajili ununuzi (chagua bidhaa moja au zaidi tayari kwenye stoku yako, kiasi na gharama ya kipande — stoku na bei ya ununuzi ya kila bidhaa vinasasishwa kiotomatiki), kwa taslimu au kwa deni.\nUkinunua kwa deni, Mombongo inafuatilia unachodaiwa na kila msambazaji, na tarehe ya mwisho ya hiari. Lipa kwa mguso mmoja kutoka 💳. Historia kamili ya manunuzi yako inapatikana kwa 🧾.\nKikishawashwa, ni patroni na mhudumu tu wanaoweza kuingia humo.",
 
     logDebtRepaid:"Malipo yamehifadhiwa",

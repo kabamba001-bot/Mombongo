@@ -12,6 +12,7 @@
    stores-devices.js à chaque changement de langue.
    ========================================================================= */
 const DISCOVER_SECTIONS = [
+  { icon:'🚚', key:'suppliers' },
   { icon:'➕', key:'addSimple' },
   { icon:'📦', key:'addCarton' },
   { icon:'🌾', key:'addSac' },
@@ -47,7 +48,6 @@ const DISCOVER_SECTIONS = [
   { icon:'🔕', key:'notifications' },
   { icon:'📡', key:'offlineMode' },
   { icon:'🌙', key:'darkMode' },
-  { icon:'🚚', key:'suppliers' },
   { icon:'◀️', key:'androidBack' },
 ];
 
