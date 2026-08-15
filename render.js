@@ -212,11 +212,19 @@ async function resetExpenses(){
 let historyPeriod = 'day';
 let historyCustomFrom = null;
 let historyCustomTo = null;
+// Pagination de l'historique : au-delà d'un an d'activité, une boutique peut avoir
+// des milliers d'entrées (ventes + dépenses + remboursements + activité) — tout
+// injecter d'un coup dans le DOM fait ramer, voire geler, le navigateur sur un
+// téléphone d'entrée de gamme. On n'affiche donc qu'un nombre limité d'entrées à
+// la fois, avec un bouton "Voir plus" pour révéler la suite à la demande.
+let historyPage = 1;
+const HISTORY_PAGE_SIZE = 50;
 
 function openHistorySheet(){
   historyPeriod = 'day';
   historyCustomFrom = null;
   historyCustomTo = null;
+  historyPage = 1;
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period==='day'));
   document.getElementById('custom-range-fields').style.display = 'none';
   setDateValue('in-period-from', '');
@@ -435,7 +443,12 @@ function renderHistory(){
     return;
   }
   empty.style.display = 'none';
-  sorted.forEach(entry=>{
+  // On ne construit les nœuds DOM QUE pour la page courante — jamais pour la liste
+  // entière — c'est ça qui évite le ralentissement sur un gros historique. Charger
+  // une page de plus ne refait pas de calcul lourd : "sorted" est déjà prêt, on
+  // élargit juste la tranche affichée.
+  const visible = sorted.slice(0, historyPage * HISTORY_PAGE_SIZE);
+  visible.forEach(entry=>{
     const div = document.createElement('div');
     div.className = 'history-item';
     const amountClass = entry.amount < 0 ? 'total negative' : 'total';
@@ -462,6 +475,18 @@ function renderHistory(){
     `;
     list.appendChild(div);
   });
+  if(sorted.length > visible.length){
+    const remaining = sorted.length - visible.length;
+    const loadMoreDiv = document.createElement('div');
+    loadMoreDiv.className = 'history-load-more';
+    loadMoreDiv.innerHTML = `<button type="button" class="btn-secondary" onclick="loadMoreHistory()">${(dict[currentLang].historyLoadMoreBtn || 'Voir plus ({n} restants)').replace('{n}', remaining)}</button>`;
+    list.appendChild(loadMoreDiv);
+  }
+}
+// Révèle une page de plus dans l'historique déjà affiché (voir HISTORY_PAGE_SIZE).
+function loadMoreHistory(){
+  historyPage++;
+  renderHistory();
 }
 
 function renderDebtsList(){

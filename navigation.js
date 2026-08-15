@@ -36,6 +36,7 @@ function setHistoryPeriod(period){
     return;
   }
   historyPeriod = period;
+  historyPage = 1; // Changer de période = repartir de la première page.
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period===period));
   document.getElementById('custom-range-fields').style.display = period==='custom' ? 'block' : 'none';
   if(period !== 'custom'){
@@ -59,6 +60,7 @@ function applyCustomRange(){
   }
   historyCustomFrom = from;
   historyCustomTo = to;
+  historyPage = 1; // Nouvelle période choisie = repartir de la première page.
   renderHistory();
 }
 

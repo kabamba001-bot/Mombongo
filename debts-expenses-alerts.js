@@ -277,7 +277,6 @@ async function confirmExpense(){
     showToast(currentLang==='fr' ? "Indique une description et un montant" : "Pesa description na motángo");
     return;
   }
-  if(!canAddMoreExpenses()){ openLimitSheet('expenses'); return; }
   const amount = toInternal(rawAmount);
   expenses.push({ id: Date.now().toString(), desc, amount, date: Date.now() });
   stats.totalExpenses += amount;

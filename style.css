@@ -118,6 +118,12 @@
     background:none; border:none; color:var(--charcoal-soft); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0;
   }
   .history-item button.del-entry:active{color:var(--alert);}
+  .history-load-more{ margin:4px 0 10px; }
+  .history-load-more button{
+    width:100%; padding:10px; border-radius:12px; font-size:13px; font-weight:700;
+    font-family:'Inter'; cursor:pointer; background:var(--card-bg); border:1.5px solid var(--paper-2);
+    color:var(--charcoal);
+  }
   .btn-danger-outline{
     width:100%; background:var(--card-bg); border:1.5px solid var(--alert); color:var(--alert);
     border-radius:12px; padding:12px; font-size:13.5px; font-weight:700; font-family:'Inter';
