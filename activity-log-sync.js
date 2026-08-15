@@ -62,6 +62,14 @@ function attachActivityLogListener(ownerUid, storeId){
     }).sort((a,b)=>b.date-a.date);
     syncedActivityLogIds = new Set(activityLog.map(a=>a.id));
     localSet('mombongo:activityLog', JSON.stringify(activityLog));
+    // Empêche toute résurrection d'entrées de journal supprimées — voir
+    // cleanupLegacyField() dans helpers.js et le commentaire détaillé dans sales-sync.js
+    // (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].activityLog){
+      delete storesDataCache[storeId].activityLog;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'activityLog');
+    if(typeof renderAlertsSheet === 'function' && document.getElementById('alerts-overlay') && document.getElementById('alerts-overlay').classList.contains('open')) renderAlertsSheet();
     if(typeof renderHistory === 'function') renderHistory();
     if(typeof render === 'function') render();
   }, (e)=>{

@@ -55,6 +55,12 @@ function attachPurchasesListener(ownerUid, storeId){
     syncedPurchasesSnapshot = {};
     purchases.forEach(p=>{ syncedPurchasesSnapshot[p.id] = Object.assign({}, p); });
     localSet('mombongo:purchases', JSON.stringify(purchases));
+    // Empêche toute résurrection d'achats supprimés — voir cleanupLegacyField() dans
+    // helpers.js et le commentaire détaillé dans sales-sync.js (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].purchases){
+      delete storesDataCache[storeId].purchases;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'purchases');
     if(typeof renderSuppliersList === 'function') renderSuppliersList();
     if(typeof renderPurchaseHistory === 'function') renderPurchaseHistory();
     if(typeof render === 'function') render();

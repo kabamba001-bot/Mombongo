@@ -4,7 +4,12 @@ let multiCart = {}; // { productId: qty } — utilisé seulement quand "vente pl
 function openSellSheet(id){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   sellingProductId = id;
-  document.getElementById('in-sell-qty').value = 1;
+  const sellingProduct = products.find(p=>p.id===id);
+  const sellingUnit = (sellingProduct && sellingProduct.unit) || 'pc';
+  const qtyInput = document.getElementById('in-sell-qty');
+  qtyInput.step = unitStep(sellingUnit);
+  qtyInput.inputMode = unitInputMode(sellingUnit);
+  qtyInput.value = 1;
   document.getElementById('in-is-credit').checked = false;
   document.getElementById('in-client-name').value = '';
   document.getElementById('in-client-phone').value = '';
@@ -74,6 +79,21 @@ function changeMultiQty(productId, delta){
   else multiCart[productId] = next;
   renderMultiProductList();
 }
+// Pour les unités décimales (kg/L/m) : un +/- de 1 n'a pas de sens sur du vrac, donc
+// saisie directe dans un champ texte plutôt qu'un stepper — voir renderMultiProductList().
+// Mise à jour légère (total seulement) à chaque frappe, pour ne pas perdre le focus du
+// champ en train d'être tapé ; renderMultiProductList() ne repasse qu'au blur, pour
+// normaliser/arrondir l'affichage une fois la saisie terminée.
+function setMultiQtyDirect(productId, rawValue){
+  const product = products.find(p=>p.id===productId);
+  if(!product) return;
+  const unit = product.unit || 'pc';
+  let qty = parseQtyForUnit(rawValue, unit);
+  qty = Math.max(0, Math.min(product.qty, qty));
+  if(qty === 0) delete multiCart[productId];
+  else multiCart[productId] = qty;
+  updateMultiTotal();
+}
 function renderMultiProductList(){
   const wrap = document.getElementById('multi-product-list');
   const search = document.getElementById('in-multi-search').value.trim().toLowerCase();
@@ -81,22 +101,30 @@ function renderMultiProductList(){
   wrap.innerHTML = '';
   list.forEach(p=>{
     const qty = multiCart[p.id] || 0;
+    const unit = p.unit || 'pc';
     const row = document.createElement('div');
     row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
+    const qtyControlHtml = isDecimalUnit(unit)
+      ? '<input type="number" class="multi-qty-input" inputmode="decimal" step="' + unitStep(unit) + '" min="0" max="' + p.qty + '" value="' + (qty || '') + '" placeholder="0" data-id="' + p.id + '">'
+      : '<div class="qty-stepper">' +
+          '<button type="button" data-id="' + p.id + '" data-d="-1"' + (qty<=0?' disabled':'') + '>−</button>' +
+          '<span>' + qty + '</span>' +
+          '<button type="button" data-id="' + p.id + '" data-d="1"' + (qty>=p.qty?' disabled':'') + '>+</button>' +
+        '</div>';
     row.innerHTML =
       '<div class="info">' +
         '<div class="name">' + escapeHtml(p.name) + '</div>' +
-        '<div class="meta">' + formatMoney(p.sell) + ' · ' + p.qty + ' disponible' + (p.qty>1?'s':'') + '</div>' +
+        '<div class="meta">' + formatMoney(p.sell) + ' · ' + formatQty(p.qty, unit) + ' disponible' + (p.qty>1?'s':'') + '</div>' +
       '</div>' +
-      '<div class="qty-stepper">' +
-        '<button type="button" data-id="' + p.id + '" data-d="-1"' + (qty<=0?' disabled':'') + '>−</button>' +
-        '<span>' + qty + '</span>' +
-        '<button type="button" data-id="' + p.id + '" data-d="1"' + (qty>=p.qty?' disabled':'') + '>+</button>' +
-      '</div>';
+      qtyControlHtml;
     wrap.appendChild(row);
   });
   wrap.querySelectorAll('button[data-id]').forEach(btn=>{
     btn.addEventListener('click', ()=> changeMultiQty(btn.dataset.id, parseInt(btn.dataset.d)));
+  });
+  wrap.querySelectorAll('input.multi-qty-input').forEach(inp=>{
+    inp.addEventListener('input', ()=> setMultiQtyDirect(inp.dataset.id, inp.value));
+    inp.addEventListener('blur', ()=> renderMultiProductList());
   });
   updateMultiTotal();
 }
@@ -126,7 +154,7 @@ function updateMultiTotal(){
 function updateSellPreview(){
   const product = products.find(p=>p.id===sellingProductId);
   if(!product) return;
-  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
+  const qty = parseQtyForUnit(document.getElementById('in-sell-qty').value, product.unit || 'pc');
   const total = qty * product.sell;
   const profit = qty * (product.sell - product.buy);
   document.getElementById('preview-total').textContent = formatMoney(total);
@@ -151,8 +179,12 @@ async function confirmSaleInner(){
   }
   const product = products.find(p=>p.id===sellingProductId);
   if(!product) return;
-  const qty = parseInt(document.getElementById('in-sell-qty').value) || 0;
-  if(qty <= 0 || qty > product.qty){
+  const unit = product.unit || 'pc';
+  const qty = parseQtyForUnit(document.getElementById('in-sell-qty').value, unit);
+  // Tolérance infime pour absorber l'arrondi flottant sur les unités décimales (kg/L/m) —
+  // sans elle, vendre exactement tout le stock restant (ex: 2.50 kg pour 2.50 kg en stock)
+  // pourrait être refusé à cause d'un 2.4999999999999996 côté JS.
+  if(qty <= 0 || qty > product.qty + 1e-9){
     showToast(currentLang==='fr' ? "Quantité invalide" : "Motángo ekoki te");
     return;
   }
@@ -186,7 +218,7 @@ async function confirmSaleInner(){
   const saleId = Date.now().toString();
   const saleRecord = {
     id: saleId, productId: product.id, productName: product.name,
-    qty, total: saleTotal, profit: saleProfit,
+    qty, unit, total: saleTotal, profit: saleProfit,
     date: Date.now(), isCredit: isCredit
   };
   await saveProducts();
@@ -221,7 +253,7 @@ async function confirmSaleInner(){
       if(dueDate) debt.dueDate = dueDate;
     }
     saleRecord.debtId = debt.id;
-    debt.items.push({ saleId, productName: product.name, qty, total: saleTotal, profit: saleProfit, date: Date.now() });
+    debt.items.push({ saleId, productName: product.name, qty, unit, total: saleTotal, profit: saleProfit, date: Date.now() });
     debt.totalOwed += saleTotal;
     debt.totalProfit += saleProfit;
     sales.push(saleRecord);
@@ -263,7 +295,8 @@ async function confirmMultiSaleInner(){
     return;
   }
   for(const it of items){
-    if(it.qty > it.product.qty){
+    // Même tolérance flottante que confirmSaleInner() pour les unités décimales (kg/L/m).
+    if(it.qty > it.product.qty + 1e-9){
       showToast(currentLang==='fr' ? "Quantité invalide pour " + it.product.name : "Motángo ekoki te");
       return;
     }
@@ -323,7 +356,7 @@ async function confirmMultiSaleInner(){
     }
     return {
       id: multiSaleId+'-'+product.id, multiSaleId, productId: product.id, productName: product.name,
-      qty: it.qty, total: it.total, profit: it.profit,
+      qty: it.qty, unit: product.unit || 'pc', total: it.total, profit: it.profit,
       date: Date.now(), isCredit: isCredit
     };
   });
@@ -354,7 +387,7 @@ async function confirmMultiSaleInner(){
     }
     saleRecords.forEach(sr=>{
       sr.debtId = debt.id;
-      debt.items.push({ saleId: sr.id, productName: sr.productName, qty: sr.qty, total: sr.total, profit: sr.profit, date: Date.now() });
+      debt.items.push({ saleId: sr.id, productName: sr.productName, qty: sr.qty, unit: sr.unit, total: sr.total, profit: sr.profit, date: Date.now() });
     });
     debt.totalOwed += grandTotal;
     debt.totalProfit += grandProfit;
@@ -559,13 +592,13 @@ function updateVoiceLiveDisplay(transcript, isFinal){
     return;
   }
   if(parsed.qty > product.qty){
-    bodyEl.innerHTML = `<span style="color:var(--alert); font-weight:600;">Stock insuffisant pour ${escapeHtml(product.name)} (reste ${product.qty})</span>`;
+    bodyEl.innerHTML = `<span style="color:var(--alert); font-weight:600;">Stock insuffisant pour ${escapeHtml(product.name)} (reste ${formatQty(product.qty, product.unit)})</span>`;
     confirmBtn.disabled = true;
     pendingVoiceSale = null;
     return;
   }
   const total = parsed.qty * product.sell;
-  bodyEl.innerHTML = `${parsed.qty} × ${escapeHtml(product.name)}<br><span style="color:var(--emerald);">${formatMoney(total)}</span>`;
+  bodyEl.innerHTML = `${formatQty(parsed.qty, product.unit)} × ${escapeHtml(product.name)}<br><span style="color:var(--emerald);">${formatMoney(total)}</span>`;
   confirmBtn.disabled = false;
   pendingVoiceSale = { product, qty: parsed.qty };
 }

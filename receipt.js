@@ -25,11 +25,12 @@ function getActiveStoreForReceipt(){
   return stores.find(s=>s.id===activeStoreId) || { name: t.appname, phone: '' };
 }
 
-// items: [{ name, qty, unitPrice, total }]
+// items: [{ name, qty, unit, unitPrice, total }]
 function buildReceiptItemsFromSaleRecord(saleRecord){
   return [{
     name: saleRecord.productName,
     qty: saleRecord.qty,
+    unit: saleRecord.unit || 'pc',
     unitPrice: saleRecord.qty > 0 ? saleRecord.total / saleRecord.qty : 0,
     total: saleRecord.total
   }];
@@ -38,6 +39,7 @@ function buildReceiptItemsFromSaleRecords(saleRecords){
   return saleRecords.map(sr=>({
     name: sr.productName,
     qty: sr.qty,
+    unit: sr.unit || 'pc',
     unitPrice: sr.qty > 0 ? sr.total / sr.qty : 0,
     total: sr.total
   }));
@@ -83,7 +85,7 @@ function generateReceiptPdf(items, meta){
     doc.text(formatMoney(it.total), 75, y, { align:'right' });
     y += 4.2 * nameLines.length;
     doc.setFontSize(7.5);
-    doc.text(`${it.qty} × ${formatMoney(it.unitPrice)}`, 5, y);
+    doc.text(`${formatQty(it.qty, it.unit)} × ${formatMoney(it.unitPrice)}`, 5, y);
     doc.setFontSize(8.5);
     y += 4.6;
   });

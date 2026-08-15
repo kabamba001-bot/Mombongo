@@ -14,6 +14,21 @@ function setAddMode(mode){
   }
 }
 
+// Ajuste dynamiquement le "pas" et le clavier (numérique vs décimal) des champs
+// quantité/seuil selon l'unité choisie — appelé au changement du <select> unité, à
+// l'ouverture du formulaire, et à l'édition d'un produit existant. "prefix" permet de
+// réutiliser cette fonction pour d'autres formulaires plus tard (aujourd'hui : 'in').
+function onUnitChange(prefix){
+  const unitEl = document.getElementById(prefix+'-unit');
+  const unit = unitEl ? unitEl.value : 'pc';
+  ['qty','threshold'].forEach(function(field){
+    const el = document.getElementById(prefix+'-'+field);
+    if(!el) return;
+    el.step = unitStep(unit);
+    el.inputMode = unitInputMode(unit);
+  });
+}
+
 function addMesuretteRow(){
   mesuretteCount++;
   const idx = mesuretteCount;
@@ -65,6 +80,8 @@ function openAddSheet(){
   resetMesurettes();
   setAddMode('simple');
   resetFieldCurrencies();
+  document.getElementById('in-unit').value = 'pc';
+  onUnitChange('in');
   updateProductNameSuggestions();
   if(typeof loadCommunityCatalogForActiveStore === 'function') loadCommunityCatalogForActiveStore();
   // Réinitialisé par défaut ici — c'est handleBarcodeForAdd() (barcode.js) qui le remet
@@ -93,6 +110,8 @@ function openEditSheet(id){
   document.getElementById('in-name').value = product.name;
   document.getElementById('in-buy').value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
   document.getElementById('in-sell').value = currentCurrency==='cdf' ? Math.round(product.sell*exchangeRate) : product.sell;
+  document.getElementById('in-unit').value = product.unit || 'pc';
+  onUnitChange('in');
   document.getElementById('in-qty').value = product.qty;
   document.getElementById('in-threshold').value = product.threshold;
   document.getElementById('in-has-expiry').checked = !!product.expiryDate;
@@ -108,6 +127,7 @@ function closeAddSheet(){
     const el = document.getElementById(id);
     if(el) el.value='';
   });
+  document.getElementById('in-unit').value = 'pc';
   setDateValue('in-expiry-date', '');
   setDateValue('carton-expiry-date', '');
   setDateValue('sac-expiry-date', '');
@@ -280,8 +300,9 @@ async function addProductInner(){
   // Chaque champ (achat/vente) convertit selon sa propre devise sélectionnée
   const buy = toInternalField(rawBuy, 'buy');
   const sell = toInternalField(rawSell, 'sell');
-  const qty = parseInt(document.getElementById('in-qty').value) || 0;
-  const threshold = parseInt(document.getElementById('in-threshold').value) || 3;
+  const unit = document.getElementById('in-unit').value || 'pc';
+  const qty = parseQtyForUnit(document.getElementById('in-qty').value, unit);
+  const threshold = parseQtyForUnit(document.getElementById('in-threshold').value, unit) || (isDecimalUnit(unit) ? 1 : 3);
   const hasExpiry = document.getElementById('in-has-expiry').checked;
   const expiryDate = hasExpiry ? (getDateValue('in-expiry-date') || null) : null;
   if(!name || !sell){
@@ -294,13 +315,13 @@ async function addProductInner(){
       if(currentRole()==='magasinier'){
         logActivity('product_edit', dict[currentLang].logProductEdited + ' : ' + product.name);
       }
-      product.name = name; product.buy = buy; product.sell = sell;
+      product.name = name; product.buy = buy; product.sell = sell; product.unit = unit;
       product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
     }
   } else {
     if(!canAddMoreProducts(1)){ openLimitSheet('products'); return; }
     products.push({
-      id: Date.now().toString(), name, buy, sell, qty, threshold, expiryDate,
+      id: Date.now().toString(), name, buy, sell, unit, qty, threshold, expiryDate,
       lastSoldAt: null, createdAt: Date.now(),
       barcode: pendingBarcodeForNewProduct || null
     });
@@ -344,7 +365,7 @@ async function addCartonProduct(){
   const hasExpiry = document.getElementById('carton-has-expiry').checked;
   const expiryDate = hasExpiry ? (getDateValue('carton-expiry-date') || null) : null;
   products.push({
-    id: Date.now().toString(), name, buy: buyPerPiece, sell,
+    id: Date.now().toString(), name, buy: buyPerPiece, sell, unit: 'pc',
     qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
     barcode: pendingBarcodeForNewProduct || null
   });
@@ -402,7 +423,7 @@ async function addSacProduct(){
     const buyPerUnit = sacBuyInternal / mQty;
     offset++;
     products.push({
-      id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell,
+      id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell, unit: 'pc',
       qty: mQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
       lotId: lotId, yieldPerSac: mQty
     });
@@ -434,7 +455,7 @@ async function deleteProduct(id){
   if(!product) return;
   const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
   if(!ok) return;
-  logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name + ' × ' + product.qty, { productName: product.name, qty: product.qty });
+  logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name + ' × ' + formatQty(product.qty, product.unit), { productName: product.name, qty: product.qty, unit: product.unit || 'pc' });
   products = products.filter(p=>p.id!==id);
   await saveProducts();
   showToast(dict[currentLang].deleted);

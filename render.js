@@ -152,7 +152,7 @@ function render(){
         <div class="dot ${dotClass}"></div>
         <div class="info">
           <div class="name">${escapeHtml(p.name)}</div>
-          <div class="meta">${p.qty} ${t.stockUnit}</div>
+          <div class="meta">${formatQty(p.qty, p.unit)} ${t.stockUnit}</div>
         </div>
         <div class="price">${formatMoney(p.sell)}</div>
         ${sellBtn}${editBtn}${dupBtn}${delBtn}
@@ -479,7 +479,7 @@ function renderDebtsList(){
   const canEditDebt = isPatron() || currentRole()==='caissier';
   openDebts.forEach(d=>{
     const remaining = Math.max(0, d.totalOwed - d.amountPaid);
-    const itemsSummary = d.items.map(it=>`${escapeHtml(it.productName)} ×${it.qty}`).join(', ');
+    const itemsSummary = d.items.map(it=>`${escapeHtml(it.productName)} ×${formatQty(it.qty, it.unit)}`).join(', ');
     const safePhone = escapeHtml(d.phone);
     const safeClientName = escapeHtml(d.clientName);
     const editBtn = canEditDebt
@@ -552,7 +552,7 @@ function renderAlertsSheet(){
   list.innerHTML = '';
   let items = [];
   if(alertsTab === 'stock'){
-    lowStock.forEach(p=>items.push(`<b>${escapeHtml(p.name)}</b> — ${t.lowStock} (${p.qty} ${t.stockUnit})`));
+    lowStock.forEach(p=>items.push(`<b>${escapeHtml(p.name)}</b> — ${t.lowStock} (${formatQty(p.qty, p.unit)} ${t.stockUnit})`));
     dormant.forEach(p=>items.push(`<b>${escapeHtml(p.name)}</b> — ${t.dormant}`));
   } else if(alertsTab === 'expired'){
     expiringSoon.forEach(p=>items.push(`⏳ <b>${escapeHtml(p.name)}</b> — ${expiryLabel(t, daysUntilExpiry(p.expiryDate))}`));
@@ -564,7 +564,10 @@ function renderAlertsSheet(){
     });
   } else if(alertsTab === 'activity'){
     recentActivity.forEach(a=>{
-      items.push(`👁️ ${escapeHtml(a.label)} — <b>${escapeHtml(a.who)}</b> · ${formatDateTime(a.date)}`);
+      const delBtn = isPatron()
+        ? `<button class="del-entry" onclick="deleteHistoryEntry('activity','${a.id}')" aria-label="Supprimer">🗑</button>`
+        : '';
+      items.push(`<div class="alert-activity-row"><span>👁️ ${escapeHtml(a.label)} — <b>${escapeHtml(a.who)}</b> · ${formatDateTime(a.date)}</span>${delBtn}</div>`);
     });
   }
 
@@ -573,6 +576,12 @@ function renderAlertsSheet(){
     return;
   }
   empty.style.display = 'none';
+  if(alertsTab === 'activity' && isPatron() && recentActivity.length > 0){
+    const clearAllDiv = document.createElement('div');
+    clearAllDiv.className = 'alert-clear-all';
+    clearAllDiv.innerHTML = `<button type="button" class="btn-danger-outline" onclick="clearAllActivityLog()">🗑️ ${t.clearAllActivityBtn}</button>`;
+    list.appendChild(clearAllDiv);
+  }
   items.forEach(html=>{
     const div = document.createElement('div');
     div.className = 'alert-banner';

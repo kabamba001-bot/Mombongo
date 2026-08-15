@@ -49,6 +49,12 @@ function attachSuppliersListener(ownerUid, storeId){
     syncedSuppliersSnapshot = {};
     suppliers.forEach(s=>{ syncedSuppliersSnapshot[s.id] = Object.assign({}, s); });
     localSet('mombongo:suppliers', JSON.stringify(suppliers));
+    // Empêche toute résurrection de fournisseurs supprimés — voir cleanupLegacyField()
+    // dans helpers.js et le commentaire détaillé dans sales-sync.js (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].suppliers){
+      delete storesDataCache[storeId].suppliers;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'suppliers');
     if(typeof renderSuppliersList === 'function') renderSuppliersList();
     if(typeof render === 'function') render();
   }, (e)=>{

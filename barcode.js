@@ -77,11 +77,23 @@ async function handleBarcodeForAdd(code){
     openEditSheet(existing.id);
     return;
   }
-  openAddSheet();
+  // Le bouton scan vit DANS le formulaire d'ajout, juste à côté des boutons simple/
+  // carton/sac (voir index.html) — la feuille est donc déjà ouverte et l'utilisateur a pu
+  // choisir "Carton" ou "Sac" AVANT de scanner. On ne réinitialise ni la feuille ni le
+  // mode ici : openAddSheet() forçait toujours "produit simple", ce qui renvoyait de
+  // force vers ce mode un commerçant en train de scanner un carton ou un sac — bug
+  // corrigé. On n'ouvre la feuille que si elle n'était pas déjà ouverte (scan déclenché
+  // depuis un autre point d'entrée éventuel, dans le futur).
+  if(!document.getElementById('add-overlay').classList.contains('open')){
+    openAddSheet();
+  }
   pendingBarcodeForNewProduct = code;
   pendingBarcodeLookupResult = null;
+  // Le nom retrouvé doit atterrir dans le champ visible du mode ACTUELLEMENT choisi —
+  // 'in-name' (simple), 'carton-name' ou 'sac-name' — jamais toujours 'in-name'.
+  const nameFieldId = addMode === 'carton' ? 'carton-name' : (addMode === 'sac' ? 'sac-name' : 'in-name');
   const badge = document.getElementById('add-barcode-badge');
-  const nameField = document.getElementById('in-name');
+  const nameField = document.getElementById(nameFieldId);
   const t = dict[currentLang];
   if(badge){
     badge.style.display = 'block';
@@ -163,7 +175,7 @@ function renderBarcodeSaleConfirm(){
   const product = pendingBarcodeSale.product;
   const qty = pendingBarcodeSale.qty;
   document.getElementById('barcode-confirm-name').textContent = product.name;
-  document.getElementById('barcode-confirm-qty').textContent = qty;
+  document.getElementById('barcode-confirm-qty').textContent = formatQty(qty, product.unit);
   document.getElementById('barcode-confirm-total').textContent = formatMoney(qty * product.sell);
   document.getElementById('barcode-qty-minus').disabled = qty <= 1;
   document.getElementById('barcode-qty-plus').disabled = qty >= product.qty;

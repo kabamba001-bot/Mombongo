@@ -120,7 +120,7 @@ function buildUnifiedHistory(){
     const pname = product ? product.name : (s.productName || t.historyDeletedProduct);
     entries.push({
       type:'sale', id:s.id, date:s.date,
-      label: pname + ' × ' + s.qty + (s.isCredit ? ' ('+t.creditTag+')' : ''),
+      label: pname + ' × ' + formatQty(s.qty, s.unit) + (s.isCredit ? ' ('+t.creditTag+')' : ''),
       amount: s.total, sub: '+'+formatMoney(s.profit), deletable:true
     });
   });
@@ -144,7 +144,7 @@ function buildUnifiedHistory(){
       if(a.action === 'product_delete' && a.productName){
         entries.push({
           type:'activity', id:a.id, date:a.date,
-          label: a.productName + ' (' + t.historyDeletedProduct + ')' + (a.qty ? ' × ' + a.qty : ''),
+          label: a.productName + ' (' + t.historyDeletedProduct + ')' + (a.qty ? ' × ' + formatQty(a.qty, a.unit) : ''),
           amount: 0, sub:'', deletable:true
         });
       } else {

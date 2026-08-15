@@ -60,6 +60,14 @@ function attachSalesListener(ownerUid, storeId){
     });
     syncedSaleIds = new Set(sales.map(s=>s.id));
     localSet('mombongo:sales', JSON.stringify(sales));
+    // Empêche toute résurrection : une fois la collection confirmée comme source de
+    // vérité (même vide légitimement), on efface le champ fantôme localement (pour cette
+    // session, avant même que l'écriture Firestore ci-dessous n'ait eu le temps d'aboutir)
+    // et sur Firestore (pour toujours) — voir cleanupLegacyField() dans helpers.js.
+    if(storesDataCache[storeId] && storesDataCache[storeId].sales){
+      delete storesDataCache[storeId].sales;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'sales');
     if(typeof renderHistory === 'function') renderHistory();
     if(typeof render === 'function') render();
   }, (e)=>{

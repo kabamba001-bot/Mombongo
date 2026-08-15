@@ -65,6 +65,12 @@ function attachDebtsListener(ownerUid, storeId){
     syncedDebtsSnapshot = {};
     debts.forEach(d=>{ syncedDebtsSnapshot[d.id] = Object.assign({}, d); });
     localSet('mombongo:debts', JSON.stringify(debts));
+    // Empêche toute résurrection de dettes supprimées — voir cleanupLegacyField() dans
+    // helpers.js et le commentaire détaillé dans sales-sync.js (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].debts){
+      delete storesDataCache[storeId].debts;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'debts');
     if(typeof renderDebtsList === 'function') renderDebtsList();
     if(typeof render === 'function') render();
   }, (e)=>{

@@ -56,6 +56,12 @@ function attachExpensesListener(ownerUid, storeId){
     });
     syncedExpenseIds = new Set(expenses.map(e=>e.id));
     localSet('mombongo:expenses', JSON.stringify(expenses));
+    // Empêche toute résurrection de dépenses supprimées — voir cleanupLegacyField() dans
+    // helpers.js et le commentaire détaillé dans sales-sync.js (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].expenses){
+      delete storesDataCache[storeId].expenses;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'expenses');
     if(typeof renderExpensesHistory === 'function') renderExpensesHistory();
     if(typeof render === 'function') render();
   }, (e)=>{

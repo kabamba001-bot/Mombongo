@@ -203,6 +203,34 @@ async function deleteHistoryEntry(type, id, reason){
   }
   renderHistory();
   render();
+  // Rafraîchit aussi la feuille "Alertes → Activité" si elle est ouverte : elle a sa
+  // propre vue (7 derniers jours) indépendante de l'historique, pas mise à jour sinon.
+  if(type==='activity' && typeof renderAlertsSheet === 'function' &&
+     document.getElementById('alerts-overlay') && document.getElementById('alerts-overlay').classList.contains('open')){
+    renderAlertsSheet();
+  }
+  showToast(t.entryDeleted);
+}
+
+// Vide entièrement le journal d'activité (pas seulement les 7 derniers jours affichés en
+// alerte) — réservé au patron, comme la suppression individuelle d'une entrée (voir
+// firestore.rules). Contrairement à clearAllHistory() ci-dessus (qui MASQUE l'historique
+// via historyClearedAt sans rien supprimer), ceci supprime réellement les entrées : le
+// journal d'activité n'a pas vocation à être "ré-affiché" plus tard comme le reste de
+// l'historique, donc pas besoin d'un mécanisme de masquage réversible ici.
+async function clearAllActivityLog(){
+  const t = dict[currentLang];
+  if(!isPatron()){ showToast(t.restrictedFeature); return; }
+  const ok = window.confirm(t.confirmClearActivityLog);
+  if(!ok) return;
+  activityLog = [];
+  await saveActivityLog();
+  renderHistory();
+  render();
+  if(typeof renderAlertsSheet === 'function' &&
+     document.getElementById('alerts-overlay') && document.getElementById('alerts-overlay').classList.contains('open')){
+    renderAlertsSheet();
+  }
   showToast(t.entryDeleted);
 }
 

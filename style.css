@@ -198,6 +198,12 @@
     border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:13.5px;
   }
   .alert-banner b{color:var(--alert);}
+  .alert-activity-row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .alert-activity-row button.del-entry{
+    background:none; border:none; color:var(--charcoal-soft); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0;
+  }
+  .alert-activity-row button.del-entry:active{color:var(--alert);}
+  .alert-clear-all{margin-bottom:10px;}
   .empty{
     text-align:center; color:var(--charcoal-soft); font-size:13.5px;
     padding:26px 10px; border:1.5px dashed var(--paper-2); border-radius:var(--radius);
@@ -393,11 +399,11 @@
   .sheet h3{margin:0 0 16px; font-size:17px; font-weight:700;}
   .field{margin-bottom:14px;}
   .field label{display:block; font-size:12.5px; font-weight:600; color:var(--charcoal-soft); margin-bottom:6px;}
-  .field input{
+  .field input, .field select{
     width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2);
     background:var(--card-bg); font-size:15px; font-family:'Inter'; color:var(--charcoal);
   }
-  .field input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+  .field input:focus, .field select:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .date-group{display:flex; gap:6px;}
   .date-part, .date-part-year{
@@ -489,6 +495,13 @@
   .qty-stepper button:disabled{opacity:.4; cursor:not-allowed;}
   .qty-stepper button:active:not(:disabled){background:var(--paper-2);}
   .qty-stepper span{min-width:16px; text-align:center; font-size:13.5px; font-weight:700;}
+  /* Champ de saisie directe pour les unités décimales (kg/L/m) dans le panier "vente
+     plusieurs" — un +/- de 1 n'a pas de sens pour du vrac, donc pas de qty-stepper ici. */
+  .multi-qty-input{
+    width:64px; flex-shrink:0; padding:8px 6px; border-radius:8px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:14px; font-family:'Inter'; color:var(--charcoal); text-align:center;
+  }
+  .multi-qty-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .multi-total-divider{height:1px; background:var(--paper-2); margin:12px 0;}
   .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
   .multi-total-row .lbl{font-size:13.5px; font-weight:700;}

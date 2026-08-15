@@ -291,14 +291,26 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
             <span id="t-currency-hint" style="font-size:11.5px; color:var(--charcoal-soft);"></span>
           </div>
         </div>
+        <div class="field">
+          <label id="t-unit">Unité de mesure</label>
+          <select id="in-unit" onchange="onUnitChange('in')">
+            <option value="pc" id="t-unit-opt-pc">Pièce</option>
+            <option value="kg" id="t-unit-opt-kg">Kilogramme (kg)</option>
+            <option value="g" id="t-unit-opt-g">Gramme (g)</option>
+            <option value="l" id="t-unit-opt-l">Litre (L)</option>
+            <option value="ml" id="t-unit-opt-ml">Millilitre (ml)</option>
+            <option value="m" id="t-unit-opt-m">Mètre (m)</option>
+            <option value="cm" id="t-unit-opt-cm">Centimètre (cm)</option>
+          </select>
+        </div>
         <div class="two-col">
           <div class="field">
             <label id="t-qty">Quantité en stock</label>
-            <input id="in-qty" type="number" inputmode="numeric" placeholder="20">
+            <input id="in-qty" type="number" inputmode="numeric" step="1" placeholder="20">
           </div>
           <div class="field">
             <label id="t-threshold">Seuil d'alerte</label>
-            <input id="in-threshold" type="number" inputmode="numeric" placeholder="5">
+            <input id="in-threshold" type="number" inputmode="numeric" step="1" placeholder="5">
           </div>
         </div>
         <div class="toggle-row">

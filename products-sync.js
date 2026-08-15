@@ -45,6 +45,12 @@ function attachProductsListener(ownerUid, storeId){
     syncedProductsSnapshot = {};
     products.forEach(p=>{ syncedProductsSnapshot[p.id] = Object.assign({}, p); });
     localSet('mombongo:products', JSON.stringify(products));
+    // Empêche toute résurrection de produits supprimés — voir cleanupLegacyField() dans
+    // helpers.js et le commentaire détaillé dans sales-sync.js (même bug, même correctif).
+    if(storesDataCache[storeId] && storesDataCache[storeId].products){
+      delete storesDataCache[storeId].products;
+    }
+    cleanupLegacyField(ownerUid, storeId, 'products');
     if(typeof render === 'function') render();
     if(typeof updateProductNameSuggestions === 'function') updateProductNameSuggestions();
   }, (e)=>{
