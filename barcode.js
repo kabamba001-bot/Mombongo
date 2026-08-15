@@ -30,6 +30,7 @@ function isBarcodeLibraryReady(){
 function openBarcodeScanner(mode){
   if(mode === 'add' && !canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(mode === 'sell' && !canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(!isVip){ openLimitSheet('barcode'); return; }
   if(!isBarcodeLibraryReady()){
     showToast(currentLang==='fr' ? "Scanner indisponible (vérifie ta connexion internet)" : "Scanner ezali te (talá connexion)", 4000);
     return;

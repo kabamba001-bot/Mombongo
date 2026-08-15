@@ -605,6 +605,7 @@ function updateVoiceLiveDisplay(transcript, isFinal){
 
 function startVoiceSale(isAutoRetry){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(!isVip){ openLimitSheet('voice'); return; }
   if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
     showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
     return;

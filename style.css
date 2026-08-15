@@ -87,7 +87,7 @@
   }
   #rate-row span{font-size:12px; margin-left:6px;}
   #account-row{margin-top:10px; position:relative; z-index:1; flex-wrap:wrap; row-gap:6px;}
-  #account-btn, #history-btn, #discover-btn{
+  #account-btn, #history-btn, #discover-btn, #suppliers-header-btn{
     display:flex; align-items:center; gap:6px;
     background:rgba(0,0,0,0.18); border:none; border-radius:999px;
     color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;

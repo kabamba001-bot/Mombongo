@@ -1,0 +1,9 @@
+{
+  "name": "mombongo-stock-alerts",
+  "version": "1.0.0",
+  "private": true,
+  "main": "send-stock-alerts.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}

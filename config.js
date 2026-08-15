@@ -21,8 +21,7 @@ let vipExpiryCheckTimer = null;
 let currentLang = 'fr';
 let currentCurrency = 'usd';
 let exchangeRate = 2300;
-const FREE_PRODUCT_LIMIT = 30;
-const FREE_EXPENSE_LIMIT = 3;
+// (ancienne FREE_EXPENSE_LIMIT retirée — dépenses illimitées pour tous)
 const DEV_WHATSAPP = '243980979141';
 
 try{

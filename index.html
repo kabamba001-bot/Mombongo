@@ -111,13 +111,13 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <span>🧾</span>
         <span id="t-history-btn">Historique</span>
       </button>
-      <button id="discover-btn" onclick="openDiscoverSheet()">
-        <span>💡</span>
-        <span id="t-discover-btn">Découvrir</span>
-      </button>
       <button id="suppliers-header-btn" onclick="openSuppliersSheet()" style="display:none;">
         <span>🚚</span>
         <span id="t-suppliers-header-btn">Fournisseurs</span>
+      </button>
+      <button id="discover-btn" onclick="openDiscoverSheet()">
+        <span>💡</span>
+        <span id="t-discover-btn">Découvrir</span>
       </button>
       <span id="promo-first-users-badge" class="promo-badge" style="display:none;"></span>
     </div>
@@ -392,6 +392,18 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
             <div class="catalog-panel" id="catalog-panel-sac-name"></div>
           </div>
         </div>
+        <div class="field">
+          <label id="t-sac-unit">Unité de mesure</label>
+          <select id="sac-unit" onchange="onSacUnitChange()">
+            <option value="mesurette" id="t-sac-unit-opt-mesurette">Mesurette (portions personnalisées)</option>
+            <option value="kg" id="t-sac-unit-opt-kg">Kilogramme (kg)</option>
+            <option value="g" id="t-sac-unit-opt-g">Gramme (g)</option>
+            <option value="l" id="t-sac-unit-opt-l">Litre (L)</option>
+            <option value="ml" id="t-sac-unit-opt-ml">Millilitre (ml)</option>
+            <option value="m" id="t-sac-unit-opt-m">Mètre (m)</option>
+            <option value="cm" id="t-sac-unit-opt-cm">Centimètre (cm)</option>
+          </select>
+        </div>
         <div class="two-col">
           <div class="field">
             <label id="t-sac-buy">Prix d'achat du sac</label><span class="field-currency-toggle" id="fc-toggle-sacBuy"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sacBuy','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sacBuy','cdf')">FC</button></span>
@@ -402,11 +414,31 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
             <input id="sac-threshold" type="number" inputmode="numeric" placeholder="5">
           </div>
         </div>
-        <div id="mesurettes-list"></div>
-        <button type="button" class="btn-add-mesurette" onclick="addMesuretteRow()" id="t-add-mesurette">+ Ajouter une mesurette</button>
-        <div class="field" style="margin-top:10px;">
-          <span id="t-sac-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.</span>
+
+        <div id="sac-mesurette-group">
+          <div id="mesurettes-list"></div>
+          <button type="button" class="btn-add-mesurette" onclick="addMesuretteRow()" id="t-add-mesurette">+ Ajouter une mesurette</button>
+          <div class="field" style="margin-top:10px;">
+            <span id="t-sac-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Pas besoin de peser : indique juste combien de fois tu remplis chaque mesurette avec un sac entier.</span>
+          </div>
         </div>
+
+        <div id="sac-generic-group" style="display:none;">
+          <div class="two-col">
+            <div class="field">
+              <label id="t-sac-generic-qty">Quantité estimée dans le sac</label>
+              <input id="sac-generic-qty" type="number" inputmode="decimal" placeholder="25">
+            </div>
+            <div class="field">
+              <label id="t-sac-generic-sell">Prix de vente (par unité)</label><span class="field-currency-toggle" id="fc-toggle-sacGenericSell"><button type="button" class="active" data-cur="usd" onclick="setFieldCurrency('sacGenericSell','usd')">$</button><button type="button" data-cur="cdf" onclick="setFieldCurrency('sacGenericSell','cdf')">FC</button></span>
+              <input id="sac-generic-sell" type="number" inputmode="decimal" placeholder="1.5">
+            </div>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <span id="t-sac-generic-hint" style="font-size:11.5px; color:var(--charcoal-soft);">Donne une estimation de ce que contient le sac dans l'unité choisie : l'app calcule automatiquement le prix d'achat par unité, donc le bénéfice.</span>
+          </div>
+        </div>
+
         <div class="toggle-row">
           <span id="t-expiry-toggle-sac">Date de péremption ?</span>
           <label class="switch">
@@ -592,7 +624,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 
         <div style="margin-top:16px;">
           <div class="toggle-row">
-            <span id="t-suppliers-toggle-label">🚚 Gestion fournisseurs (VIP)</span>
+            <span id="t-suppliers-toggle-label">🚚 Gestion fournisseurs</span>
             <label class="switch">
               <input type="checkbox" id="in-suppliers-toggle" onchange="toggleSuppliersFeature()">
               <span class="switch-track"></span>
@@ -776,20 +808,20 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     <div class="sheet" style="min-height:75vh;">
       <h3 id="t-bulk-catalog-title">📋 Ajout rapide depuis le catalogue</h3>
       <p style="font-size:12.5px; color:var(--charcoal-soft); line-height:1.5; margin:-8px 0 14px;" id="t-bulk-catalog-desc">
-        Voici tout le catalogue de ton métier. Coche ce que tu vends — le prix de vente et la quantité par défaut ci-dessous s'appliquent à tous, tu pourras corriger chaque produit ensuite avec "Modifier". Compte gratuit : jusqu'à 30 produits. Compte VIP : illimité, avec "Tout cocher".
+        Voici tout le catalogue de ton métier. Coche ce que tu vends — le prix de vente et la quantité par défaut ci-dessous s'appliquent à tous, tu pourras corriger chaque produit ensuite avec "Modifier". Ajout illimité pour tous les comptes. Compte VIP : en plus, "Tout cocher" pour prendre tout le catalogue en un clic.
       </p>
       <div class="field">
         <input id="in-bulk-search" type="text" placeholder="Rechercher dans le catalogue…" oninput="onBulkCatalogSearch()" autocomplete="off">
       </div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
         <button type="button" class="btn-secondary" id="t-bulk-select-all-btn"
-                style="flex:1; padding:8px; font-size:12.5px; display:none;"
-                onclick="selectAllBulkCatalog()">✅ Tout cocher (VIP)</button>
+                style="flex:1; padding:8px; font-size:12.5px;"
+                onclick="selectAllBulkCatalog()">✅ Tout cocher</button>
         <button type="button" class="btn-secondary" id="t-bulk-deselect-all-btn"
                 style="flex:1; padding:8px; font-size:12.5px;"
                 onclick="deselectAllBulkCatalog()">◻️ Tout décocher</button>
       </div>
-      <div id="bulk-catalog-count" style="font-size:12px; color:var(--charcoal-soft); margin:-4px 0 8px;">0/30 sélectionnés (limite gratuite)</div>
+      <div id="bulk-catalog-count" style="font-size:12px; color:var(--charcoal-soft); margin:-4px 0 8px;">0 sélectionnés</div>
       <div class="two-col">
         <div class="field">
           <label id="t-bulk-default-sell">Prix de vente par défaut</label>

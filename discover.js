@@ -12,6 +12,7 @@
    stores-devices.js à chaque changement de langue.
    ========================================================================= */
 const DISCOVER_SECTIONS = [
+  { icon:'⭐', key:'becomeVip' },
   { icon:'🚚', key:'suppliers' },
   { icon:'➕', key:'addSimple' },
   { icon:'📦', key:'addCarton' },
@@ -73,6 +74,19 @@ function renderDiscoverContent(){
         '<span class="discover-chevron">›</span>' +
       '</button>' +
       '<div class="discover-item-body"><p>' + escapeHtml(body).replace(/\n/g,'<br>') + '</p></div>';
+    // Section "Devenir VIP" : un bouton WhatsApp cliquable, en plus du texte, pour
+    // passer directement à l'action (comme les autres écrans de blocage VIP de l'app).
+    if(sec.key === 'becomeVip'){
+      const bodyDiv = item.querySelector('.discover-item-body');
+      const link = document.createElement('a');
+      link.className = 'btn-primary';
+      link.style.cssText = 'display:block; text-align:center; text-decoration:none; margin-top:4px;';
+      link.href = `https://wa.me/${DEV_WHATSAPP}?text=${encodeURIComponent(t.becomeVipWhatsappMsg || '')}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = t.becomeVipBtn || 'Devenir VIP sur WhatsApp';
+      bodyDiv.appendChild(link);
+    }
     wrap.appendChild(item);
   });
 }

@@ -18,6 +18,20 @@
 let lastReceiptItems = null;
 let lastReceiptMeta = null;
 
+// formatMoney() utilise toLocaleString('fr-FR'), dont le séparateur de milliers est une
+// espace fine insécable (U+202F) — un caractère que la police standard de jsPDF (Helvetica)
+// ne sait pas afficher, et qui apparaît alors comme un "/" dans le PDF généré (ex: "1 500"
+// devient "1/500", ce qui peut se lire à tort comme "1 pièce / 500 FC"). On utilise ici une
+// espace normale à la place, uniquement pour le texte inséré dans le PDF.
+function formatMoneyForPdf(amount){
+  if(currentCurrency === 'usd'){
+    return amount.toFixed(2) + ' $';
+  }
+  const rounded = Math.round(amount * exchangeRate);
+  const grouped = String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return grouped + ' FC';
+}
+
 /* ---------- Construction du contenu ---------- */
 
 function getActiveStoreForReceipt(){
@@ -82,10 +96,10 @@ function generateReceiptPdf(items, meta){
     const nameLines = doc.splitTextToSize(it.name, 48);
     doc.text(nameLines, 5, y);
     doc.setFont(undefined, 'normal');
-    doc.text(formatMoney(it.total), 75, y, { align:'right' });
+    doc.text(formatMoneyForPdf(it.total), 75, y, { align:'right' });
     y += 4.2 * nameLines.length;
     doc.setFontSize(7.5);
-    doc.text(`${formatQty(it.qty, it.unit)} × ${formatMoney(it.unitPrice)}`, 5, y);
+    doc.text(`${formatQty(it.qty, it.unit)} × ${formatMoneyForPdf(it.unitPrice)}`, 5, y);
     doc.setFontSize(8.5);
     y += 4.6;
   });
@@ -95,7 +109,7 @@ function generateReceiptPdf(items, meta){
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.text(t.summaryRevenue || 'Total', 5, y);
-  doc.text(formatMoney(meta.total), 75, y, { align:'right' });
+  doc.text(formatMoneyForPdf(meta.total), 75, y, { align:'right' });
   y += 7;
 
   if(meta.isCredit){

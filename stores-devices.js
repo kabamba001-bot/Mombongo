@@ -784,10 +784,20 @@ function updateAddFieldLabels(){
   document.getElementById('t-carton-threshold').textContent = t.cartonThreshold;
   document.getElementById('t-carton-hint').textContent = t.cartonHint;
   document.getElementById('t-sac-name').textContent = t.sacName;
+  document.getElementById('t-sac-unit').textContent = t.sacUnitLabel || t.unitFieldLabel;
   document.getElementById('t-sac-buy').textContent = t.sacBuy;
-  document.getElementById('t-sac-threshold').textContent = t.sacThreshold;
   document.getElementById('t-sac-hint').textContent = t.sacHint;
   document.getElementById('t-add-mesurette').textContent = t.addMesurette;
+  document.getElementById('t-sac-generic-hint').textContent = t.sacGenericHint || document.getElementById('t-sac-generic-hint').textContent;
+  // t-sac-threshold / t-sac-generic-sell / t-sac-generic-qty sont mis à jour dynamiquement
+  // par onSacUnitChange() selon l'unité choisie (mesurette, kg, L, m...) — appelé quand on
+  // ouvre l'onglet "Sac" ou qu'on change d'unité, pas ici (sinon ça ajouterait des lignes
+  // de mesurette en arrière-plan même quand le formulaire n'est pas ouvert).
+  if(document.getElementById('sac-mesurette-group') && document.getElementById('mode-sac-fields').style.display !== 'none'){
+    onSacUnitChange();
+  } else {
+    document.getElementById('t-sac-threshold').textContent = t.sacThreshold;
+  }
   document.getElementById('in-buy').placeholder = '0.5';
   document.getElementById('in-sell').placeholder = '1';
 }

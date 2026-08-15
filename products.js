@@ -9,7 +9,50 @@ function setAddMode(mode){
   document.getElementById('mode-simple-fields').style.display = mode==='simple' ? 'block':'none';
   document.getElementById('mode-carton-fields').style.display = mode==='carton' ? 'block':'none';
   document.getElementById('mode-sac-fields').style.display = mode==='sac' ? 'block':'none';
-  if(mode==='sac' && mesuretteCount===0){
+  if(mode==='sac'){
+    onSacUnitChange();
+  }
+}
+
+/* ---------- Unité de mesure du sac ----------
+   Le choix de l'unité (juste sous le nom du produit, dans l'onglet "Sac") détermine
+   comment le sac est réparti :
+   - "mesurette" : portions personnalisées nommées par le commerçant (comportement
+     historique) -> voir sac-mesurette-group / addMesuretteRow().
+   - kg / g / l / ml / m / cm : un seul produit est créé dans cette unité. Le
+     commerçant donne une ESTIMATION de la quantité totale contenue dans le sac
+     (ex : 25 kg pour un sac de riz) : c'est ce qui permet de calculer le prix
+     d'achat réel par kg/L/m (prix du sac ÷ quantité estimée) et donc le bénéfice —
+     sans cette estimation, impossible de savoir combien coûte réellement 1 kg. */
+function onSacUnitChange(){
+  const unitEl = document.getElementById('sac-unit');
+  const unit = unitEl ? unitEl.value : 'mesurette';
+  const isMesurette = unit === 'mesurette';
+  const mesuretteGroup = document.getElementById('sac-mesurette-group');
+  const genericGroup = document.getElementById('sac-generic-group');
+  if(mesuretteGroup) mesuretteGroup.style.display = isMesurette ? 'block' : 'none';
+  if(genericGroup) genericGroup.style.display = isMesurette ? 'none' : 'block';
+  const t = dict[currentLang];
+  const uLabel = unitLabel(unit);
+  const thresholdLabel = document.getElementById('t-sac-threshold');
+  if(thresholdLabel){
+    thresholdLabel.textContent = isMesurette
+      ? t.sacThreshold
+      : (t.sacThresholdUnit || "Seuil d'alerte (par {unit})").replace('{unit}', uLabel);
+  }
+  const sellLabel = document.getElementById('t-sac-generic-sell');
+  if(sellLabel){
+    sellLabel.textContent = (t.sacGenericSellLabel || 'Prix de vente (par {unit})').replace('{unit}', uLabel);
+  }
+  const qtyLabel = document.getElementById('t-sac-generic-qty');
+  if(qtyLabel){
+    qtyLabel.textContent = (t.sacGenericQtyLabel || 'Quantité estimée dans le sac ({unit})').replace('{unit}', uLabel);
+  }
+  const genericQtyInput = document.getElementById('sac-generic-qty');
+  if(genericQtyInput){
+    genericQtyInput.inputMode = unitInputMode(unit);
+  }
+  if(isMesurette && mesuretteCount===0){
     addMesuretteRow(); addMesuretteRow(); addMesuretteRow();
   }
 }
@@ -123,11 +166,13 @@ function closeAddSheet(){
   document.getElementById('add-overlay').classList.remove('open');
   ['in-name','in-buy','in-sell','in-qty','in-threshold',
    'carton-name','carton-qty','carton-buy','carton-sell','carton-threshold',
-   'sac-name','sac-buy','sac-threshold'].forEach(id=>{
+   'sac-name','sac-buy','sac-threshold','sac-generic-qty','sac-generic-sell'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value='';
   });
   document.getElementById('in-unit').value = 'pc';
+  const sacUnitEl = document.getElementById('sac-unit');
+  if(sacUnitEl) sacUnitEl.value = 'mesurette';
   setDateValue('in-expiry-date', '');
   setDateValue('carton-expiry-date', '');
   setDateValue('sac-expiry-date', '');
@@ -152,7 +197,7 @@ function toInternal(raw){
 /* ---------- Devise indépendante par champ de prix ---------- */
 let priceFieldCurrency = {};
 function resetFieldCurrencies(){
-  priceFieldCurrency = { buy: currentCurrency, sell: currentCurrency, cartonBuy: currentCurrency, cartonSell: currentCurrency, sacBuy: currentCurrency };
+  priceFieldCurrency = { buy: currentCurrency, sell: currentCurrency, cartonBuy: currentCurrency, cartonSell: currentCurrency, sacBuy: currentCurrency, sacGenericSell: currentCurrency };
   document.querySelectorAll('.field-currency-toggle').forEach(group=>{
     const key = group.id.replace('fc-toggle-','');
     const cur = priceFieldCurrency[key] || currentCurrency;
@@ -182,7 +227,7 @@ function setFieldCurrency(field, cur){
   }
 }
 function fieldToInputId(field){
-  const map = { buy:'in-buy', sell:'in-sell', cartonBuy:'carton-buy', cartonSell:'carton-sell', sacBuy:'sac-buy' };
+  const map = { buy:'in-buy', sell:'in-sell', cartonBuy:'carton-buy', cartonSell:'carton-sell', sacBuy:'sac-buy', sacGenericSell:'sac-generic-sell' };
   if(map[field]) return map[field];
   if(field.indexOf('mesurette') === 0) return 'mesurette-sell-' + field.replace('mesurette','');
   return null;
@@ -192,13 +237,15 @@ function toInternalField(raw, field){
   return cur === 'cdf' ? raw / exchangeRate : raw;
 }
 
+// L'ajout de produits est illimité pour tout le monde (gratuit ou VIP) — l'ancienne
+// limite de FREE_PRODUCT_LIMIT (30) pour les comptes gratuits a été retirée.
 function canAddMoreProducts(countToAdd){
-  if(isVip) return true;
-  return (products.length + countToAdd) <= FREE_PRODUCT_LIMIT;
+  return true;
 }
+// Dépenses illimitées pour tout le monde (gratuit ou VIP) — l'ancienne limite de
+// FREE_EXPENSE_LIMIT (3) pour les comptes gratuits a été retirée.
 function canAddMoreExpenses(){
-  if(isVip) return true;
-  return expenses.length < FREE_EXPENSE_LIMIT;
+  return true;
 }
 
 /* ---------- Suivi Meta Pixel : engagement réel avec l'app ---------- */
@@ -214,13 +261,10 @@ function maybeTrackFirstProduct(){
 }
 function openLimitSheet(reason){
   const t = dict[currentLang];
-  reason = reason || 'products';
-  // "HitProductLimit" : la personne a rempli ses 30 produits gratuits — signal fort
-  // qu'elle utilise vraiment l'app pour de bon et envisage de contacter le développeur
-  // pour débloquer l'illimité.
-  if(reason === 'products' && typeof fbq === 'function'){
-    fbq('trackCustom', 'HitProductLimit');
-  }
+  // "products" retiré : l'ajout de produits est illimité pour tous, ce cas ne se
+  // déclenche donc plus (canAddMoreProducts() renvoie toujours true) — reste géré ici
+  // par prudence uniquement s'il était encore appelé quelque part avec cette valeur.
+  reason = reason || 'history';
   const link = document.getElementById('limit-whatsapp-link');
   if(!currentUser){
     document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
@@ -232,8 +276,8 @@ function openLimitSheet(reason){
       openAccountSheet();
     };
   } else {
-    const descKey = { products:'limitDesc', expenses:'limitDescExpenses', history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode', suppliers:'limitDescSuppliers' }[reason];
-    const msgKey = { products:'limitWhatsappMsg', expenses:'limitWhatsappMsgExpenses', history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode', suppliers:'limitWhatsappMsgSuppliers' }[reason];
+    const descKey = { history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode', voice:'limitDescVoice', suppliers:'limitDescSuppliers' }[reason];
+    const msgKey = { history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode', voice:'limitWhatsappMsgVoice', suppliers:'limitWhatsappMsgSuppliers' }[reason];
     document.getElementById('t-limit-desc').textContent = t[descKey];
     const msg = encodeURIComponent(t[msgKey]);
     link.textContent = t.limitUnlockBtn;
@@ -319,7 +363,6 @@ async function addProductInner(){
       product.qty = qty; product.threshold = threshold; product.expiryDate = expiryDate;
     }
   } else {
-    if(!canAddMoreProducts(1)){ openLimitSheet('products'); return; }
     products.push({
       id: Date.now().toString(), name, buy, sell, unit, qty, threshold, expiryDate,
       lastSoldAt: null, createdAt: Date.now(),
@@ -358,7 +401,6 @@ async function addCartonProduct(){
     showToast(currentLang==='fr' ? "Remplis le nom, le nombre de pièces et le prix de vente" : "Pesa nkombo, motángo na ntalo ya kotéka");
     return;
   }
-  if(!canAddMoreProducts(1)){ openLimitSheet('products'); return; }
   const cartonBuyInternal = toInternalField(rawCartonBuy, 'cartonBuy');
   const buyPerPiece = cartonBuyInternal / cartonQty;
   const sell = toInternalField(rawSell, 'cartonSell');
@@ -379,6 +421,13 @@ async function addCartonProduct(){
 }
 
 async function addSacProduct(){
+  const unit = document.getElementById('sac-unit') ? document.getElementById('sac-unit').value : 'mesurette';
+  if(unit !== 'mesurette'){ await addSacProductGeneric(unit); return; }
+  await addSacProductMesurette();
+}
+
+/* ---------- Sac réparti en mesurettes personnalisées (comportement historique) ---------- */
+async function addSacProductMesurette(){
   const name = document.getElementById('sac-name').value.trim();
   if(hasNegativeInputs(['sac-buy','sac-threshold'])){
     showToast(dict[currentLang].negativeValueError);
@@ -413,7 +462,6 @@ async function addSacProduct(){
     showToast(currentLang==='fr' ? "Remplis au moins une mesurette complète" : "Pesa aumoins mesurette moko mobimba");
     return;
   }
-  if(!canAddMoreProducts(validRows.length)){ openLimitSheet(); return; }
   const hasExpiry = document.getElementById('sac-has-expiry').checked;
   const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
   const lotId = 'lot' + Date.now().toString();
@@ -431,6 +479,48 @@ async function addSacProduct(){
   lots.push({ id: lotId, name, remainingFraction: 1, createdAt: Date.now() });
   await saveProducts();
   saveLots();
+  closeAddSheet();
+  showToast(dict[currentLang].saved);
+  render();
+  maybeOfferCustomCatalogSave(name);
+  maybeTrackFirstProduct();
+}
+
+/* ---------- Sac réparti dans une unité standard (kg, g, L, ml, m, cm) ----------
+   Un seul produit est créé, dans l'unité choisie. Le prix d'achat par unité vient
+   de : prix d'achat du sac ÷ quantité ESTIMÉE contenue dans le sac (fournie par le
+   commerçant, ex: "environ 25 kg"). Sans cette estimation, aucun moyen de calculer
+   un coût par kg/L/m réel, donc pas de bénéfice fiable pour ce produit. */
+async function addSacProductGeneric(unit){
+  const name = document.getElementById('sac-name').value.trim();
+  if(hasNegativeInputs(['sac-buy','sac-threshold','sac-generic-qty','sac-generic-sell'])){
+    showToast(dict[currentLang].negativeValueError);
+    return;
+  }
+  const rawSacBuy = parseFloat(document.getElementById('sac-buy').value) || 0;
+  const rawEstQty = parseFloat(document.getElementById('sac-generic-qty').value) || 0;
+  const rawSell = parseFloat(document.getElementById('sac-generic-sell').value) || 0;
+  const threshold = parseQtyForUnit(document.getElementById('sac-threshold').value, unit) || (isDecimalUnit(unit) ? 1 : 3);
+  if(!name || !rawSacBuy || !rawEstQty || !rawSell){
+    showToast(currentLang==='fr' ? "Remplis le nom, le prix d'achat du sac, la quantité estimée et le prix de vente" : (currentLang==='ln' ? "Pesa nkombo, ntalo ya sac, motángo ya estimation na ntalo ya kotéka" : "Jaza jina, bei ya gunia, kiasi cha makadirio na bei ya mauzo"));
+    return;
+  }
+  const estQty = parseQtyForUnit(rawEstQty, unit);
+  if(!estQty){
+    showToast(currentLang==='fr' ? "La quantité estimée doit être supérieure à 0" : (currentLang==='ln' ? "Motángo ya estimation esengeli koleka 0" : "Kiasi cha makadirio kinapaswa kuwa zaidi ya 0"));
+    return;
+  }
+  const sacBuyInternal = toInternalField(rawSacBuy, 'sacBuy');
+  const buyPerUnit = sacBuyInternal / estQty;
+  const sell = toInternalField(rawSell, 'sacGenericSell');
+  const hasExpiry = document.getElementById('sac-has-expiry').checked;
+  const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
+  products.push({
+    id: Date.now().toString(), name, buy: buyPerUnit, sell, unit,
+    qty: estQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
+    barcode: pendingBarcodeForNewProduct || null
+  });
+  await saveProducts();
   closeAddSheet();
   showToast(dict[currentLang].saved);
   render();
@@ -484,14 +574,10 @@ async function deleteAllProducts(){
    de la boutique (1268 en pharmacie, 595 en quincaillerie, 415 en boutique
    générale) et on coche ce qu'on vend.
 
-   Limite gratuite / VIP : un compte gratuit ne peut pas dépasser
-   FREE_PRODUCT_LIMIT (30) produits au total, donc la sélection ici est
-   plafonnée au nombre de places RÉELLEMENT restantes (30 moins ce qu'il a
-   déjà en stock, pas 30 dans l'absolu) — dès que ce plafond est atteint,
-   les cases non cochées se désactivent et une case supplémentaire ne peut
-   être cochée qu'en décochant une autre d'abord. Un compte VIP n'a aucune
-   limite et a en plus un bouton "Tout cocher" pour prendre le catalogue
-   entier en un clic.
+   Sélection illimitée pour tout le monde (l'ancienne limite de 30 produits pour
+   les comptes gratuits a été retirée). Seul le bouton "Tout cocher" (qui prend le
+   catalogue entier en un clic sans avoir à cocher case par case) reste une
+   commodité réservée aux comptes VIP.
 
    Le prix d'achat par défaut reste à 0 : à la différence du nom (connu à
    l'avance dans un catalogue métier), le prix d'achat dépend du fournisseur
@@ -500,12 +586,6 @@ async function deleteAllProducts(){
    "Modifier ✏️") que de figer une fausse valeur pour 500 produits.
    ========================================================================= */
 let bulkCatalogSelection = new Set();
-
-// Places encore disponibles pour un compte gratuit (jamais négatif). VIP => illimité (Infinity).
-function remainingFreeProductSlots(){
-  if(isVip) return Infinity;
-  return Math.max(0, FREE_PRODUCT_LIMIT - products.length);
-}
 
 function openBulkCatalogSheet(){
   if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
@@ -519,8 +599,6 @@ function openBulkCatalogSheet(){
   document.getElementById('in-bulk-default-sell').value = '';
   document.getElementById('in-bulk-default-qty').value = '';
   document.getElementById('in-bulk-default-threshold').value = '3';
-  const selectAllBtn = document.getElementById('t-bulk-select-all-btn');
-  if(selectAllBtn) selectAllBtn.style.display = isVip ? 'block' : 'none';
   renderBulkCatalogList('');
   document.getElementById('bulk-catalog-overlay').classList.add('open');
 }
@@ -531,19 +609,17 @@ function renderBulkCatalogList(query){
   const merged = getFullCatalogForActiveStore();
   const q = (query||'').trim().toLowerCase();
   // Affichage limité à 300 lignes à la fois pour rester fluide sur un catalogue de plus
-  // de 1000 produits — la recherche permet de retrouver le reste, la limite de sélection
-  // (gratuite/VIP) elle porte sur bulkCatalogSelection, jamais sur ce qui est affiché.
+  // de 1000 produits — la recherche permet de retrouver le reste. Sélection illimitée
+  // pour tous les comptes.
   const list = (q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged).slice(0, 300);
   const wrap = document.getElementById('bulk-catalog-list');
-  const remaining = remainingFreeProductSlots();
-  const atFreeLimit = remaining !== Infinity && bulkCatalogSelection.size >= remaining;
   wrap.innerHTML = '';
   list.forEach(name=>{
     const checked = bulkCatalogSelection.has(name);
     const row = document.createElement('label');
-    row.className = 'bulk-catalog-row' + (!checked && atFreeLimit ? ' disabled' : '');
+    row.className = 'bulk-catalog-row';
     row.innerHTML = `
-      <input type="checkbox" data-name="${escapeHtml(name)}" ${checked?'checked':''} ${(!checked && atFreeLimit)?'disabled':''}>
+      <input type="checkbox" data-name="${escapeHtml(name)}" ${checked?'checked':''}>
       <span>${escapeHtml(name)}</span>
     `;
     wrap.appendChild(row);
@@ -551,11 +627,6 @@ function renderBulkCatalogList(query){
   wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       if(cb.checked){
-        if(remainingFreeProductSlots() !== Infinity && bulkCatalogSelection.size >= remainingFreeProductSlots()){
-          cb.checked = false;
-          openLimitSheet('products');
-          return;
-        }
         bulkCatalogSelection.add(cb.dataset.name);
       } else {
         bulkCatalogSelection.delete(cb.dataset.name);
@@ -568,10 +639,9 @@ function renderBulkCatalogList(query){
 function onBulkCatalogSearch(){
   renderBulkCatalogList(document.getElementById('in-bulk-search').value);
 }
-// VIP uniquement (bouton caché sinon) : prend tout le catalogue affiché par la recherche
-// en cours, ou tout le catalogue si aucune recherche n'est tapée.
+// Prend tout le catalogue affiché par la recherche en cours (ou tout le catalogue si
+// aucune recherche n'est tapée) — disponible pour tous les comptes, gratuit ou VIP.
 function selectAllBulkCatalog(){
-  if(!isVip) return;
   const merged = getFullCatalogForActiveStore();
   const q = document.getElementById('in-bulk-search').value.trim().toLowerCase();
   const list = q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged;
@@ -587,19 +657,15 @@ function updateBulkCatalogCount(){
   if(!btn) return;
   const t = dict[currentLang];
   const n = bulkCatalogSelection.size;
-  const remaining = remainingFreeProductSlots();
   const countLabel = document.getElementById('bulk-catalog-count');
   if(countLabel){
-    countLabel.textContent = (remaining === Infinity)
-      ? (t.bulkSelectedCountVip || '{n} sélectionnés').replace('{n}', n)
-      : (t.bulkSelectedCountFree || '{n}/{max} sélectionnés (limite gratuite)').replace('{n}', n).replace('{max}', FREE_PRODUCT_LIMIT);
+    countLabel.textContent = (t.bulkSelectedCountVip || '{n} sélectionnés').replace('{n}', n);
   }
   btn.textContent = (t.bulkAddBtn || 'Ajouter {n} produits').replace('{n}', n);
   btn.disabled = n === 0;
 }
 async function confirmBulkCatalogAdd(){
   if(bulkCatalogSelection.size === 0) return;
-  if(!canAddMoreProducts(bulkCatalogSelection.size)){ openLimitSheet('products'); return; }
   if(hasNegativeInputs(['in-bulk-default-sell','in-bulk-default-qty','in-bulk-default-threshold'])){
     showToast(dict[currentLang].negativeValueError);
     return;
@@ -631,7 +697,6 @@ async function duplicateProduct(id){
   if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   const product = products.find(p=>p.id===id);
   if(!product) return;
-  if(!canAddMoreProducts(1)){ openLimitSheet(); return; }
   const copy = {
     id: Date.now().toString(), name: product.name + ' (copie)',
     buy: product.buy, sell: product.sell, qty: 0, threshold: product.threshold,
@@ -734,7 +799,6 @@ async function confirmGridAdd(){
     return;
   }
   if(toCreate.length === 0) return;
-  if(!canAddMoreProducts(toCreate.length)){ openLimitSheet('products'); return; }
   let offset = 0;
   toCreate.forEach(item=>{
     offset++;
