@@ -29,6 +29,25 @@ function saveSuppliersFeatureEnabled(){
   localSet('mombongo:suppliersFeatureEnabled', JSON.stringify(suppliersFeatureEnabled));
   pushToCloud();
 }
+// Affiche/masque le bouton 🚚 Fournisseurs dans l'en-tête (ligne du taux de change),
+// selon que la fonctionnalité a été activée dans Compte → Gestion fournisseurs.
+function updateHeaderSuppliersButtonVisibility(){
+  const btn = document.getElementById('suppliers-header-btn');
+  if(btn) btn.style.display = suppliersFeatureEnabled ? 'flex' : 'none';
+}
+// Appelé par le switch "🚚 Gestion fournisseurs" du menu Compte (fonctionnalité VIP).
+function toggleSuppliersFeature(){
+  const cb = document.getElementById('in-suppliers-toggle');
+  if(!isVip){
+    if(cb) cb.checked = false;
+    openLimitSheet('suppliers');
+    return;
+  }
+  suppliersFeatureEnabled = !!(cb && cb.checked);
+  saveSuppliersFeatureEnabled();
+  updateHeaderSuppliersButtonVisibility();
+  if(suppliersFeatureEnabled) showToast(dict[currentLang].suppliersEnabled || '');
+}
 
 function recalcLotQuantities(lotId){
   const lot = lots.find(l=>l.id===lotId);

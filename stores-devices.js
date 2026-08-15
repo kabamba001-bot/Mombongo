@@ -575,6 +575,10 @@ async function confirmJoinWithPin(){
   const pin = document.getElementById('in-join-pin').value.trim();
   const name = document.getElementById('in-join-device-name').value.trim();
   if(!pin || pin.length < 4){ showToast(t.deviceLinkError); return; }
+  // Le prénom du caissier/magasinier est désormais obligatoire à chaque connexion d'un
+  // nouvel appareil : sans ça, "Caissier" tout court dans le journal d'activité ne permet
+  // pas de savoir LEQUEL des 3-4 caissiers a fait quoi, et n'importe qui peut nier.
+  if(!name){ showToast(t.deviceNameRequiredError || t.deviceLinkError); return; }
   if(!cloudEnabled || !db){ showToast('Erreur de connexion'); return; }
   try{
     if(!firebase.auth().currentUser){
@@ -732,7 +736,7 @@ function setCurrency(cur){
   currentCurrency = cur;
   document.getElementById('btn-usd').classList.toggle('active', cur==='usd');
   document.getElementById('btn-cdf').classList.toggle('active', cur==='cdf');
-  document.getElementById('rate-row').style.display = (cur==='cdf') ? 'block' : 'none';
+  document.getElementById('rate-fields-wrap').style.display = (cur==='cdf') ? 'block' : 'none';
   localSet('mombongo:currency', cur);
   updateAddFieldLabels();
   render();

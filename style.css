@@ -79,19 +79,24 @@
   .field-currency-toggle{display:inline-flex; background:var(--paper-2); border-radius:999px; padding:2px; margin-left:6px; vertical-align:middle;}
   .field-currency-toggle button{border:none; background:transparent; color:var(--charcoal-soft); font-family:'Inter'; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; cursor:pointer;}
   .field-currency-toggle button.active{background:var(--emerald); color:#fff;}
-  #rate-row{display:none; margin-top:12px; position:relative; z-index:1;}
-  #rate-row label{font-size:11px; opacity:.85; display:block; margin-bottom:4px;}
-  #rate-row input{
+  #rate-row{
+    display:flex; align-items:center; gap:8px;
+    margin-top:12px; position:relative; z-index:1;
+  }
+  #rate-row #suppliers-header-btn{ margin-left:auto; }
+  #rate-fields-wrap{display:none;}
+  #rate-fields-wrap label{font-size:11px; opacity:.85; display:block; margin-bottom:4px;}
+  #rate-fields-wrap input{
     width:110px; padding:7px 9px; border-radius:8px; border:none;
     font-size:13px; font-family:'Inter'; font-weight:600;
   }
-  #rate-row span{font-size:12px; margin-left:6px;}
+  #rate-fields-wrap span{font-size:12px; margin-left:6px;}
   #account-row{margin-top:10px; position:relative; z-index:1; flex-wrap:wrap; row-gap:6px;}
   #account-btn, #history-btn, #discover-btn, #suppliers-header-btn{
     display:flex; align-items:center; gap:6px;
     background:rgba(0,0,0,0.18); border:none; border-radius:999px;
     color:var(--paper); font-family:'Inter'; font-size:12px; font-weight:600;
-    padding:7px 13px; cursor:pointer;
+    padding:7px 13px; cursor:pointer; flex-shrink:0;
   }
   #theme-btn{
     display:flex; align-items:center; justify-content:center;

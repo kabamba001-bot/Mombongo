@@ -98,9 +98,15 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </div>
     </div>
     <div id="rate-row">
-      <label id="t-rate-label">Taux de change : 1 $ =</label>
-      <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
-      <span>FC</span>
+      <div id="rate-fields-wrap">
+        <label id="t-rate-label">Taux de change : 1 $ =</label>
+        <input id="in-rate" type="number" inputmode="decimal" value="2800" onchange="updateRate()">
+        <span>FC</span>
+      </div>
+      <button id="suppliers-header-btn" onclick="openSuppliersSheet()" style="display:none;">
+        <span>🚚</span>
+        <span id="t-suppliers-header-btn">Fournisseurs</span>
+      </button>
     </div>
     <div id="account-row" style="display:flex; gap:8px;">
       <button id="account-btn" onclick="openAccountSheet()">
@@ -110,10 +116,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       <button id="history-btn" onclick="openHistorySheet()">
         <span>🧾</span>
         <span id="t-history-btn">Historique</span>
-      </button>
-      <button id="suppliers-header-btn" onclick="openSuppliersSheet()" style="display:none;">
-        <span>🚚</span>
-        <span id="t-suppliers-header-btn">Fournisseurs</span>
       </button>
       <button id="discover-btn" onclick="openDiscoverSheet()">
         <span>💡</span>
@@ -762,8 +764,8 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <input id="in-join-pin" type="text" inputmode="numeric" maxlength="5" placeholder="Code à 5 chiffres" style="width:100%; padding:12px; border-radius:10px; border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:20px; text-align:center; letter-spacing:6px; font-family:'Sora'; font-weight:700;">
       </div>
       <div class="field">
-        <label id="t-device-name">Nom de cet appareil (optionnel)</label>
-        <input id="in-join-device-name" type="text" placeholder="Ex : Téléphone du caissier">
+        <label id="t-device-name">Ton prénom (obligatoire)</label>
+        <input id="in-join-device-name" type="text" placeholder="Ex : Junior" required>
       </div>
       <button class="btn-primary" onclick="confirmJoinWithPin()" id="t-join-confirm-btn">Rejoindre</button>
       <button class="btn-secondary" onclick="closeJoinWithCodeSheet()" id="t-cancel-join">Annuler</button>

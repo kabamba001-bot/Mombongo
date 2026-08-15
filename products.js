@@ -531,6 +531,11 @@ async function addSacProductGeneric(unit){
 // saveActivityLog() vit maintenant dans activity-log-sync.js (journal d'activité dans
 // sa propre collection Firestore, avec purge automatique — voir firestore.rules).
 function logActivity(action, label, extra){
+  // Garde-fou définitif : quoi qu'il arrive, le patron n'est jamais "alerté" de ses
+  // propres actions — 👁️ Activité ne sert qu'à surveiller les employés (caissier,
+  // magasinier). Les appels ci-dessus vérifient déjà le rôle avant d'appeler
+  // logActivity(), mais ce garde-fou évite qu'un futur appel oublié ne recrée le bug.
+  if(currentRole()==='patron') return;
   const roleLabel = { patron:'Patron', caissier:'Caissier', magasinier:'Magasinier' };
   const who = employeeDeviceName ? `${roleLabel[currentRole()]} (${employeeDeviceName})` : roleLabel[currentRole()];
   activityLog.unshift(Object.assign({ id: 'act'+Date.now()+Math.random().toString(36).slice(2,6), action, label, who, date: Date.now() }, extra||{}));
@@ -545,7 +550,11 @@ async function deleteProduct(id){
   if(!product) return;
   const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
   if(!ok) return;
-  logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name + ' × ' + formatQty(product.qty, product.unit), { productName: product.name, qty: product.qty, unit: product.unit || 'pc' });
+  // Le journal 👁️ Activité ne concerne que ce que font les employés : le patron
+  // n'a jamais besoin d'être "alerté" de ses propres actions.
+  if(currentRole()==='magasinier'){
+    logActivity('product_delete', dict[currentLang].logProductDeleted + ' : ' + product.name + ' × ' + formatQty(product.qty, product.unit), { productName: product.name, qty: product.qty, unit: product.unit || 'pc' });
+  }
   products = products.filter(p=>p.id!==id);
   await saveProducts();
   showToast(dict[currentLang].deleted);
