@@ -71,13 +71,58 @@ function computeStoreAlerts(storeData, debts){
   return { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts };
 }
 
+const UNIT_LABELS_FR = { pc:'pièce(s)', kg:'kg', g:'g', l:'L', ml:'ml', m:'m', cm:'cm' };
+function formatQtyFr(qty, unit){
+  const label = UNIT_LABELS_FR[unit] || UNIT_LABELS_FR.pc;
+  const n = (!unit || unit === 'pc') ? Math.round(qty) : (Math.round(qty * 100) / 100);
+  return `${n} ${label}`;
+}
+
+// Détaille chaque alerte au lieu de se contenter d'un décompte ("3 produits en stock
+// faible") : le patron doit savoir QUEL produit, QUELLE quantité, QUEL client, direct
+// depuis la notification elle-même, sans devoir rouvrir l'app pour le découvrir.
+// Limité à MAX_MESSAGE_LINES lignes pour rester lisible dans une notification — le
+// reste (utile surtout pour le rappel quotidien, qui peut lister beaucoup d'alertes
+// à la fois) est résumé en une dernière ligne "... et N autres".
+const MAX_MESSAGE_LINES = 6;
+
 function buildMessage(storeName, lowStock, expired, expiringSoon, dueSoonDebts, prefix){
-  const parts = [];
-  if(lowStock.length) parts.push(`${lowStock.length} produit${lowStock.length>1?'s':''} en stock faible`);
-  if(expired.length) parts.push(`${expired.length} produit${expired.length>1?'s':''} périmé${expired.length>1?'s':''}`);
-  if(expiringSoon.length) parts.push(`${expiringSoon.length} produit${expiringSoon.length>1?'s':''} qui expire${expiringSoon.length>1?'nt':''} bientôt`);
-  if(dueSoonDebts && dueSoonDebts.length) parts.push(`${dueSoonDebts.length} dette${dueSoonDebts.length>1?'s':''} à échéance`);
-  const body = parts.join(', ');
+  dueSoonDebts = dueSoonDebts || [];
+  const lines = [];
+
+  lowStock.forEach(p=>{
+    lines.push(`📉 ${p.name} : stock faible (${formatQtyFr(p.qty, p.unit)} en stock)`);
+  });
+  expired.forEach(p=>{
+    const lateDays = Math.abs(daysUntilExpiry(p.expiryDate));
+    lines.push(lateDays <= 0
+      ? `⛔ ${p.name} : périmé aujourd'hui`
+      : `⛔ ${p.name} : périmé depuis ${lateDays} jour${lateDays>1?'s':''}`);
+  });
+  expiringSoon.forEach(p=>{
+    const days = daysUntilExpiry(p.expiryDate);
+    lines.push(days <= 0
+      ? `⏳ ${p.name} : expire aujourd'hui`
+      : `⏳ ${p.name} : expire dans ${days} jour${days>1?'s':''}`);
+  });
+  dueSoonDebts.forEach(d=>{
+    const days = daysUntilExpiry(d.dueDate);
+    lines.push(days < 0
+      ? `💳 ${d.clientName} : dette en retard de ${Math.abs(days)} jour${Math.abs(days)>1?'s':''}`
+      : days === 0
+        ? `💳 ${d.clientName} : dette à échéance aujourd'hui`
+        : `💳 ${d.clientName} : dette à échéance dans ${days} jour${days>1?'s':''}`);
+  });
+
+  let body;
+  if(lines.length <= MAX_MESSAGE_LINES){
+    body = lines.join('\n');
+  } else {
+    const shown = lines.slice(0, MAX_MESSAGE_LINES);
+    const rest = lines.length - MAX_MESSAGE_LINES;
+    body = shown.join('\n') + `\n… et ${rest} autre${rest>1?'s':''}`;
+  }
+
   const title = `${prefix} ${storeName || 'Ta boutique'}`;
   return { title, body };
 }
