@@ -221,6 +221,18 @@
   }
 
   .search-wrap{position:relative; margin-bottom:12px;}
+
+  /* ---------- Compteur de produits (X/Y selon le palier) ---------- */
+  .products-counter{
+    font-size:12.5px; font-weight:600; margin:-4px 0 10px; display:flex; align-items:center; gap:6px;
+  }
+  .products-counter .bar-track{
+    flex:1; height:6px; border-radius:4px; background:var(--paper-2); overflow:hidden; max-width:120px;
+  }
+  .products-counter .bar-fill{ height:100%; border-radius:4px; background:var(--emerald); transition:width .2s; }
+  .products-counter.near-limit .bar-fill{ background:var(--marigold); }
+  .products-counter.at-limit{ color:var(--alert); }
+  .products-counter.at-limit .bar-fill{ background:var(--alert); }
   .search-wrap input{
     width:100%; padding:12px 14px 12px 38px; border-radius:12px;
     border:1.5px solid var(--paper-2); background:var(--card-bg); font-size:14px;
@@ -266,6 +278,20 @@
     font-size:15px; cursor:pointer; padding:6px; flex-shrink:0; line-height:1;
   }
   .product-card button.edit:active{color:var(--emerald);}
+
+  /* ---------- Produit gelé (au-delà de la limite du palier) ----------
+     Grisé + non cliquable : le commerçant voit encore ce qu'il a ajouté
+     (rien n'est perdu) mais comprend immédiatement qu'il doit passer au
+     palier supérieur pour le réactiver. Le badge cadenas remplace les
+     boutons d'action habituels (vendre/modifier/dupliquer/supprimer). */
+  .product-card.frozen{ opacity:.5; filter:grayscale(60%); }
+  .product-card.frozen .info .name{ color:var(--charcoal-soft); }
+  .product-card.frozen .price{ color:var(--charcoal-soft); }
+  .product-card .frozen-badge{
+    background:transparent; border:none; color:var(--charcoal-soft);
+    font-size:13px; cursor:pointer; padding:6px 8px; flex-shrink:0;
+    white-space:nowrap; font-family:'Inter'; font-weight:700;
+  }
 
   .fab-row{
     position:fixed; left:50%; transform:translateX(-50%); bottom:82px;
@@ -434,6 +460,25 @@
     width:100%; background:transparent; color:var(--charcoal-soft); border:none;
     padding:10px; font-size:13.5px; font-weight:600; cursor:pointer;
   }
+
+  /* ---------- Écran de choix du palier (onboarding) ----------
+     Un badge en gros caractères par carte ("Gratuit à vie" / "Essai gratuit" /
+     "Payant dès l'inscription") pour qu'aucun commerçant ne puisse se tromper de
+     palier sans le voir écrit noir sur blanc — voir plans.js / navigation.js. */
+  .plan-onboarding-sheet{ max-height:92vh; overflow-y:auto; }
+  .plan-card{
+    background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:16px; margin-bottom:12px; border:1.5px solid var(--paper-2);
+  }
+  .plan-card-badge{
+    display:inline-block; font-size:12px; font-weight:700; padding:5px 10px;
+    border-radius:8px; margin-bottom:8px;
+  }
+  .plan-badge-free{ background:var(--ok-bg); color:var(--emerald); }
+  .plan-badge-trial{ background:var(--marigold-bg); color:var(--marigold); }
+  .plan-badge-paid{ background:var(--alert-bg); color:var(--alert); }
+  .plan-card-title{ font-family:'Sora'; font-weight:700; font-size:15px; margin-bottom:4px; }
+  .plan-card-desc{ font-size:13px; color:var(--charcoal-soft); line-height:1.5; margin-bottom:12px; }
   .method-row{display:flex; gap:8px;}
   .method-row button{
     flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--paper-2);

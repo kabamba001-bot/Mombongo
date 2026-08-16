@@ -30,7 +30,7 @@ function isBarcodeLibraryReady(){
 function openBarcodeScanner(mode){
   if(mode === 'add' && !canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(mode === 'sell' && !canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
-  if(!isVip){ openLimitSheet('barcode'); return; }
+  if(!isFeatureUnlocked('barcode')){ openLimitSheet('barcode'); return; }
   if(!isBarcodeLibraryReady()){
     showToast(currentLang==='fr' ? "Scanner indisponible (vérifie ta connexion internet)" : "Scanner ezali te (talá connexion)", 4000);
     return;
@@ -157,6 +157,10 @@ async function handleBarcodeForSale(code){
   }
   if(product.qty <= 0){
     showToast((currentLang==='fr' ? "Stock épuisé : " : "Stock esili : ") + product.name, 4000);
+    return;
+  }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(product.id, products)){
+    showToast(dict[currentLang].productFrozenMsg, 5000);
     return;
   }
   pendingBarcodeSale = { product: product, qty: 1 };

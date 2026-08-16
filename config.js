@@ -130,7 +130,7 @@ async function registerFcmToken(){
 
 async function toggleNotifications(){
   const t = dict[currentLang];
-  if(!isVip){ closeAccountSheet(); openLimitSheet('notif'); return; }
+  if(!isFeatureUnlocked('pushNotifications')){ closeAccountSheet(); openLimitSheet('notif'); return; }
   if(!notificationsSupported()){
     showToast(t.notifUnsupported, 5000);
     return;
@@ -156,7 +156,7 @@ async function toggleNotifications(){
 function updateNotifButton(){
   const t = dict[currentLang];
   document.querySelectorAll('.notif-toggle-btn').forEach(btn=>{
-    if(!isVip){
+    if(!isFeatureUnlocked('pushNotifications')){
       btn.textContent = '🔒 ' + t.notifOff;
       btn.disabled = false;
       return;

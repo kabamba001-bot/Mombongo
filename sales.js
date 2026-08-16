@@ -3,6 +3,10 @@ let multiCart = {}; // { productId: qty } — utilisé seulement quand "vente pl
 
 function openSellSheet(id){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
+    showToast(dict[currentLang].productFrozenMsg, 5000);
+    return;
+  }
   sellingProductId = id;
   const sellingProduct = products.find(p=>p.id===id);
   const sellingUnit = (sellingProduct && sellingProduct.unit) || 'pc';
@@ -591,6 +595,12 @@ function updateVoiceLiveDisplay(transcript, isFinal){
     pendingVoiceSale = null;
     return;
   }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(product.id, products)){
+    bodyEl.innerHTML = `<span style="color:var(--charcoal-soft); font-weight:400;">🔒 ${escapeHtml(product.name)} — ${dict[currentLang].productFrozenMsg}</span>`;
+    confirmBtn.disabled = true;
+    pendingVoiceSale = null;
+    return;
+  }
   if(parsed.qty > product.qty){
     bodyEl.innerHTML = `<span style="color:var(--alert); font-weight:600;">Stock insuffisant pour ${escapeHtml(product.name)} (reste ${formatQty(product.qty, product.unit)})</span>`;
     confirmBtn.disabled = true;
@@ -605,7 +615,7 @@ function updateVoiceLiveDisplay(transcript, isFinal){
 
 function startVoiceSale(isAutoRetry){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
-  if(!isVip){ openLimitSheet('voice'); return; }
+  if(!isFeatureUnlocked('voiceSales')){ openLimitSheet('voice'); return; }
   if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
     showToast("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
     return;

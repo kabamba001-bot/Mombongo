@@ -121,6 +121,12 @@ async function pushToCloud(){
       update.currency = currentCurrency;
       update.email = currentUser.email || '';
       update.displayName = currentUser.displayName || '';
+      // Le patron seul peut faire évoluer le palier (paiement) — un appareil employé
+      // ne doit jamais pouvoir réécrire ces champs, même par erreur.
+      update.userPlan = userPlan;
+      update.userPlanStatus = userPlanStatus;
+      update.userPlanTrialEndsAt = userPlanTrialEndsAt;
+      update.userPlanExpiresAt = userPlanExpiresAt;
     } else if(employeeRole === 'patron'){
       // Appareil secondaire en rôle patron : mêmes droits que le compte principal
       // sur les boutiques et le taux de change (pas de profil Google à renvoyer ici).
@@ -128,6 +134,10 @@ async function pushToCloud(){
       update.activeStoreId = activeStoreId;
       update.rate = exchangeRate;
       update.currency = currentCurrency;
+      update.userPlan = userPlan;
+      update.userPlanStatus = userPlanStatus;
+      update.userPlanTrialEndsAt = userPlanTrialEndsAt;
+      update.userPlanExpiresAt = userPlanExpiresAt;
     }
     await db.collection('mombongo_users').doc(ownerUid).set(update, { merge: true });
     lastSyncOk = true;
@@ -143,6 +153,13 @@ async function pushToCloud(){
 function applyDocData(data){
   vipUntil = data.vipUntil || null;
   isVip = !!(vipUntil && new Date(vipUntil + 'T23:59:59').getTime() > Date.now());
+  userPlan = data.userPlan || 'simple';
+  userPlanStatus = data.userPlanStatus || 'free';
+  userPlanTrialEndsAt = data.userPlanTrialEndsAt || null;
+  userPlanExpiresAt = data.userPlanExpiresAt || null;
+  planDataLoaded = true;
+  if(typeof savePlanToCache === 'function') savePlanToCache();
+  if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
   if(data.rate){ const parsedRate = parseFloat(data.rate); if(parsedRate > 0) exchangeRate = parsedRate; }
   if(data.currency) currentCurrency = data.currency;
   storesDataCache = data.storesData || {};
@@ -219,13 +236,18 @@ async function handlePostLogin(){
       showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
     } else {
       isVip = false; vipUntil = null;
+      userPlan = 'simple'; userPlanStatus = 'free'; userPlanTrialEndsAt = null; userPlanExpiresAt = null;
+      planDataLoaded = true;
+      if(typeof savePlanToCache === 'function') savePlanToCache();
+      if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
       const legacyId = 'store_default';
       stores = [{ id: legacyId, name: dict[currentLang].storesTitle, createdAt: Date.now() }];
       activeStoreId = legacyId;
       storesDataCache = { [legacyId]: { products, sales, lots, debts, expenses, stats } };
       await db.collection('mombongo_users').doc(currentUser.uid).set({
         stores, activeStoreId, storesData: storesDataCache, rate: exchangeRate, currency: currentCurrency,
-        email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now()
+        email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now(),
+        userPlan, userPlanStatus, userPlanTrialEndsAt, userPlanExpiresAt
       }, { merge: true });
       const pendingRef = localStorage.getItem('mombongo:pendingRef');
       if(pendingRef && pendingRef !== currentUser.uid){
@@ -381,7 +403,7 @@ function setNewStoreType(type){
   document.querySelectorAll('#store-type-row .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.type===type));
 }
 function openNewStoreSheet(){
-  if(!isVip){ closeAccountSheet(); openLimitSheet('stores'); return; }
+  if(!isFeatureUnlocked('multiStore')){ closeAccountSheet(); openLimitSheet('stores'); return; }
   document.getElementById('in-store-name').value = '';
   setNewStoreType('boutique');
   document.getElementById('new-store-overlay').classList.add('open');
@@ -390,7 +412,7 @@ function closeNewStoreSheet(){
   document.getElementById('new-store-overlay').classList.remove('open');
 }
 async function confirmAddStore(){
-  if(!isVip){ closeNewStoreSheet(); openLimitSheet('stores'); return; }
+  if(!isFeatureUnlocked('multiStore')){ closeNewStoreSheet(); openLimitSheet('stores'); return; }
   const name = document.getElementById('in-store-name').value.trim();
   if(!name){ showToast(currentLang==='fr' ? "Indique un nom de boutique" : "Tia nkombo ya boutique"); return; }
   const id = 'store_' + Date.now();
@@ -473,7 +495,7 @@ async function removeDevice(deviceUid){
 }
 
 function openGeneratePinSheet(){
-  if(!isVip){ closeAccountSheet(); openLimitSheet('devices'); return; }
+  if(!isFeatureUnlocked('multiDevice')){ closeAccountSheet(); openLimitSheet('devices'); return; }
   selectedGenerateRole = 'caissier';
   document.querySelectorAll('.join-role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role==='caissier'));
   document.getElementById('generate-pin-overlay').classList.add('open');
@@ -680,6 +702,7 @@ function initEmployeeModeIfAny(){
 function hideBootLoading(){
   const el = document.getElementById('boot-loading-overlay');
   if(el) el.style.display = 'none';
+  if(typeof maybeShowPlanOnboarding === 'function') maybeShowPlanOnboarding();
 }
 // Filet de sécurité : si Firebase met du temps à répondre (connexion lente) ou ne répond
 // jamais (ex : requête bloquée), on ne laisse jamais l'écran de chargement bloqué pour de
@@ -717,10 +740,16 @@ if(cloudEnabled){
 // déclenche que si le document change sur le serveur, donc sans ça un abonnement qui expire
 // pendant qu'une session reste ouverte ne serait jamais détecté avant un rechargement manuel.
 vipExpiryCheckTimer = setInterval(checkVipExpiryLive, 60000);
+// Même logique que checkVipExpiryLive() ci-dessus, mais pour le nouveau système de
+// paliers (essai Business à 14j, abonnements Business/Pro) — voir plans.js.
+setInterval(checkPlanExpiryLive, 60000);
 // Revérifie aussi dès que l'app revient au premier plan (téléphone déverrouillé après une veille
 // qui a duré plus longtemps que prévu) — plus réactif que d'attendre le prochain intervalle.
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'visible') checkVipExpiryLive();
+  if(document.visibilityState === 'visible'){
+    checkVipExpiryLive();
+    checkPlanExpiryLive();
+  }
 });
 
 function setLang(lang){
@@ -733,6 +762,10 @@ function setLang(lang){
 }
 
 function setCurrency(cur){
+  if(cur === 'usd' && !getAllowedCurrencies().includes('usd')){
+    openLimitSheet('currency');
+    return;
+  }
   currentCurrency = cur;
   document.getElementById('btn-usd').classList.toggle('active', cur==='usd');
   document.getElementById('btn-cdf').classList.toggle('active', cur==='cdf');
@@ -1036,5 +1069,24 @@ function applyTranslations(){
   document.getElementById('t-pay-supplier-amount-label').textContent = t.paySupplierAmountLabel;
   document.getElementById('t-pay-supplier-save').textContent = t.paySupplierSave;
   document.getElementById('t-cancel-pay-supplier').textContent = t.cancel;
+  document.getElementById('t-plan-onb-title').textContent = t.planOnbTitle;
+  document.getElementById('t-plan-onb-subtitle').textContent = t.planOnbSubtitle;
+  document.getElementById('t-plan-onb-simple-badge').textContent = t.planOnbSimpleBadge;
+  document.getElementById('t-plan-onb-simple-title').textContent = t.planOnbSimpleTitle;
+  document.getElementById('t-plan-onb-simple-desc').textContent = t.planOnbSimpleDesc;
+  document.getElementById('t-plan-onb-simple-btn').textContent = t.planOnbSimpleBtn;
+  document.getElementById('t-plan-onb-business-badge').textContent = t.planOnbBusinessBadge;
+  document.getElementById('t-plan-onb-business-title').textContent = t.planOnbBusinessTitle;
+  document.getElementById('t-plan-onb-business-desc').textContent = t.planOnbBusinessDesc;
+  document.getElementById('t-plan-onb-business-btn').textContent = t.planOnbBusinessBtn;
+  document.getElementById('t-plan-onb-pro-badge').textContent = t.planOnbProBadge;
+  document.getElementById('t-plan-onb-pro-title').textContent = t.planOnbProTitle;
+  document.getElementById('t-plan-onb-pro-desc').textContent = t.planOnbProDesc;
+  document.getElementById('t-plan-onb-pro-btn').textContent = t.planOnbProBtn;
+  document.getElementById('t-plan-onb-skip').textContent = t.planOnbSkip;
+  document.getElementById('t-plan-pro-confirm-title').textContent = t.planProConfirmTitle;
+  document.getElementById('t-plan-pro-confirm-body').textContent = t.planProConfirmBody;
+  document.getElementById('t-plan-pro-confirm-yes').textContent = t.planProConfirmYes;
+  document.getElementById('t-plan-pro-confirm-no').textContent = t.planProConfirmNo;
 }
 

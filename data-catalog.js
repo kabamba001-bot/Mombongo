@@ -38,7 +38,7 @@ function updateHeaderSuppliersButtonVisibility(){
 // Appelé par le switch "🚚 Gestion fournisseurs" du menu Compte (fonctionnalité VIP).
 function toggleSuppliersFeature(){
   const cb = document.getElementById('in-suppliers-toggle');
-  if(!isVip){
+  if(!isFeatureUnlocked('supplierManagement')){
     if(cb) cb.checked = false;
     openLimitSheet('suppliers');
     return;
@@ -86,6 +86,20 @@ function getHistoryRetentionCutoff(){
   const cutoff = new Date(now.getFullYear(), now.getMonth() - HISTORY_RETENTION_MONTHS, now.getDate());
   return cutoff.getTime();
 }
+/* Combine deux limites indépendantes en gardant la plus restrictive (le
+   timestamp le plus récent, qui exclut donc le plus de données) :
+   1) l'archivage définitif (13 mois, s'applique à tout le monde, tous paliers) ;
+   2) la profondeur de consultation autorisée par le palier courant (1 jour pour
+      Simple gratuit, 32 jours pour Simple payant, illimité pour Business/Pro).
+   Utilisée pour valider une plage personnalisée dans navigation.js. */
+function getEffectiveHistoryCutoff(){
+  const archival = getHistoryRetentionCutoff();
+  const maxDays = getMaxHistoryDays();
+  if(maxDays === Infinity) return archival;
+  const now = new Date();
+  const planCutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - maxDays).getTime();
+  return Math.max(archival, planCutoff);
+}
 async function archiveOldData(){
   const cutoff = getHistoryRetentionCutoff();
   const oldSalesCount = sales.filter(s => s.date < cutoff).length;
@@ -114,6 +128,10 @@ async function archiveOldData(){
 }
 
 async function loadData(){
+  // Doit être fait AVANT le tout premier render() du démarrage (voir plans.js) :
+  // sans ça, planDataLoaded resterait à false et le gel des produits ne s'appliquerait
+  // jamais tant que Firebase n'a pas fini de répondre (ou jamais, en mode hors-ligne).
+  if(typeof loadPlanFromCache === 'function') loadPlanFromCache();
   if(isEmployeeMode){
     // Les vraies données arrivent via attachRealtimeListener (temps réel, compte du
     // patron). En attendant cette réponse (qui prend un instant après un rafraîchissement),
@@ -173,6 +191,11 @@ async function loadData(){
     const c = localGet('mombongo:currency');
     if(c && c.value === 'cdf'){ setCurrency('cdf'); }
   }catch(e){}
+  // Une fois la devise réellement chargée du cache (ligne ci-dessus) ET le palier
+  // connu (loadPlanFromCache(), tout en haut de cette fonction) : applique le repli
+  // si la combinaison n'est plus valide (ex. compte Simple qui était resté en USD
+  // avant l'introduction des paliers).
+  if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
   await archiveOldData();
   render();
 }

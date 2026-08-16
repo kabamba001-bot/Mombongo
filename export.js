@@ -1,7 +1,7 @@
 /* ---------- Export PDF / Excel ---------- */
 let exportFormat = 'pdf';
 function toggleExportFields(){
-  if(!isVip){
+  if(!isFeatureUnlocked('exportPdf')){
     document.getElementById('in-export-toggle').checked = false;
     openLimitSheet('export');
     return;
@@ -10,6 +10,14 @@ function toggleExportFields(){
   document.getElementById('export-fields').style.display = on ? 'block' : 'none';
 }
 function selectExportFormat(fmt, btn){
+  // Spec produit : Business/Pro ont l'export PDF, PAS l'export Excel ("Exports PDF et
+  // non Excel des ventes pour le bilan") — le bouton Excel reste visible (fonctionnalité
+  // déjà codée, pourra être ouverte à un futur palier) mais n'est pour l'instant jamais
+  // sélectionnable, quel que soit le palier.
+  if(fmt === 'excel'){
+    showToast(dict[currentLang].exportExcelUnavailable);
+    return;
+  }
   exportFormat = fmt;
   document.querySelectorAll('.export-format-btn').forEach(b=>b.classList.toggle('active', b===btn));
 }
@@ -21,13 +29,16 @@ function periodLabel(){
 function exportHistory(){
   const t = dict[currentLang];
   if(!isPatron()){ showToast(t.restrictedFeature); return; }
-  if(!isVip){ openLimitSheet('export'); return; }
+  if(!isFeatureUnlocked('exportPdf')){ openLimitSheet('export'); return; }
   const { start, end } = getPeriodRange();
   const entries = buildUnifiedHistory().filter(e => e.date >= start && e.date <= end);
   if(entries.length === 0){
     showToast(t.exportEmpty);
     return;
   }
+  // Garde-fou supplémentaire : même si le bouton Excel ne devrait jamais avoir pu être
+  // sélectionné (voir selectExportFormat), on retombe sur PDF par sécurité.
+  if(exportFormat === 'excel') exportFormat = 'pdf';
   const summary = computePeriodSummary(start, end);
   const storeName = (stores.find(s=>s.id===activeStoreId) || {}).name || t.appname;
   const filenameBase = `mombongo_${storeName.replace(/[^a-z0-9]+/gi,'_')}_${periodLabel().replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}`;

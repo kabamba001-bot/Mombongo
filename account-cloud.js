@@ -72,6 +72,9 @@ function signOutGoogle(){
     suppliersFeatureEnabled = false;
     isVip = false;
     vipUntil = null;
+    userPlan = 'simple'; userPlanStatus = 'free'; userPlanTrialEndsAt = null; userPlanExpiresAt = null;
+    if(typeof savePlanToCache === 'function') savePlanToCache();
+    if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
     stores = [];
     activeStoreId = null;
     storesDataCache = {};

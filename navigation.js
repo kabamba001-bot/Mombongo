@@ -31,7 +31,10 @@ function formatDateTime(ts){
 }
 
 function setHistoryPeriod(period){
-  if(period !== 'day' && !isVip){
+  // Simple gratuit (getMaxHistoryDays()===1, fenêtre du jour même) est le seul
+  // palier qui n'a droit qu'à 'day' — tout le reste (payant Simple 32j, Business/Pro
+  // illimité) a accès à semaine/mois/personnalisé. Voir plans.js.
+  if(period !== 'day' && getMaxHistoryDays() <= 1){
     openLimitSheet('history');
     return;
   }
@@ -52,7 +55,7 @@ function applyCustomRange(){
     showToast(currentLang==='fr' ? "Choisis les deux dates" : "Poná ba dates mibale");
     return;
   }
-  const cutoff = getHistoryRetentionCutoff();
+  const cutoff = getEffectiveHistoryCutoff();
   const fromTs = new Date(from + 'T00:00:00').getTime();
   if(fromTs < cutoff){
     showToast(dict[currentLang].dateTooOld);

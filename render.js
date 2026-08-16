@@ -54,6 +54,7 @@ function loadMoreProducts(){
 function render(){
   const t = dict[currentLang];
   ensureTodayStats();
+  if(typeof updateProductsCounter === 'function') updateProductsCounter();
 
   const role = currentRole();
   const hideProfits = (role === 'caissier' || role === 'magasinier');
@@ -138,16 +139,29 @@ function render(){
     empty.style.display = 'none';
     noResults.style.display = 'none';
     const visible = filtered.slice(0, productsRevealCount);
+    // Calculé une seule fois par rendu (pas par produit) : au-delà de la limite du
+    // palier courant, les produits les PLUS RÉCENTS sont gelés — voir plans.js.
+    const frozenIds = (typeof computeFrozenProductIds === 'function')
+      ? computeFrozenProductIds(products) : new Set();
     visible.forEach(p=>{
       const dotClass = p.qty === 0 ? 'red' : (p.qty <= p.threshold ? 'amber' : 'green');
+      const frozen = frozenIds.has(p.id);
       const card = document.createElement('div');
-      card.className = 'product-card';
-      const sellBtn = canSell() ? `<button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>` : '';
-      const editBtn = canEditDeleteProducts() ? `<button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>` : '';
-      // Dupliquer sert surtout pour les variantes (tailles, couleurs, parfums...) d'un produit
-      // déjà en stock — mêmes droits que l'ajout, puisque c'est une forme de création de produit.
-      const dupBtn = canAddProducts() ? `<button class="edit" onclick="duplicateProduct('${p.id}')" aria-label="${t.duplicateProductLabel}" title="${t.duplicateProductLabel}">📄</button>` : '';
-      const delBtn = canEditDeleteProducts() ? `<button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>` : '';
+      card.className = 'product-card' + (frozen ? ' frozen' : '');
+      let actionButtons;
+      if(frozen){
+        // Gelé : aucune action possible (vendre/modifier/dupliquer/supprimer) tant que
+        // le palier n'est pas relevé — un seul cadenas explique pourquoi en un clic.
+        actionButtons = `<button class="frozen-badge" onclick="showToast(dict[currentLang].productFrozenMsg, 5000)" aria-label="${t.productFrozenMsg}" title="${t.productFrozenMsg}">🔒</button>`;
+      } else {
+        const sellBtn = canSell() ? `<button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>` : '';
+        const editBtn = canEditDeleteProducts() ? `<button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>` : '';
+        // Dupliquer sert surtout pour les variantes (tailles, couleurs, parfums...) d'un produit
+        // déjà en stock — mêmes droits que l'ajout, puisque c'est une forme de création de produit.
+        const dupBtn = canAddProducts() ? `<button class="edit" onclick="duplicateProduct('${p.id}')" aria-label="${t.duplicateProductLabel}" title="${t.duplicateProductLabel}">📄</button>` : '';
+        const delBtn = canEditDeleteProducts() ? `<button class="del" onclick="deleteProduct('${p.id}')" aria-label="Supprimer">🗑</button>` : '';
+        actionButtons = `${sellBtn}${editBtn}${dupBtn}${delBtn}`;
+      }
       card.innerHTML = `
         <div class="dot ${dotClass}"></div>
         <div class="info">
@@ -155,7 +169,7 @@ function render(){
           <div class="meta">${formatQty(p.qty, p.unit)} ${t.stockUnit}</div>
         </div>
         <div class="price">${formatMoney(p.sell)}</div>
-        ${sellBtn}${editBtn}${dupBtn}${delBtn}
+        ${actionButtons}
       `;
       list.appendChild(card);
     });

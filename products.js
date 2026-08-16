@@ -136,6 +136,10 @@ function openAddSheet(){
 }
 function openEditSheet(id){
   if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
+    showToast(dict[currentLang].productFrozenMsg, 5000);
+    return;
+  }
   const product = products.find(p=>p.id===id);
   if(!product) return;
   editingProductId = id;
@@ -374,9 +378,12 @@ async function addProductInner(){
   const scannedBarcode = pendingBarcodeForNewProduct;
   const scannedLookupResult = pendingBarcodeLookupResult;
   const wasEditing = !!editingProductId;
+  const newProductId = wasEditing ? null : products[products.length-1].id;
   await saveProducts();
   closeAddSheet();
-  showToast(wasEditing ? dict[currentLang].updated : dict[currentLang].saved);
+  const gotFrozenToast = (!wasEditing && typeof notifyIfNewProductsFrozen === 'function')
+    ? notifyIfNewProductsFrozen(newProductId) : false;
+  if(!gotFrozenToast) showToast(wasEditing ? dict[currentLang].updated : dict[currentLang].saved);
   render();
   if(!wasEditing){
     maybeOfferCustomCatalogSave(name);
@@ -411,10 +418,12 @@ async function addCartonProduct(){
     qty: cartonQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
     barcode: pendingBarcodeForNewProduct || null
   });
+  const newCartonId = products[products.length-1].id;
   pendingBarcodeForNewProduct = null;
   await saveProducts();
   closeAddSheet();
-  showToast(dict[currentLang].saved);
+  const gotFrozenToast = (typeof notifyIfNewProductsFrozen === 'function') && notifyIfNewProductsFrozen(newCartonId);
+  if(!gotFrozenToast) showToast(dict[currentLang].saved);
   render();
   maybeOfferCustomCatalogSave(name);
   maybeTrackFirstProduct();
@@ -466,12 +475,15 @@ async function addSacProductMesurette(){
   const expiryDate = hasExpiry ? (getDateValue('sac-expiry-date') || null) : null;
   const lotId = 'lot' + Date.now().toString();
   let offset = 0;
+  const newMesuretteIds = [];
   validRows.forEach(({mName, rawMSell, mQty, idx})=>{
     const mSell = toInternalField(rawMSell, 'mesurette'+idx);
     const buyPerUnit = sacBuyInternal / mQty;
     offset++;
+    const newId = (Date.now()+offset).toString();
+    newMesuretteIds.push(newId);
     products.push({
-      id: (Date.now()+offset).toString(), name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell, unit: 'pc',
+      id: newId, name: `${name} (${mName})`, buy: buyPerUnit, sell: mSell, unit: 'pc',
       qty: mQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
       lotId: lotId, yieldPerSac: mQty
     });
@@ -480,7 +492,8 @@ async function addSacProductMesurette(){
   await saveProducts();
   saveLots();
   closeAddSheet();
-  showToast(dict[currentLang].saved);
+  const gotFrozenToast = (typeof notifyIfNewProductsFrozen === 'function') && notifyIfNewProductsFrozen(newMesuretteIds);
+  if(!gotFrozenToast) showToast(dict[currentLang].saved);
   render();
   maybeOfferCustomCatalogSave(name);
   maybeTrackFirstProduct();
@@ -520,9 +533,11 @@ async function addSacProductGeneric(unit){
     qty: estQty, threshold, expiryDate, lastSoldAt: null, createdAt: Date.now(),
     barcode: pendingBarcodeForNewProduct || null
   });
+  const newGenericId = products[products.length-1].id;
   await saveProducts();
   closeAddSheet();
-  showToast(dict[currentLang].saved);
+  const gotFrozenToast = (typeof notifyIfNewProductsFrozen === 'function') && notifyIfNewProductsFrozen(newGenericId);
+  if(!gotFrozenToast) showToast(dict[currentLang].saved);
   render();
   maybeOfferCustomCatalogSave(name);
   maybeTrackFirstProduct();
@@ -546,6 +561,10 @@ function logActivity(action, label, extra){
 /* ---------- Suppression produit ---------- */
 async function deleteProduct(id){
   if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
+    showToast(dict[currentLang].productFrozenMsg, 5000);
+    return;
+  }
   const product = products.find(p=>p.id===id);
   if(!product) return;
   const ok = window.confirm(`${dict[currentLang].confirmDelete}\n"${product.name}"`);
@@ -704,6 +723,10 @@ async function confirmBulkCatalogAdd(){
 /* ---------- Dupliquer un produit (utile pour les variantes : tailles, couleurs, parfums...) ---------- */
 async function duplicateProduct(id){
   if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
+    showToast(dict[currentLang].productFrozenMsg, 5000);
+    return;
+  }
   const product = products.find(p=>p.id===id);
   if(!product) return;
   const copy = {
@@ -716,6 +739,10 @@ async function duplicateProduct(id){
   products.push(copy);
   await saveProducts();
   render();
+  // La copie peut elle-même naître gelée si la limite vient d'être atteinte — dans ce
+  // cas, ouvrir sa fiche d'édition la bloquerait aussitôt (voir openEditSheet ci-dessus)
+  // et laisserait le commerçant sans explication ; on affiche directement le bon message.
+  if(typeof notifyIfNewProductsFrozen === 'function' && notifyIfNewProductsFrozen(copy.id)) return;
   openEditSheet(copy.id);
 }
 

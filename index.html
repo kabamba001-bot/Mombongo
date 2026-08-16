@@ -175,6 +175,9 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 
     <section>
       <h2 id="t-products-title">Mes produits</h2>
+      <!-- Compteur de produits actifs vs limite du palier — masqué si illimité (Business/Pro).
+           Voir updateProductsCounter() dans render.js, plans.js pour getMaxActiveProducts(). -->
+      <div id="products-counter" class="products-counter" style="display:none;"></div>
       <div class="search-wrap">
         <span class="icon">🔍</span>
         <input id="search-input" type="text" oninput="render()" placeholder="Rechercher un produit...">
@@ -788,6 +791,57 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
        (contrairement aux autres fiches qui remontent du bas), affichée juste après
        l'installation de l'app (native ou APK) — voir maybeShowPromoPopup() dans
        debts-expenses-alerts.js -->
+  <!-- Écran de choix du palier — voir plans.js pour la logique, navigation.js pour
+       renderPlanOnboarding()/choosePlanOnboarding(). Affiché une seule fois par
+       appareil (mombongo:planOnboardingSeen), avant tout autre popup, avec un
+       badge en gros caractères par carte pour qu'aucune ambiguïté ne soit possible
+       sur ce qui est gratuit, à l'essai, ou payant dès l'inscription. -->
+  <div class="sheet-overlay center-modal" id="plan-onboarding-overlay">
+    <div class="sheet plan-onboarding-sheet">
+      <h3 style="text-align:center;" id="t-plan-onb-title">Choisis ton profil</h3>
+      <p style="font-size:13px; color:var(--charcoal-soft); text-align:center; margin:-8px 0 16px;" id="t-plan-onb-subtitle">
+        Tu pourras toujours passer à un palier supérieur plus tard, sans rien perdre.
+      </p>
+
+      <div class="plan-card" id="plan-card-simple">
+        <div class="plan-card-badge plan-badge-free" id="t-plan-onb-simple-badge">100% Gratuit à vie (limité à 30 produits)</div>
+        <div class="plan-card-title" id="t-plan-onb-simple-title">Pour les petits vendeurs & marchés</div>
+        <div class="plan-card-desc" id="t-plan-onb-simple-desc">Idéal pour démarrer sans rien payer et remplacer le cahier.</div>
+        <button class="btn-primary" onclick="choosePlanOnboarding('simple')" id="t-plan-onb-simple-btn">Commencer gratuitement</button>
+      </div>
+
+      <div class="plan-card" id="plan-card-business">
+        <div class="plan-card-badge plan-badge-trial" id="t-plan-onb-business-badge">Essai gratuit de 14 jours, puis abonnement (2 000 FC/semaine ou 5 000 FC/mois)</div>
+        <div class="plan-card-title" id="t-plan-onb-business-title">Pour les boutiques établies</div>
+        <div class="plan-card-desc" id="t-plan-onb-business-desc">Produits illimités, scans, vocal et bilans complets.</div>
+        <button class="btn-primary" onclick="choosePlanOnboarding('business')" id="t-plan-onb-business-btn">Démarrer l'essai de 14 jours</button>
+      </div>
+
+      <div class="plan-card" id="plan-card-pro">
+        <div class="plan-card-badge plan-badge-paid" id="t-plan-onb-pro-badge">Payant dès l'inscription (5 000 FC/semaine ou 12 000 FC/mois)</div>
+        <div class="plan-card-title" id="t-plan-onb-pro-title">Pour les gérants avec plusieurs employés/boutiques</div>
+        <div class="plan-card-desc" id="t-plan-onb-pro-desc">Multi-appareils et multi-boutiques.</div>
+        <button class="btn-secondary" style="border:1.5px solid var(--paper-2); border-radius:12px;" onclick="choosePlanOnboarding('pro')" id="t-plan-onb-pro-btn">Je veux Mombongo Pro</button>
+      </div>
+
+      <button class="btn-secondary" onclick="dismissPlanOnboarding()" id="t-plan-onb-skip">Plus tard, je démarre avec Simple gratuit</button>
+    </div>
+  </div>
+
+  <!-- Confirmation avant de partir vers Pro (payant immédiatement, pas d'essai) — évite
+       qu'un commerçant clique dessus par curiosité sans avoir réellement besoin du
+       multi-appareils/multi-boutiques. -->
+  <div class="sheet-overlay center-modal" id="plan-pro-confirm-overlay">
+    <div class="sheet">
+      <h3 style="text-align:center;" id="t-plan-pro-confirm-title">Confirmer Mombongo Pro</h3>
+      <p style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6; text-align:center;" id="t-plan-pro-confirm-body">
+        Attention, ce compte nécessite un abonnement immédiat. Es-tu sûr d'avoir besoin de plusieurs caissiers ou boutiques ?
+      </p>
+      <button class="btn-primary" onclick="confirmProOnboarding()" id="t-plan-pro-confirm-yes">Oui, contacter pour activer Pro</button>
+      <button class="btn-secondary" onclick="closeProConfirm()" id="t-plan-pro-confirm-no">Annuler</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay center-modal" id="promo-gift-overlay">
     <div class="sheet promo-card">
       <div style="text-align:center; font-size:40px; margin-bottom:6px;">🎉</div>
@@ -1170,6 +1224,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
      dans barcode.js détecte l'absence de la lib et affiche un message clair plutôt qu'un plantage. -->
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="config.js"></script>
+<script src="plans.js"></script>
 <script src="translations.js"></script>
 <script src="helpers.js"></script>
 <script src="account-cloud.js"></script>
@@ -1189,6 +1244,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="sales.js"></script>
 <script src="receipt.js"></script>
 <script src="render.js"></script>
+<script src="plan-onboarding.js"></script>
 <script src="navigation.js"></script>
 <script src="export.js"></script>
 <script src="debts-expenses-alerts.js"></script>
