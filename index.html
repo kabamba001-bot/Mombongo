@@ -622,6 +622,16 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 
       <div id="account-stores-devices-section" style="display:none;">
         <div style="margin-top:16px;">
+          <h3 style="font-size:14px; margin:0 0 10px;" id="t-plan-section-title">Mon palier</h3>
+          <div class="plan-current-card">
+            <div class="plan-current-name" id="plan-current-name">Mombongo Simple</div>
+            <div class="plan-current-status" id="plan-current-status"></div>
+            <div class="plan-current-warning" id="plan-current-warning" style="display:none;"></div>
+          </div>
+          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:2px;" onclick="openPlanPicker()" id="t-plan-switch-btn">Changer de palier</button>
+        </div>
+
+        <div style="margin-top:16px;">
           <h3 style="font-size:14px; margin:0 0 10px;" id="t-stores-title">Mes boutiques</h3>
           <div id="stores-list"></div>
           <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:2px;" onclick="openNewStoreSheet()" id="t-add-store-btn">+ Ajouter une boutique ou pharmacie</button>

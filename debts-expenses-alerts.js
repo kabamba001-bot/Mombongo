@@ -143,6 +143,7 @@ async function initFirstUsersPromoBadge(){
 
 function openDebtsSheet(){
   if(currentRole()==='magasinier'){ showToast(dict[currentLang].restrictedFeature); return; }
+  if(!isFeatureUnlocked('customerDebts')){ openLimitSheet('debts'); return; }
   try{ renderDebtsList(); }catch(e){ console.error('Erreur affichage dettes', e); }
   document.getElementById('debts-overlay').classList.add('open');
 }
@@ -263,6 +264,7 @@ async function confirmRepay(){
 
 /* ---------- Dépenses ---------- */
 function openExpenseSheet(){
+  if(!isFeatureUnlocked('expenseTracking')){ openLimitSheet('expense'); return; }
   document.getElementById('in-expense-desc').value = '';
   document.getElementById('in-expense-amount').value = '';
   document.getElementById('expense-overlay').classList.add('open');
@@ -271,6 +273,7 @@ function closeExpenseSheet(){
   document.getElementById('expense-overlay').classList.remove('open');
 }
 async function confirmExpense(){
+  if(!isFeatureUnlocked('expenseTracking')){ closeExpenseSheet(); openLimitSheet('expense'); return; }
   const desc = document.getElementById('in-expense-desc').value.trim();
   const rawAmount = parseFloat(document.getElementById('in-expense-amount').value) || 0;
   if(!desc || rawAmount <= 0){
@@ -293,8 +296,11 @@ async function confirmExpense(){
 /* ---------- Alertes (stock faible / produits périmés) ---------- */
 let alertsTab = 'stock';
 function openAlertsSheet(){
-  alertsTab = 'stock';
-  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab==='stock'));
+  // Repli sur "expired" (toujours disponible, pas dans la spec payante) si le palier
+  // courant n'a pas l'alerte stock faible — évite d'ouvrir sur un onglet qu'il faudrait
+  // aussitôt bloquer.
+  alertsTab = isFeatureUnlocked('lowStockAlerts') ? 'stock' : 'expired';
+  document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab===alertsTab));
   renderAlertsSheet();
   document.getElementById('alerts-overlay').classList.add('open');
 }
@@ -302,6 +308,8 @@ function closeAlertsSheet(){
   document.getElementById('alerts-overlay').classList.remove('open');
 }
 function setAlertsTab(tab){
+  if(tab === 'stock' && !isFeatureUnlocked('lowStockAlerts')){ openLimitSheet('stock'); return; }
+  if(tab === 'debts' && !isFeatureUnlocked('customerDebts')){ openLimitSheet('debts'); return; }
   alertsTab = tab;
   document.querySelectorAll('#alerts-overlay .mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.alertstab===tab));
   renderAlertsSheet();

@@ -273,20 +273,36 @@ function openLimitSheet(reason){
   if(!currentUser){
     document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
     link.textContent = t.limitLoginBtn;
-    link.href = '#';
     link.onclick = function(e){
       e.preventDefault();
       closeLimitSheet();
       openAccountSheet();
     };
   } else {
-    const descKey = { history:'limitDescHistory', stores:'limitDescStores', devices:'limitDescDevices', notif:'limitDescNotif', export:'limitDescExport', barcode:'limitDescBarcode', voice:'limitDescVoice', suppliers:'limitDescSuppliers' }[reason];
-    const msgKey = { history:'limitWhatsappMsgHistory', stores:'limitWhatsappMsgStores', devices:'limitWhatsappMsgDevices', notif:'limitWhatsappMsgNotif', export:'limitWhatsappMsgExport', barcode:'limitWhatsappMsgBarcode', voice:'limitWhatsappMsgVoice', suppliers:'limitWhatsappMsgSuppliers' }[reason];
-    document.getElementById('t-limit-desc').textContent = t[descKey];
-    const msg = encodeURIComponent(t[msgKey]);
-    link.textContent = t.limitUnlockBtn;
-    link.href = `https://wa.me/${DEV_WHATSAPP}?text=${msg}`;
-    link.onclick = null;
+    // Nomme précisément QUEL palier débloque QUELLE fonctionnalité — jamais un simple
+    // "c'est VIP" générique — et propose l'action la plus directe possible : démarrer
+    // l'essai gratuit tout de suite si Business n'a encore jamais été essayé, sinon
+    // passer par WhatsApp pour l'abonnement (ou la confirmation Pro).
+    const targetPlan = getLimitReasonTargetPlan(reason);
+    const featureName = t['limitFeatureName_' + reason] || '';
+    const planLabel = getTargetPlanLabel(targetPlan);
+    document.getElementById('t-limit-desc').textContent =
+      (t.limitDescTemplate || '').replace('{feature}', featureName).replace('{plan}', planLabel);
+    const offerFreeTrial = (targetPlan === 'business') && canStartBusinessTrial();
+    link.textContent = offerFreeTrial
+      ? t.limitCtaStartTrial
+      : (t.limitCtaSwitchTo || '').replace('{plan}', planLabel);
+    link.onclick = function(e){
+      e.preventDefault();
+      closeLimitSheet();
+      if(offerFreeTrial){
+        choosePlanOnboarding('business');
+      } else if(targetPlan === 'pro'){
+        document.getElementById('plan-pro-confirm-overlay').classList.add('open');
+      } else {
+        requestPlanUpgradeViaWhatsapp(targetPlan);
+      }
+    };
   }
   document.getElementById('add-overlay').classList.remove('open');
   document.getElementById('expense-overlay').classList.remove('open');

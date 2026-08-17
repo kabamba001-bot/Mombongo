@@ -127,6 +127,7 @@ async function pushToCloud(){
       update.userPlanStatus = userPlanStatus;
       update.userPlanTrialEndsAt = userPlanTrialEndsAt;
       update.userPlanExpiresAt = userPlanExpiresAt;
+      update.userHasUsedBusinessTrial = userHasUsedBusinessTrial;
     } else if(employeeRole === 'patron'){
       // Appareil secondaire en rôle patron : mêmes droits que le compte principal
       // sur les boutiques et le taux de change (pas de profil Google à renvoyer ici).
@@ -138,6 +139,7 @@ async function pushToCloud(){
       update.userPlanStatus = userPlanStatus;
       update.userPlanTrialEndsAt = userPlanTrialEndsAt;
       update.userPlanExpiresAt = userPlanExpiresAt;
+      update.userHasUsedBusinessTrial = userHasUsedBusinessTrial;
     }
     await db.collection('mombongo_users').doc(ownerUid).set(update, { merge: true });
     lastSyncOk = true;
@@ -157,9 +159,14 @@ function applyDocData(data){
   userPlanStatus = data.userPlanStatus || 'free';
   userPlanTrialEndsAt = data.userPlanTrialEndsAt || null;
   userPlanExpiresAt = data.userPlanExpiresAt || null;
+  userHasUsedBusinessTrial = !!data.userHasUsedBusinessTrial;
   planDataLoaded = true;
   if(typeof savePlanToCache === 'function') savePlanToCache();
   if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+  // Revérifie la fenêtre J-5 avec les valeurs qui font foi (Firestore) — le cache local
+  // utilisé au tout premier rendu pouvait être périmé (ex. palier changé depuis un
+  // autre appareil, ou activé manuellement côté Firestore après un paiement).
+  if(typeof checkPlanExpiryLive === 'function') checkPlanExpiryLive();
   if(data.rate){ const parsedRate = parseFloat(data.rate); if(parsedRate > 0) exchangeRate = parsedRate; }
   if(data.currency) currentCurrency = data.currency;
   storesDataCache = data.storesData || {};
@@ -237,6 +244,7 @@ async function handlePostLogin(){
     } else {
       isVip = false; vipUntil = null;
       userPlan = 'simple'; userPlanStatus = 'free'; userPlanTrialEndsAt = null; userPlanExpiresAt = null;
+      userHasUsedBusinessTrial = false;
       planDataLoaded = true;
       if(typeof savePlanToCache === 'function') savePlanToCache();
       if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
@@ -247,7 +255,7 @@ async function handlePostLogin(){
       await db.collection('mombongo_users').doc(currentUser.uid).set({
         stores, activeStoreId, storesData: storesDataCache, rate: exchangeRate, currency: currentCurrency,
         email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now(),
-        userPlan, userPlanStatus, userPlanTrialEndsAt, userPlanExpiresAt
+        userPlan, userPlanStatus, userPlanTrialEndsAt, userPlanExpiresAt, userHasUsedBusinessTrial
       }, { merge: true });
       const pendingRef = localStorage.getItem('mombongo:pendingRef');
       if(pendingRef && pendingRef !== currentUser.uid){
@@ -741,7 +749,10 @@ if(cloudEnabled){
 // pendant qu'une session reste ouverte ne serait jamais détecté avant un rechargement manuel.
 vipExpiryCheckTimer = setInterval(checkVipExpiryLive, 60000);
 // Même logique que checkVipExpiryLive() ci-dessus, mais pour le nouveau système de
-// paliers (essai Business à 14j, abonnements Business/Pro) — voir plans.js.
+// paliers (essai Business à 14j, abonnements Business/Pro) — voir plans.js. Pas
+// d'appel immédiat ICI : ce fichier s'exécute avant data-catalog.js (voir l'ordre des
+// balises <script> dans index.html), donc planDataLoaded serait encore à false à ce
+// stade — le premier appel utile est fait depuis loadData() elle-même.
 setInterval(checkPlanExpiryLive, 60000);
 // Revérifie aussi dès que l'app revient au premier plan (téléphone déverrouillé après une veille
 // qui a duré plus longtemps que prévu) — plus réactif que d'attendre le prochain intervalle.
@@ -1069,6 +1080,8 @@ function applyTranslations(){
   document.getElementById('t-pay-supplier-amount-label').textContent = t.paySupplierAmountLabel;
   document.getElementById('t-pay-supplier-save').textContent = t.paySupplierSave;
   document.getElementById('t-cancel-pay-supplier').textContent = t.cancel;
+  document.getElementById('t-plan-section-title').textContent = t.planSectionTitle;
+  document.getElementById('t-plan-switch-btn').textContent = t.planSwitchBtn;
   document.getElementById('t-plan-onb-title').textContent = t.planOnbTitle;
   document.getElementById('t-plan-onb-subtitle').textContent = t.planOnbSubtitle;
   document.getElementById('t-plan-onb-simple-badge').textContent = t.planOnbSimpleBadge;

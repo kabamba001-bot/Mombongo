@@ -8,6 +8,7 @@ function openAccountSheet(){
     fbq('trackCustom', 'ClickAccountButton');
   }
   document.getElementById('account-overlay').classList.add('open');
+  if(typeof updatePlanSummary === 'function') updatePlanSummary();
   renderStoresList();
   renderDevicesList();
   const suppliersToggle = document.getElementById('in-suppliers-toggle');

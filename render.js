@@ -63,7 +63,11 @@ function render(){
   document.getElementById('stat-today').textContent = hideTodaySales ? '•••' : formatMoney(stats.todaySales);
   document.getElementById('stat-profit-today').textContent = hideProfits ? '•••' : formatMoney(stats.todayProfit);
   document.getElementById('stat-profit-total').textContent = hideProfits ? '•••' : formatMoney(stats.totalProfit - stats.totalExpenses);
-  document.getElementById('stat-expenses').textContent = formatMoney(stats.totalExpenses);
+  const expenseRow = document.querySelector('.sub-expense:not(.sub-debt)');
+  if(expenseRow){
+    expenseRow.style.display = isFeatureUnlocked('expenseTracking') ? '' : 'none';
+    document.getElementById('stat-expenses').textContent = formatMoney(stats.totalExpenses);
+  }
 
   document.getElementById('t-add-btn').style.display = (role==='caissier') ? 'none' : '';
   document.getElementById('t-expense-btn').style.display = (role==='patron' || role==='caissier' || role==='magasinier') ? '' : 'none';
@@ -77,14 +81,15 @@ function render(){
   const totalOwed = openDebts.reduce((sum,d)=>sum + Math.max(0, d.totalOwed - d.amountPaid), 0);
   document.getElementById('stat-debts').textContent = formatMoney(totalOwed);
   const debtRow = document.querySelector('.sub-debt');
-  if(debtRow) debtRow.style.display = (role==='magasinier') ? 'none' : '';
+  if(debtRow) debtRow.style.display = (role==='magasinier' || !isFeatureUnlocked('customerDebts')) ? 'none' : '';
 
   // Un produit jamais vendu (ex : tout juste importé du catalogue intégré avec une
   // quantité à 0 par défaut) n'a jamais été réellement "en rupture" — il n'a simplement
   // pas encore été mis en vente. On ne le compte en "stock faible" qu'à partir du moment
   // où il a été vendu au moins une fois (lastSoldAt renseigné), pour éviter qu'un import
   // en masse de centaines de produits ne déclenche autant de fausses alertes d'un coup.
-  const lowStock = products.filter(p=>p.qty <= p.threshold && p.lastSoldAt);
+  const lowStock = isFeatureUnlocked('lowStockAlerts')
+    ? products.filter(p=>p.qty <= p.threshold && p.lastSoldAt) : [];
   const dormant = products.filter(p=>{
     const ref = p.lastSoldAt || p.createdAt;
     return daysSince(ref) >= 14;
@@ -92,7 +97,7 @@ function render(){
   const todayStr = new Date().toISOString().slice(0,10);
   const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
   const expiringSoon = products.filter(p => p.expiryDate && p.expiryDate >= todayStr && daysUntilExpiry(p.expiryDate) <= EXPIRY_WARNING_DAYS);
-  const dueSoonDebts = (role==='magasinier') ? [] : getDueSoonDebts();
+  const dueSoonDebts = (role==='magasinier' || !isFeatureUnlocked('customerDebts')) ? [] : getDueSoonDebts();
   // Réservé au patron (voir renderAlertsSheet() pour le détail) : les gestes des employés
   // des 7 derniers jours comptent aussi comme une alerte à passer en revue.
   const recentActivityCount = (role==='patron') ? (activityLog||[]).filter(a => Date.now() - a.date < 7*24*60*60*1000).length : 0;
@@ -291,6 +296,7 @@ function renderAccountUI(){
   if(storesDevicesSection){
     storesDevicesSection.style.display = canManageStoresAndDevices() ? 'block' : 'none';
   }
+  if(typeof updatePlanSummary === 'function') updatePlanSummary();
   if(typeof updateNotifButton === 'function') updateNotifButton();
 }
 
@@ -555,7 +561,8 @@ function renderAlertsSheet(){
   const empty = document.getElementById('alerts-sheet-empty');
   // Même règle que pour le compteur du tableau de bord : un produit jamais vendu ne
   // s'affiche pas dans "stock faible" tant qu'il n'a pas été vendu au moins une fois.
-  const lowStock = products.filter(p=>p.qty <= p.threshold && p.lastSoldAt);
+  const lowStock = isFeatureUnlocked('lowStockAlerts')
+    ? products.filter(p=>p.qty <= p.threshold && p.lastSoldAt) : [];
   const dormant = products.filter(p=>{
     const ref = p.lastSoldAt || p.createdAt;
     return daysSince(ref) >= 14;
@@ -564,7 +571,7 @@ function renderAlertsSheet(){
   const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
   const expiringSoon = products.filter(p => p.expiryDate && p.expiryDate >= todayStr && daysUntilExpiry(p.expiryDate) <= EXPIRY_WARNING_DAYS)
     .sort((a,b)=>daysUntilExpiry(a.expiryDate)-daysUntilExpiry(b.expiryDate));
-  const dueSoonDebts = (currentRole()==='magasinier') ? [] : getDueSoonDebts();
+  const dueSoonDebts = (currentRole()==='magasinier' || !isFeatureUnlocked('customerDebts')) ? [] : getDueSoonDebts();
   // Réservé au patron : les gestes des employés (voir logActivity() dans products.js,
   // appelée depuis debts-expenses-alerts.js et suppliers.js) restent visibles en détail
   // dans l'historique 👁️, et les 7 derniers jours réapparaissent aussi ici, en alerte,

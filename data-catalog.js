@@ -196,6 +196,11 @@ async function loadData(){
   // si la combinaison n'est plus valide (ex. compte Simple qui était resté en USD
   // avant l'introduction des paliers).
   if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+  // Premier passage immédiat (pas d'attente des 60s du setInterval dans
+  // stores-devices.js) — pour que l'alerte J-5 apparaisse dès l'ouverture de l'app si
+  // on est déjà dans la fenêtre, pas une minute plus tard. planDataLoaded vient tout
+  // juste de passer à true (loadPlanFromCache() plus haut dans cette fonction).
+  if(typeof checkPlanExpiryLive === 'function') checkPlanExpiryLive();
   await archiveOldData();
   render();
 }

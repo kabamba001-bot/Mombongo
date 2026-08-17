@@ -44,7 +44,13 @@ function closeSellSheet(){
   sellingProductId = null;
 }
 function toggleCreditFields(){
-  const isCredit = document.getElementById('in-is-credit').checked;
+  const cb = document.getElementById('in-is-credit');
+  if(cb.checked && !isFeatureUnlocked('customerDebts')){
+    cb.checked = false;
+    openLimitSheet('debts');
+    return;
+  }
+  const isCredit = cb.checked;
   document.getElementById('credit-fields').style.display = isCredit ? 'block' : 'none';
   // Une vente est soit 100% crédit, soit partiellement en dette — pas les deux.
   if(isCredit && document.getElementById('in-has-debt').checked){
@@ -66,7 +72,13 @@ function toggleMultiFields(){
   }
 }
 function toggleDebtFields(){
-  const hasDebt = document.getElementById('in-has-debt').checked;
+  const cb = document.getElementById('in-has-debt');
+  if(cb.checked && !isFeatureUnlocked('customerDebts')){
+    cb.checked = false;
+    openLimitSheet('debts');
+    return;
+  }
+  const hasDebt = cb.checked;
   document.getElementById('debt-fields').style.display = hasDebt ? 'block' : 'none';
   if(hasDebt && document.getElementById('in-is-credit').checked){
     document.getElementById('in-is-credit').checked = false;
@@ -193,6 +205,11 @@ async function confirmSaleInner(){
     return;
   }
   const isCredit = document.getElementById('in-is-credit').checked;
+  if(isCredit && !isFeatureUnlocked('customerDebts')){
+    document.getElementById('in-is-credit').checked = false;
+    openLimitSheet('debts');
+    return;
+  }
   const clientName = document.getElementById('in-client-name').value.trim();
   if(isCredit && !clientName){
     showToast(currentLang==='fr' ? "Indique le nom du client pour une vente à crédit" : "Pesa nkombo ya client");
@@ -306,6 +323,11 @@ async function confirmMultiSaleInner(){
     }
   }
   const isCredit = document.getElementById('in-is-credit').checked;
+  if(isCredit && !isFeatureUnlocked('customerDebts')){
+    document.getElementById('in-is-credit').checked = false;
+    openLimitSheet('debts');
+    return;
+  }
   const clientName = document.getElementById('in-client-name').value.trim();
   if(isCredit && !clientName){
     showToast(currentLang==='fr' ? "Indique le nom du client pour une vente à crédit" : "Pesa nkombo ya client");
@@ -318,6 +340,11 @@ async function confirmMultiSaleInner(){
   const grandProfit = items.reduce((s,it)=>s+it.profit,0);
 
   const hasPartialDebt = document.getElementById('in-has-debt').checked;
+  if(hasPartialDebt && !isFeatureUnlocked('customerDebts')){
+    document.getElementById('in-has-debt').checked = false;
+    openLimitSheet('debts');
+    return;
+  }
   let debtAmount = 0, debtClientName = '', debtClientPhone = '', debtDueDate = '';
   if(hasPartialDebt){
     debtClientName = document.getElementById('in-debt-client-name').value.trim();

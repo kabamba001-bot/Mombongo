@@ -23,6 +23,10 @@ let userPlan = 'simple';          // 'simple' | 'business' | 'pro'
 let userPlanStatus = 'free';      // 'free' | 'trial' | 'active' | 'expired'
 let userPlanTrialEndsAt = null;   // ms epoch ou null
 let userPlanExpiresAt = null;     // ms epoch ou null
+/* Une fois à true, reste à true POUR TOUJOURS (même après un retour à Simple) — sans
+   ça, un commerçant pourrait faire simple→business→simple→business... et relancer
+   14 jours gratuits à chaque fois. Un seul essai gratuit par compte, point final. */
+let userHasUsedBusinessTrial = false;
 
 /* GARDE-FOU — planDataLoaded ne passe à true qu'une fois la vraie valeur du compte
    connue (cache local via loadPlanFromCache(), ou compte Google via applyDocData()) —
@@ -291,6 +295,13 @@ function startBusinessTrial(){
   userPlanStatus = 'trial';
   userPlanTrialEndsAt = Date.now() + BUSINESS_TRIAL_DURATION_MS;
   userPlanExpiresAt = null;
+  userHasUsedBusinessTrial = true;
+}
+
+// Un compte n'a droit qu'à un seul essai Business gratuit, jamais (même après être
+// repassé sur Simple entretemps) — voir userHasUsedBusinessTrial ci-dessus.
+function canStartBusinessTrial(){
+  return !userHasUsedBusinessTrial;
 }
 
 // Jours restants avant fin d'essai (arrondi au jour supérieur), ou null si
@@ -318,6 +329,126 @@ function setSimplePaidTier(durationMs){
   userPlanExpiresAt = Date.now() + durationMs;
 }
 
+/* ---------- Quel palier débloque quoi (pour le message d'écran de blocage) ----------
+   Toujours le palier le MOINS cher qui débloque la fonctionnalité — ex. le scan de
+   code-barres existe dès Simple payant, inutile de pousser vers Business pour ça. */
+const LIMIT_REASON_TARGET_PLAN = {
+  history: 'simple_paid', barcode: 'simple_paid',
+  voice: 'business', export: 'business', notif: 'business', currency: 'business',
+  debts: 'business', expense: 'business', stock: 'business',
+  stores: 'pro', devices: 'pro', suppliers: 'pro'
+};
+function getLimitReasonTargetPlan(reason){
+  return LIMIT_REASON_TARGET_PLAN[reason] || 'business';
+}
+// Nom affichable du palier cible — 'simple_paid' n'est pas un vrai palier séparé (c'est
+// Simple avec l'abonnement payant), donc on ajoute juste un mot pour le distinguer du
+// Simple gratuit dans les messages.
+function getTargetPlanLabel(targetPlan){
+  const t = (typeof dict !== 'undefined' && typeof currentLang !== 'undefined') ? dict[currentLang] : {};
+  if(targetPlan === 'simple_paid') return PLAN_DEFS.simple.label + (t.simplePaidSuffix || '');
+  if(targetPlan === 'pro') return PLAN_DEFS.pro.label;
+  return PLAN_DEFS.business.label;
+}
+
+/* ---------- Résumé du palier courant (pour l'écran "Mon palier" dans le compte) ---------- */
+function getPlanStatusSummary(){
+  const t = (typeof dict !== 'undefined' && typeof currentLang !== 'undefined') ? dict[currentLang] : {};
+  const fmtDate = (ms) => new Date(ms).toLocaleDateString('fr-FR');
+  const eff = getEffectivePlan();
+  if(eff.downgradedFrom){
+    return {
+      label: PLAN_DEFS.simple.label,
+      status: (t.planStatusDowngraded || '').replace('{from}', PLAN_DEFS[eff.downgradedFrom].label)
+    };
+  }
+  if(eff.plan === 'business'){
+    return {
+      label: PLAN_DEFS.business.label,
+      status: eff.tier === 'trial'
+        ? (t.planStatusTrial || '').replace('{days}', businessTrialDaysLeft())
+        : (t.planStatusPaid || '').replace('{date}', userPlanExpiresAt ? fmtDate(userPlanExpiresAt) : '')
+    };
+  }
+  if(eff.plan === 'pro'){
+    return { label: PLAN_DEFS.pro.label, status: (t.planStatusPaid || '').replace('{date}', userPlanExpiresAt ? fmtDate(userPlanExpiresAt) : '') };
+  }
+  return {
+    label: PLAN_DEFS.simple.label,
+    status: eff.tier === 'active'
+      ? (t.planStatusSimplePaid || '').replace('{date}', userPlanExpiresAt ? fmtDate(userPlanExpiresAt) : '')
+      : (t.planStatusSimpleFree || '')
+  };
+}
+
+/* ---------- Alerte de fin d'essai/abonnement proche (J-5) ----------
+   Raisonne sur le palier BRUT (userPlan/userPlanStatus), pas sur le palier effectif —
+   on veut prévenir AVANT la relégation automatique de getEffectivePlan(), pas après.
+   Couvre les 3 cas payants : essai Business (userPlanTrialEndsAt), et tout abonnement
+   payé actif — Simple payant, Business payant, Pro (userPlanExpiresAt). */
+const PLAN_EXPIRY_WARNING_DAYS = 5;
+function getPlanExpiryAlertInfo(){
+  const now = Date.now();
+  if(userPlan === 'business' && userPlanStatus === 'trial' && userPlanTrialEndsAt){
+    const daysLeft = Math.ceil((userPlanTrialEndsAt - now) / 86400000);
+    if(daysLeft >= 0 && daysLeft <= PLAN_EXPIRY_WARNING_DAYS){
+      return { kind:'trial', daysLeft, planLabel: PLAN_DEFS.business.label };
+    }
+    return null;
+  }
+  if(userPlanStatus === 'active' && userPlanExpiresAt){
+    const daysLeft = Math.ceil((userPlanExpiresAt - now) / 86400000);
+    if(daysLeft >= 0 && daysLeft <= PLAN_EXPIRY_WARNING_DAYS){
+      const label = (userPlan === 'simple') ? getTargetPlanLabel('simple_paid') : PLAN_DEFS[userPlan].label;
+      return { kind:'subscription', daysLeft, planLabel: label };
+    }
+  }
+  return null;
+}
+
+// Toast une seule fois par jour (pas à chaque vérification toutes les 60s, ni à
+// chaque re-render) tant qu'on reste dans la fenêtre J-5 — voir PLAN_EXPIRY_ALERT_KEY.
+const PLAN_EXPIRY_ALERT_KEY = 'mombongo:lastPlanExpiryAlertDate';
+function maybeShowPlanExpiryWarningToast(){
+  if(typeof localGet !== 'function' || typeof showToast !== 'function') return;
+  const info = getPlanExpiryAlertInfo();
+  if(!info) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const last = localGet(PLAN_EXPIRY_ALERT_KEY);
+  if(last && last.value === todayStr) return; // déjà montré aujourd'hui
+  localSet(PLAN_EXPIRY_ALERT_KEY, todayStr);
+  const t = dict[currentLang];
+  const key = info.kind === 'trial'
+    ? (info.daysLeft === 0 ? 'planExpiryWarningTrialToday' : 'planExpiryWarningTrial')
+    : (info.daysLeft === 0 ? 'planExpiryWarningSubscriptionToday' : 'planExpiryWarningSubscription');
+  const msg = (t[key] || '').replace('{plan}', info.planLabel).replace('{days}', info.daysLeft);
+  showToast(msg, 6500);
+}
+
+// Pousse le résumé ci-dessus dans la carte "Mon palier" du compte (voir index.html,
+// account-plan-section) — appelée depuis renderAccountUI() à chaque render().
+function updatePlanSummary(){
+  const nameEl = document.getElementById('plan-current-name');
+  const statusEl = document.getElementById('plan-current-status');
+  const warnEl = document.getElementById('plan-current-warning');
+  if(!nameEl || !statusEl) return;
+  const summary = getPlanStatusSummary();
+  nameEl.textContent = summary.label;
+  statusEl.textContent = summary.status;
+  if(!warnEl) return;
+  const info = getPlanExpiryAlertInfo();
+  if(!info){
+    warnEl.style.display = 'none';
+    return;
+  }
+  const t = dict[currentLang];
+  const key = info.kind === 'trial'
+    ? (info.daysLeft === 0 ? 'planExpiryWarningTrialToday' : 'planExpiryWarningTrial')
+    : (info.daysLeft === 0 ? 'planExpiryWarningSubscriptionToday' : 'planExpiryWarningSubscription');
+  warnEl.textContent = (t[key] || '').replace('{plan}', info.planLabel).replace('{days}', info.daysLeft);
+  warnEl.style.display = 'block';
+}
+
 /* ---------- Persistance locale (hors ligne / avant résolution du compte) ----------
    Appelée depuis loadData() (data-catalog.js), tout au début du démarrage de l'app —
    donc avant le tout premier render() — pour que planDataLoaded passe à true dès que
@@ -329,7 +460,8 @@ const PLAN_CACHE_KEYS = {
   plan: 'mombongo:userPlan',
   status: 'mombongo:userPlanStatus',
   trialEndsAt: 'mombongo:userPlanTrialEndsAt',
-  expiresAt: 'mombongo:userPlanExpiresAt'
+  expiresAt: 'mombongo:userPlanExpiresAt',
+  trialUsed: 'mombongo:userHasUsedBusinessTrial'
 };
 
 function savePlanToCache(){
@@ -337,6 +469,7 @@ function savePlanToCache(){
   localSet(PLAN_CACHE_KEYS.status, userPlanStatus);
   localSet(PLAN_CACHE_KEYS.trialEndsAt, userPlanTrialEndsAt === null ? '' : String(userPlanTrialEndsAt));
   localSet(PLAN_CACHE_KEYS.expiresAt, userPlanExpiresAt === null ? '' : String(userPlanExpiresAt));
+  localSet(PLAN_CACHE_KEYS.trialUsed, userHasUsedBusinessTrial ? '1' : '');
 }
 
 function loadPlanFromCache(){
@@ -344,10 +477,12 @@ function loadPlanFromCache(){
   const s = localGet(PLAN_CACHE_KEYS.status);
   const te = localGet(PLAN_CACHE_KEYS.trialEndsAt);
   const ee = localGet(PLAN_CACHE_KEYS.expiresAt);
+  const tu = localGet(PLAN_CACHE_KEYS.trialUsed);
   if(p && p.value) userPlan = p.value;
   if(s && s.value) userPlanStatus = s.value;
   userPlanTrialEndsAt = (te && te.value) ? parseInt(te.value, 10) : null;
   userPlanExpiresAt = (ee && ee.value) ? parseInt(ee.value, 10) : null;
+  userHasUsedBusinessTrial = !!(tu && tu.value === '1');
   planDataLoaded = true;
 }
 
@@ -359,6 +494,11 @@ function loadPlanFromCache(){
 let lastKnownEffectivePlanSignature = null;
 function checkPlanExpiryLive(){
   if(!planDataLoaded) return;
+  // Indépendant du reste de la fonction (qui ne réagit qu'à un CHANGEMENT de palier
+  // effectif) : la fenêtre J-5 doit être revérifiée à chaque passage, pas seulement au
+  // moment de la relégation — l'auto-limitation "une fois par jour" est gérée à
+  // l'intérieur de maybeShowPlanExpiryWarningToast() elle-même.
+  maybeShowPlanExpiryWarningToast();
   const eff = getEffectivePlan();
   const signature = eff.plan + ':' + eff.tier;
   if(signature === lastKnownEffectivePlanSignature) return;
@@ -366,6 +506,7 @@ function checkPlanExpiryLive(){
   lastKnownEffectivePlanSignature = signature;
   if(isFirstCheck) return; // pas de re-rendu au tout premier calcul, seulement sur un vrai changement
   enforceAllowedCurrencyForPlan();
+  if(typeof updatePlanSummary === 'function') updatePlanSummary();
   if(typeof render === 'function') render();
   if(eff.downgradedFrom){
     showToast(dict[currentLang].planJustDowngradedMsg, 6000);
