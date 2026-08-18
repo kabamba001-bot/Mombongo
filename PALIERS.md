@@ -126,11 +126,6 @@ ne concerne que l'essai gratuit, pas les abonnements payés.
 
 ## 6. Écarts connus / pas encore traités
 
-- **Badge "⭐ VIP"** (compte, basé sur l'ancien `isVip`/`vipUntil`) coexiste
-  encore avec la nouvelle carte "Mon palier" — redondant, à nettoyer.
-- **Mécanisme promo "50 premiers utilisateurs"** (`debts-expenses-alerts.js`)
-  accorde encore l'ancien `isVip` legacy, pas un vrai palier — volontairement
-  laissé de côté jusqu'ici.
 - **Export Excel** : bouton visible mais désactivé pour tous les paliers
   actuellement (la spec dit "PDF et non Excel" pour Business ; aucun palier
   ne l'inclut pour l'instant — décision à prendre si/quand un palier futur
@@ -144,6 +139,57 @@ ne concerne que l'essai gratuit, pas les abonnements payés.
   envoyer une notification push J-5 — pas fait ici car ce chantier tourne
   hors du bac à sable où ce travail a été mené (déploiement/service account
   non testables depuis là).
+
+### Traité depuis la première version de ce document
+
+- **Badge "⭐ VIP"** (compte) : supprimé — `isVip`/`vipUntil` et tout leur
+  système d'expiration en direct (`checkVipExpiryLive`, l'écran de blocage
+  employé dédié) ont été retirés de `config.js`, `stores-devices.js`,
+  `render.js`, `account-cloud.js` et `index.html`. `checkPlanExpiryLive()`
+  (déjà en place, voir §7) couvre déjà tout ce que faisait ce système côté
+  paliers — rien n'a été perdu, seul le doublon a disparu.
+- **Mécanisme promo "50 premiers utilisateurs"** : entièrement réécrit pour
+  accorder un vrai palier plutôt que l'ancien `isVip` legacy — voir §8
+  ci-dessous.
+- **Onglet Découvrir** : nouvelle première section ("Les 3 catégories
+  Mombongo") expliquant Simple/Business/Pro et comment changer de palier
+  (bouton qui ouvre directement le sélecteur) — remplace l'ancienne section
+  "Devenir VIP" à palier unique.
+
+## 8. Promo "50 places par palier" (Business et Pro séparément)
+
+Voir `tryClaimPlanPromo()` dans `debts-expenses-alerts.js`. Remplace
+l'ancienne promo "50 premiers utilisateurs d'août", qui accordait l'ancien
+`isVip`/`vipUntil` legacy à la création du compte, indépendamment de tout
+palier.
+
+**Règles :**
+- Fenêtre de 3 mois : du 1er août 2026 au 1er novembre 2026 (fin exclusive) —
+  `PROMO_START`/`PROMO_END`.
+- **50 places par catégorie, séparément** : un compteur Firestore dédié par
+  palier (`mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`).
+  Être dans les 50 premiers Business n'a aucun effet sur les places Pro, et
+  inversement.
+- **Le cadeau se joue au choix du palier, pas à la création du compte** :
+  la réclamation est tentée dans `choosePlanOnboarding()`
+  (`plan-onboarding.js`) au moment précis où le patron choisit Business ou
+  Pro — jamais à l'inscription (`handlePostLogin()` ne s'en occupe plus).
+- Gagnée, la promo accorde **2 mois du palier choisi directement actifs**
+  (`userPlanStatus:'active'`, `userPlanExpiresAt` = maintenant + 2 mois),
+  à la place de l'essai de 14 jours habituel (Business) ou du paiement
+  manuel via WhatsApp (Pro).
+- **Un seul cadeau par compte, à vie, tous paliers confondus** : le verrou
+  est un unique document `mombongo_promo_claims/{uid}` (indexé par uid seul,
+  pas par uid+palier). Un patron qui a déjà eu ses 2 mois Business offerts
+  et qui tente ensuite de passer à Pro NE bénéficie PAS d'une deuxième
+  place, même s'il reste des places Pro disponibles — le document existe
+  déjà, donc la transaction échoue avant même de vérifier le compteur Pro.
+- Anti-fraude : comme pour l'ancienne version, tout passe par une
+  transaction Firestore (jamais une déclaration du client), et les règles
+  Firestore (`firestore.rules`, collections `mombongo_meta` et
+  `mombongo_promo_claims`) revérifient indépendamment côté serveur que le
+  rang réclamé correspond bien au compteur de la bonne catégorie et ne
+  dépasse jamais 50.
 
 ## 7. Alerte de fin d'essai/abonnement (J-5)
 

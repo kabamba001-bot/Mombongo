@@ -153,8 +153,6 @@ async function pushToCloud(){
 }
 
 function applyDocData(data){
-  vipUntil = data.vipUntil || null;
-  isVip = !!(vipUntil && new Date(vipUntil + 'T23:59:59').getTime() > Date.now());
   userPlan = data.userPlan || 'simple';
   userPlanStatus = data.userPlanStatus || 'free';
   userPlanTrialEndsAt = data.userPlanTrialEndsAt || null;
@@ -242,7 +240,6 @@ async function handlePostLogin(){
       await pushToCloud();
       showToast(currentLang==='fr' ? "Données récupérées depuis ton compte" : "Ba données ezongi");
     } else {
-      isVip = false; vipUntil = null;
       userPlan = 'simple'; userPlanStatus = 'free'; userPlanTrialEndsAt = null; userPlanExpiresAt = null;
       userHasUsedBusinessTrial = false;
       planDataLoaded = true;
@@ -267,18 +264,13 @@ async function handlePostLogin(){
           });
         }catch(e){ console.error('Erreur enregistrement parrainage', e); }
       }
-      // Promo "50 premiers utilisateurs d'août" : ce compte vient tout juste d'être créé
-      // sur Firestore (branche "nouveau compte" ci-dessus) — c'est le seul moment légitime
-      // pour tenter la réclamation, exactement comme pour le parrainage plus haut. On ne
-      // parle du tout de cette promo (même en cas d'échec) que si on est bien en août —
-      // sinon le message serait trompeur le reste de l'année.
-      if(typeof isPromoWindowOpen === 'function' && isPromoWindowOpen()){
-        const won = await tryClaimFirstUsersPromo(currentUser.uid);
-        const t = dict[currentLang];
-        showToast(won ? t.promoWonToast : t.promoMissedToast, 5000);
-      } else {
-        showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
-      }
+      // La promo "50 places par palier" (voir debts-expenses-alerts.js) ne se joue plus
+      // ici : elle se tente au moment où le patron choisit explicitement Business ou Pro
+      // sur l'écran "Choisis ton profil" qui s'affiche juste après (voir
+      // maybeShowPlanOnboarding() plus bas et choosePlanOnboarding() dans
+      // plan-onboarding.js) — c'est ce choix qui détermine dans quelle catégorie (et donc
+      // quel compteur de 50 places) tenter sa chance.
+      showToast(currentLang==='fr' ? "Compte connecté, données sauvegardées" : "Compte ekangami");
     }
   }catch(e){
     console.error('Erreur récupération cloud', e);
@@ -315,49 +307,6 @@ function attachRealtimeListener(ownerUid){
       showToast(dict[currentLang].deviceRemoved);
     }
   });
-}
-
-// Vérifie si le VIP est réellement encore actif À L'INSTANT PRÉSENT, indépendamment de la dernière
-// synchro Firestore reçue. Sans ça, isVip ne se recalcule que quand le document change sur le
-// serveur — donc un abonnement qui expire pendant qu'une session reste ouverte (patron ou appareil
-// secondaire) ne serait jamais détecté tant que rien d'autre ne déclenche une resynchro.
-function checkVipExpiryLive(){
-  if(!vipUntil) return;
-  const stillVip = new Date(vipUntil + 'T23:59:59').getTime() > Date.now();
-  if(stillVip === isVip) return; // rien n'a changé depuis la dernière vérification
-  isVip = stillVip;
-  renderAccountUI();
-  renderStoresList();
-  renderDevicesList();
-  render();
-  if(isVip){
-    // VIP redevenu actif (renouvellement détecté) : si cet appareil était mis en pause, on le libère.
-    hideVipExpiredBlock();
-  } else {
-    handleVipJustExpired();
-  }
-}
-
-function handleVipJustExpired(){
-  // Ferme immédiatement toute action VIP en cours, même si l'utilisateur était en train de
-  // l'utiliser au moment précis de l'expiration.
-  closeNewStoreSheet();
-  closeGeneratePinSheet();
-  if(isEmployeeMode){
-    // Un appareil secondaire EST la fonctionnalité VIP (multi-appareils) : on bloque son usage.
-    // On n'efface volontairement ni l'appairage ni les données locales (contrairement à un retrait
-    // définitif par le patron) : dès que le VIP est renouvelé, cet appareil redevient actif tout
-    // seul, sans qu'il faille un nouveau code de connexion.
-    showVipExpiredBlock();
-  } else {
-    showToast(dict[currentLang].vipExpiredToast, 6000);
-  }
-}
-function showVipExpiredBlock(){
-  document.getElementById('vip-expired-block-overlay').classList.add('open');
-}
-function hideVipExpiredBlock(){
-  document.getElementById('vip-expired-block-overlay').classList.remove('open');
 }
 
 /* ---------- Boutiques ---------- */
@@ -744,13 +693,11 @@ if(cloudEnabled){
   });
 }
 
-// Vérification périodique de l'expiration VIP en temps réel : une resynchro Firestore ne se
-// déclenche que si le document change sur le serveur, donc sans ça un abonnement qui expire
-// pendant qu'une session reste ouverte ne serait jamais détecté avant un rechargement manuel.
-vipExpiryCheckTimer = setInterval(checkVipExpiryLive, 60000);
-// Même logique que checkVipExpiryLive() ci-dessus, mais pour le nouveau système de
-// paliers (essai Business à 14j, abonnements Business/Pro) — voir plans.js. Pas
-// d'appel immédiat ICI : ce fichier s'exécute avant data-catalog.js (voir l'ordre des
+// Vérification périodique de l'expiration du palier en temps réel (essai Business à 14j,
+// abonnements Business/Pro) — voir plans.js. Une resynchro Firestore ne se déclenche que
+// si le document change sur le serveur, donc sans ça un abonnement qui expire pendant
+// qu'une session reste ouverte ne serait jamais détecté avant un rechargement manuel.
+// Pas d'appel immédiat ICI : ce fichier s'exécute avant data-catalog.js (voir l'ordre des
 // balises <script> dans index.html), donc planDataLoaded serait encore à false à ce
 // stade — le premier appel utile est fait depuis loadData() elle-même.
 setInterval(checkPlanExpiryLive, 60000);
@@ -758,7 +705,6 @@ setInterval(checkPlanExpiryLive, 60000);
 // qui a duré plus longtemps que prévu) — plus réactif que d'attendre le prochain intervalle.
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'visible'){
-    checkVipExpiryLive();
     checkPlanExpiryLive();
   }
 });
@@ -924,8 +870,6 @@ function applyTranslations(){
   document.getElementById('t-cancel7').textContent = t.cancel;
   document.getElementById('t-limit-title').textContent = t.limitTitle;
   document.getElementById('t-limit-desc').textContent = currentUser ? t.limitDesc : t.limitNeedsLoginDesc;
-  document.getElementById('t-vip-expired-title').textContent = t.vipExpiredBlockTitle;
-  document.getElementById('t-vip-expired-desc').textContent = t.vipExpiredBlockDesc;
   document.getElementById('limit-whatsapp-link').textContent = currentUser ? t.limitUnlockBtn : t.limitLoginBtn;
   document.getElementById('t-cancel8').textContent = t.cancel;
   document.getElementById('t-period-day').textContent = t.periodDay;
@@ -959,7 +903,6 @@ function applyTranslations(){
   document.getElementById('t-promo-popup-body').textContent = t.promoPopupBody;
   document.getElementById('t-promo-popup-accept').textContent = t.promoPopupAccept;
   document.getElementById('t-promo-popup-decline').textContent = t.promoPopupDecline;
-  document.getElementById('t-promo-popup-remaining-suffix').textContent = t.promoPopupRemainingSuffix;
   if(typeof initFirstUsersPromoBadge === 'function') initFirstUsersPromoBadge();
   document.getElementById('t-bulk-catalog-open-btn').textContent = t.bulkCatalogOpenBtn;
   document.getElementById('t-bulk-catalog-title').textContent = t.bulkCatalogTitle;

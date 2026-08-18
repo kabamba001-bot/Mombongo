@@ -600,7 +600,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           <img id="account-photo" src="" alt="">
           <div>
             <div class="name" id="account-name"></div>
-            <span id="account-vip-badge" style="display:none; background:var(--marigold); color:var(--charcoal); font-size:10px; font-weight:800; padding:2px 7px; border-radius:999px; margin-left:6px;">⭐ VIP</span>
             <div class="email" id="account-email"></div>
           </div>
         </div>
@@ -859,8 +858,8 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       <p style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6; text-align:center;" id="t-promo-popup-body">
         Mombongo offre 2 mois VIP gratuits aux 50 premiers utilisateurs inscrits en août. Connecte-toi avec Google pour recevoir ton cadeau tout de suite.
       </p>
-      <p style="text-align:center; font-weight:700; color:var(--emerald); margin:0 0 14px;">
-        <span id="promo-gift-remaining">50</span> <span id="t-promo-popup-remaining-suffix">places restantes</span>
+      <p style="text-align:center; font-weight:700; color:var(--emerald); margin:0 0 14px;" id="promo-gift-remaining">
+        50 places Business · 50 places Pro restantes
       </p>
       <button class="btn-primary" onclick="acceptPromoPopup()" id="t-promo-popup-accept">Se connecter et recevoir mon cadeau</button>
       <button class="btn-secondary" onclick="closePromoPopup()" id="t-promo-popup-decline">Plus tard</button>
@@ -1174,17 +1173,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
   </div>
 
-
-  <!-- Pas de bouton pour fermer : ce panneau ne se lève que tout seul, dès que checkVipExpiryLive()
-       détecte que le VIP a été renouvelé. Volontaire — l'appareil doit rester bloqué entre-temps. -->
-  <div class="sheet-overlay" id="vip-expired-block-overlay" style="z-index:60;">
-    <div class="sheet">
-      <h3 id="t-vip-expired-title">Abonnement VIP expiré</h3>
-      <p id="t-vip-expired-desc" style="font-size:13.5px; color:var(--charcoal-soft); line-height:1.6;">
-        L'abonnement VIP du compte principal est arrivé à échéance. Cet appareil est mis en pause tant qu'il n'est pas renouvelé.
-      </p>
-    </div>
-  </div>
 
   <div class="sheet-overlay" id="expenses-history-overlay">
     <div class="sheet">

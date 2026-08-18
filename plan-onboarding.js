@@ -117,6 +117,23 @@ async function choosePlanOnboarding(plan){
       closePlanOnboardingOverlay();
       return;
     }
+    // Promo "50 places Business" (voir debts-expenses-alerts.js) : tentée AVANT l'essai
+    // normal, uniquement si la fenêtre est ouverte et le compte connecté (il faut un uid
+    // pour la transaction Firestore anti-triche). Gagnée, elle remplace l'essai de 14
+    // jours par 2 mois de Business directement actifs — un seul cadeau à vie par compte,
+    // tous paliers confondus, donc ne se déclenche jamais deux fois même en repassant par
+    // ici après coup.
+    if(typeof isPromoWindowOpen === 'function' && isPromoWindowOpen() && currentUser && typeof tryClaimPlanPromo === 'function'){
+      const won = await tryClaimPlanPromo(currentUser.uid, 'business');
+      if(won){
+        markPlanOnboardingSeen();
+        closePlanOnboardingOverlay();
+        if(typeof pushToCloud === 'function') await pushToCloud();
+        if(typeof render === 'function') render();
+        showToast(t.promoWonToast, 6000);
+        return;
+      }
+    }
     if(!canStartBusinessTrial()){
       // Essai déjà consommé une fois par ce compte (même si terminé depuis) — pas de
       // second essai gratuit, direction l'abonnement payant.
@@ -145,9 +162,24 @@ async function choosePlanOnboarding(plan){
       closePlanOnboardingOverlay();
       return;
     }
-    // Pro est payant dès l'inscription : on ne l'active jamais tout seul, on
-    // demande d'abord une confirmation explicite (voir spec : éviter qu'un TPE
-    // clique dessus par erreur en pensant que c'est gratuit ou à l'essai).
+    // Promo "50 places Pro" — même logique que côté Business ci-dessus, tentée avant la
+    // confirmation/WhatsApp habituelle. Gagnée, elle active directement 2 mois de Pro,
+    // sans passer par le paiement manuel — mais seulement si ce compte n'a pas déjà
+    // consommé son unique cadeau (même dans l'autre catégorie).
+    if(typeof isPromoWindowOpen === 'function' && isPromoWindowOpen() && currentUser && typeof tryClaimPlanPromo === 'function'){
+      const won = await tryClaimPlanPromo(currentUser.uid, 'pro');
+      if(won){
+        markPlanOnboardingSeen();
+        closePlanOnboardingOverlay();
+        if(typeof pushToCloud === 'function') await pushToCloud();
+        if(typeof render === 'function') render();
+        showToast(t.promoWonToast, 6000);
+        return;
+      }
+    }
+    // Pro est payant dès l'inscription : en dehors du cadeau ci-dessus, on ne l'active
+    // jamais tout seul — on demande d'abord une confirmation explicite (voir spec :
+    // éviter qu'un TPE clique dessus par erreur en pensant que c'est gratuit ou à l'essai).
     document.getElementById('plan-pro-confirm-overlay').classList.add('open');
   }
 }

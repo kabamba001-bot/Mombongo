@@ -4,7 +4,9 @@
    Fichier central : TOUTE décision liée aux limites d'un palier doit passer
    par les fonctions ci-dessous. Objectif : un seul endroit à modifier quand
    on ajoute un palier ou qu'on change une limite, au lieu de chasser des
-   "if(isVip)" éparpillés dans 15 fichiers.
+   "if(isVip)" éparpillés dans 15 fichiers (l'ancien système isVip/vipUntil,
+   y compris son badge de compte, a depuis été entièrement retiré — voir
+   PALIERS.md §6).
 
    Un compte a :
      - plan       : 'simple' | 'business' | 'pro'
@@ -12,13 +14,12 @@
      - planTrialEndsAt  : timestamp ms (fin d'essai Business) ou null
      - planExpiresAt    : timestamp ms (fin d'abonnement payé) ou null
 
-   Ces 4 champs vivent à côté de isVip/vipUntil (conservés tels quels pour
-   l'instant) et sont stockés en local (cache offline-first, voir
+   Ces 4 champs sont stockés en local (cache offline-first, voir
    savePlanToCache()/loadPlanFromCache()) + Firestore (voir applyDocData()
-   dans stores-devices.js), exactement comme isVip/vipUntil.
+   dans stores-devices.js).
    ========================================================================= */
 
-/* ---------- État courant (chargé/synchronisé ailleurs, comme isVip) ---------- */
+/* ---------- État courant (chargé/synchronisé ailleurs) ---------- */
 let userPlan = 'simple';          // 'simple' | 'business' | 'pro'
 let userPlanStatus = 'free';      // 'free' | 'trial' | 'active' | 'expired'
 let userPlanTrialEndsAt = null;   // ms epoch ou null
@@ -487,8 +488,8 @@ function loadPlanFromCache(){
 }
 
 /* Détecte, pendant que l'app reste ouverte, le moment précis où le palier effectif
-   change (fin d'essai Business, abonnement qui expire) — sans ça, comme pour
-   checkVipExpiryLive(), le gel ne serait recalculé qu'au prochain rechargement.
+   change (fin d'essai Business, abonnement qui expire) — sans ça, le gel ne serait
+   recalculé qu'au prochain rechargement.
    Ne redéclenche un render() que si le palier effectif a réellement changé, pour ne
    pas re-rendre inutilement toutes les 60s. */
 let lastKnownEffectivePlanSignature = null;

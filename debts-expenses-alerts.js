@@ -28,26 +28,38 @@ window.addEventListener('appinstalled', () => {
 });
 
 /* =========================================================================
-   PROMO "50 PREMIERS UTILISATEURS D'AOÛT 2026" : les 50 premiers comptes
-   Google réellement créés sur Mombongo pendant le mois d'août 2026 reçoivent
-   automatiquement 2 mois de VIP offerts, sans rien à réclamer manuellement.
+   PROMO "50 PLACES PAR PALIER" (Business et Pro) : fenêtre de 3 mois, du
+   1er août au 1er novembre 2026 (fin exclusive). Contrairement à la première
+   version de cette promo, le cadeau n'est plus accordé automatiquement à la
+   création du compte — il est accordé au moment où le patron CHOISIT
+   explicitement Business ou Pro (voir choosePlanOnboarding() dans
+   plan-onboarding.js), et porte directement sur CE palier :
+     - 50 places pour Business, 50 places pour Pro — deux compteurs séparés
+       (mombongo_meta/promo_business_2026 et mombongo_meta/promo_pro_2026).
+       Être dans les 50 premiers Business n'a aucun effet sur les places Pro,
+       et inversement.
+     - Le cadeau accordé, c'est 2 mois du palier CHOISI directement actifs
+       (userPlanStatus='active', pas un essai à surveiller) — pour Business,
+       ça remplace l'essai de 14 jours habituel ; pour Pro (normalement
+       payant dès l'inscription, sans essai), ça donne exactement le même
+       traitement que Business le temps du cadeau.
+     - Un seul cadeau par compte, à VIE, tous paliers confondus : le verrou
+       est un unique document mombongo_promo_claims/{uid} (indépendant du
+       palier). Un patron qui a déjà eu ses 2 mois Business offerts et qui
+       tente ensuite de passer à Pro NE bénéficie PAS d'une deuxième place,
+       même s'il reste des places Pro disponibles — voir tryClaimPlanPromo().
 
-   Anti-fraude / anti-course : le comptage ne repose jamais sur une
-   déclaration du client. Il passe par une transaction Firestore sur un
-   document compteur partagé (mombongo_meta/promo_aug2026) : si deux
-   inscriptions arrivent en même temps, Firestore ne laisse passer qu'une
-   seule des deux écritures tant que le compteur est encore sous 50 — comme
-   pour le compteur de filleuls du parrainage, mais ici avec verrou
-   transactionnel puisque plusieurs personnes peuvent s'inscrire à la
-   même seconde (contrairement au parrainage, qui n'a qu'un seul lecteur
-   à la fois : le parrain qui clique sur "Réclamer").
-   Chaque uid ne peut gagner qu'une fois (mombongo_promo_claims/{uid}).
+   Anti-fraude / anti-course : comme pour l'ancienne version, le comptage
+   passe par une transaction Firestore (jamais une déclaration du client) :
+   si deux patrons choisissent Business à la même seconde, Firestore ne
+   laisse passer qu'une seule des deux écritures tant que le compteur de
+   cette catégorie est encore sous 50.
    ========================================================================= */
-const PROMO_SLOTS = 50;
-const PROMO_VIP_MONTHS = 2;
-const PROMO_COUNTER_DOC = 'promo_aug2026';
-const PROMO_START = new Date(2026, 7, 1).getTime();  // 1er août 2026 00:00 (mois 0-indexé : 7 = août)
-const PROMO_END = new Date(2026, 8, 1).getTime();    // 1er septembre 2026 00:00 (fin exclusive)
+const PROMO_SLOTS_PER_PLAN = 50;
+const PROMO_GIFT_MONTHS = 2;
+const PROMO_COUNTER_DOCS = { business: 'promo_business_2026', pro: 'promo_pro_2026' };
+const PROMO_START = new Date(2026, 7, 1).getTime();   // 1er août 2026 00:00 (mois 0-indexé : 7 = août)
+const PROMO_END = new Date(2026, 10, 1).getTime();    // 1er novembre 2026 00:00 (fin exclusive) — fenêtre de 3 mois : août, septembre, octobre
 let promoPopupShown = false;
 
 function isPromoWindowOpen(){
@@ -55,60 +67,93 @@ function isPromoWindowOpen(){
   return now >= PROMO_START && now < PROMO_END;
 }
 
-// Tente d'accorder le cadeau à un nouveau compte tout juste créé. Renvoie true si gagné.
-// N'est appelée que depuis handlePostLogin(), uniquement pour un compte qui vient d'être
-// créé sur Firestore (jamais pour un utilisateur déjà existant) — cohérent avec l'esprit
-// "premiers utilisateurs", exactement comme le badge "nouvel utilisateur" du parrainage.
-async function tryClaimFirstUsersPromo(uid){
+// Tente d'accorder la promo pour le palier CHOISI (plan = 'business' ou 'pro') au compte
+// connecté uid. Renvoie true si gagné. Appelée uniquement depuis choosePlanOnboarding()
+// (plan-onboarding.js), au moment précis où le patron choisit ce palier — jamais à la
+// création du compte. Le verrou mombongo_promo_claims/{uid} est commun aux deux paliers :
+// s'il existe déjà (quel que soit le palier gagné à l'époque), aucune nouvelle réclamation
+// n'est possible, même dans l'autre catégorie — "un seul cadeau à vie, tous paliers
+// confondus".
+async function tryClaimPlanPromo(uid, plan){
   if(!cloudEnabled || !db || !isPromoWindowOpen()) return false;
-  const counterRef = db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC);
+  if(plan !== 'business' && plan !== 'pro') return false;
+  const counterRef = db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS[plan]);
   const claimRef = db.collection('mombongo_promo_claims').doc(uid);
   try{
     const won = await db.runTransaction(async (tx)=>{
-      const counterSnap = await tx.get(counterRef);
       const claimSnap = await tx.get(claimRef);
-      if(claimSnap.exists) return false;
+      if(claimSnap.exists) return false; // cadeau déjà utilisé une fois (business OU pro, peu importe lequel)
+      const counterSnap = await tx.get(counterRef);
       const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
-      if(claimed >= PROMO_SLOTS) return false;
+      if(claimed >= PROMO_SLOTS_PER_PLAN) return false;
       tx.set(counterRef, { claimed: claimed + 1 }, { merge: true });
-      tx.set(claimRef, { uid, rank: claimed + 1, timestamp: Date.now() });
+      tx.set(claimRef, { uid, plan, rank: claimed + 1, timestamp: Date.now() });
       return true;
     });
     if(won){
       const until = new Date();
-      until.setMonth(until.getMonth() + PROMO_VIP_MONTHS);
-      vipUntil = until.toISOString().slice(0,10);
-      isVip = true;
-      await db.collection('mombongo_users').doc(uid).set({ vipUntil }, { merge: true });
+      until.setMonth(until.getMonth() + PROMO_GIFT_MONTHS);
+      userPlan = plan;
+      userPlanStatus = 'active';
+      userPlanExpiresAt = until.getTime();
+      userPlanTrialEndsAt = null; // le cadeau remplace l'essai — pas d'essai Business à consommer en plus
+      if(typeof savePlanToCache === 'function') savePlanToCache();
+      if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+      await db.collection('mombongo_users').doc(uid).set({
+        userPlan, userPlanStatus, userPlanExpiresAt, userPlanTrialEndsAt
+      }, { merge: true });
     }
     return won;
   }catch(e){
-    console.error('Erreur réclamation promo 50 premiers', e);
+    console.error('Erreur réclamation promo palier', e);
     return false;
   }
 }
 
-// Fenêtre "🎁 Tu fais partie des 50 premiers" affichée au milieu du tableau de bord,
-// juste après l'installation (native ou APK) — voir appinstalled et acceptInstallApk().
-// Ne s'affiche que si : la personne n'est pas déjà connectée (son statut est déjà tranché
-// sinon), le mois d'août n'est pas terminé, elle ne l'a pas déjà vue/refusée, et il reste
-// vraiment des places (vérifié en direct sur le compteur partagé, pour ne jamais promettre
-// un cadeau qui n'existe plus).
+// Nombre de places restantes par catégorie, en direct sur les compteurs partagés — pour
+// ne jamais promettre (popup, badge) un cadeau qui n'existe plus dans l'une des deux
+// catégories. Renvoie les 50 places par défaut si la lecture échoue (hors ligne, etc.).
+async function getPromoRemaining(){
+  if(!cloudEnabled || !db){
+    return { business: PROMO_SLOTS_PER_PLAN, pro: PROMO_SLOTS_PER_PLAN };
+  }
+  try{
+    const [businessSnap, proSnap] = await Promise.all([
+      db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS.business).get(),
+      db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS.pro).get()
+    ]);
+    const businessClaimed = (businessSnap.exists && businessSnap.data().claimed) || 0;
+    const proClaimed = (proSnap.exists && proSnap.data().claimed) || 0;
+    return {
+      business: Math.max(0, PROMO_SLOTS_PER_PLAN - businessClaimed),
+      pro: Math.max(0, PROMO_SLOTS_PER_PLAN - proClaimed)
+    };
+  }catch(e){
+    return { business: PROMO_SLOTS_PER_PLAN, pro: PROMO_SLOTS_PER_PLAN };
+  }
+}
+
+// Fenêtre "🎁 places offertes" affichée au milieu du tableau de bord, juste après
+// l'installation (native ou APK) — voir appinstalled et acceptInstallApk(). N'annonce pas
+// encore quel palier sera gagné (ça se joue au choix du palier, après connexion) : décrit
+// juste que la promo existe. Ne s'affiche que si : la personne n'est pas déjà connectée
+// (son statut est déjà tranché sinon), la fenêtre de 3 mois n'est pas terminée, elle ne l'a
+// pas déjà vue/refusée, et il reste vraiment des places dans AU MOINS une des deux
+// catégories (vérifié en direct sur les compteurs partagés).
 async function maybeShowPromoPopup(){
   if(promoPopupShown) return;
   if(currentUser) return;
   if(!isPromoWindowOpen()) return;
   if(localStorage.getItem('mombongo:promoAug2026Seen') === '1') return;
   if(!cloudEnabled || !db) return;
-  let remaining = PROMO_SLOTS;
-  try{
-    const counterSnap = await db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC).get();
-    const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
-    remaining = PROMO_SLOTS - claimed;
-    if(remaining <= 0) return;
-  }catch(e){ return; }
+  const remaining = await getPromoRemaining();
+  if(remaining.business <= 0 && remaining.pro <= 0) return;
   const bodyEl = document.getElementById('promo-gift-remaining');
-  if(bodyEl) bodyEl.textContent = remaining;
+  if(bodyEl){
+    bodyEl.textContent = (dict[currentLang].promoRemainingText || '')
+      .replace('{business}', remaining.business)
+      .replace('{pro}', remaining.pro);
+  }
   promoPopupShown = true;
   document.getElementById('promo-gift-overlay').classList.add('open');
 }
@@ -120,25 +165,24 @@ function acceptPromoPopup(){
   localStorage.setItem('mombongo:promoAug2026Seen', '1');
   document.getElementById('promo-gift-overlay').classList.remove('open');
   // Direction directe vers la connexion Google du téléphone (compte déjà présent sur
-  // l'appareil dans la plupart des cas) — réutilise le flux de connexion existant.
+  // l'appareil dans la plupart des cas) — réutilise le flux de connexion existant. Le choix
+  // du palier (et donc la tentative de réclamation) se fera juste après, sur l'écran
+  // "Choisis ton profil" qui s'affiche automatiquement à la première connexion.
   signInWithGoogle();
 }
 
 // Petit badge discret dans le menu de compte, visible tant que la promo tourne et que des
-// places restent — remplace l'ancien badge "20 premiers" (initFirst20Badge), devenu
-// "50 premiers utilisateurs d'août".
+// places restent dans au moins une des deux catégories.
 async function initFirstUsersPromoBadge(){
   const badge = document.getElementById('promo-first-users-badge');
   if(!badge) return;
   if(!isPromoWindowOpen() || !cloudEnabled || !db){ badge.style.display = 'none'; return; }
-  try{
-    const counterSnap = await db.collection('mombongo_meta').doc(PROMO_COUNTER_DOC).get();
-    const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
-    const remaining = PROMO_SLOTS - claimed;
-    if(remaining <= 0){ badge.style.display = 'none'; return; }
-    badge.textContent = dict[currentLang].promoBadgeText.replace('{n}', remaining);
-    badge.style.display = 'inline-block';
-  }catch(e){ badge.style.display = 'none'; }
+  const remaining = await getPromoRemaining();
+  if(remaining.business <= 0 && remaining.pro <= 0){ badge.style.display = 'none'; return; }
+  badge.textContent = (dict[currentLang].promoBadgeText || '')
+    .replace('{business}', remaining.business)
+    .replace('{pro}', remaining.pro);
+  badge.style.display = 'inline-block';
 }
 
 function openDebtsSheet(){

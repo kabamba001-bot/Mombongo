@@ -278,11 +278,6 @@ function renderAccountUI(){
     document.getElementById('account-photo').src = currentUser.photoURL || '';
     document.getElementById('account-name').textContent = currentUser.displayName || '';
     document.getElementById('account-email').textContent = currentUser.email || '';
-    const vipBadge = document.getElementById('account-vip-badge');
-    if(vipBadge){
-      vipBadge.style.display = isVip ? 'inline' : 'none';
-      vipBadge.textContent = isVip ? `⭐ VIP · ${dict[currentLang].vipUntilLabel} ${vipUntil}` : '⭐ VIP';
-    }
     btnLabel.textContent = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Compte';
   } else {
     loggedOut.style.display = 'block';

@@ -1,10 +1,13 @@
 /* =========================================================================
    ONGLET "💡 DÉCOUVRIR" — présente toutes les fonctionnalités de Mombongo aux
    nouveaux utilisateurs sous forme de FAQ à accordéon (titre + chevron qui se
-   déplie). Volontairement, on n'y met PAS l'installation de l'app ni le
-   cadeau "50 premiers utilisateurs" : ce sont des évènements ponctuels
-   propres à l'arrivée sur l'app, pas des choses que l'utilisateur "fait"
-   au quotidien dans Mombongo — ce que cet onglet couvre.
+   déplie). Volontairement, on n'y met PAS l'installation de l'app ni la
+   promo "50 places par palier" : ce sont des évènements ponctuels propres à
+   l'arrivée sur l'app (popup dédiée, badge dans le menu compte — voir
+   debts-expenses-alerts.js), pas des choses que l'utilisateur "fait" au
+   quotidien dans Mombongo — ce que cet onglet couvre. La première section
+   ("plansOverview") explique en revanche le système des 3 catégories lui-même
+   (Simple/Business/Pro), qui lui est bien permanent.
 
    Tout le texte (titres + explications) vient de dict[currentLang], donc cet
    onglet change de langue automatiquement avec le reste de l'app — voir
@@ -12,7 +15,7 @@
    stores-devices.js à chaque changement de langue.
    ========================================================================= */
 const DISCOVER_SECTIONS = [
-  { icon:'⭐', key:'becomeVip' },
+  { icon:'🧭', key:'plansOverview' },
   { icon:'🚚', key:'suppliers' },
   { icon:'➕', key:'addSimple' },
   { icon:'📦', key:'addCarton' },
@@ -74,18 +77,23 @@ function renderDiscoverContent(){
         '<span class="discover-chevron">›</span>' +
       '</button>' +
       '<div class="discover-item-body"><p>' + escapeHtml(body).replace(/\n/g,'<br>') + '</p></div>';
-    // Section "Devenir VIP" : un bouton WhatsApp cliquable, en plus du texte, pour
-    // passer directement à l'action (comme les autres écrans de blocage VIP de l'app).
-    if(sec.key === 'becomeVip'){
+    // Section "Les 3 catégories Mombongo" : un bouton qui ouvre directement le
+    // sélecteur de palier (déjà utilisé pour changer de palier depuis le compte), pour
+    // pouvoir agir tout de suite après avoir lu l'explication — plus de lien WhatsApp
+    // générique ici (Business et Pro ont chacun leur propre chemin d'activation, gérés
+    // par ce sélecteur lui-même).
+    if(sec.key === 'plansOverview'){
       const bodyDiv = item.querySelector('.discover-item-body');
-      const link = document.createElement('a');
-      link.className = 'btn-primary';
-      link.style.cssText = 'display:block; text-align:center; text-decoration:none; margin-top:4px;';
-      link.href = `https://wa.me/${DEV_WHATSAPP}?text=${encodeURIComponent(t.becomeVipWhatsappMsg || '')}`;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = t.becomeVipBtn || 'Devenir VIP sur WhatsApp';
-      bodyDiv.appendChild(link);
+      const btn = document.createElement('button');
+      btn.className = 'btn-primary';
+      btn.style.cssText = 'display:block; width:100%; margin-top:4px;';
+      btn.type = 'button';
+      btn.textContent = t.planSwitchBtn || 'Changer de palier';
+      btn.onclick = function(){
+        closeDiscoverSheet();
+        if(typeof openPlanPicker === 'function') openPlanPicker();
+      };
+      bodyDiv.appendChild(btn);
     }
     wrap.appendChild(item);
   });
