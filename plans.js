@@ -138,17 +138,20 @@ function isPlanExpired(){
    d'upgrade et l'historique), seule la RÉSOLUTION change. */
 function getEffectivePlan(){
   if(userPlan === 'simple'){
-    const tier = (userPlanStatus === 'active' && !isPlanExpired()) ? 'active' : 'free';
-    return { plan: 'simple', tier };
+    return { plan: 'simple', tier: (userPlanStatus === 'active' ? 'active' : 'free') };
   }
   if(userPlan === 'business'){
-    if(isBusinessTrialExpired() || isPlanExpired()){
+    // userPlanStatus==='expired' couvre le cas où le statut a déjà été mis à jour
+    // explicitement (ex. outil admin qui écrit 'expired' pour une date passée) —
+    // isBusinessTrialExpired()/isPlanExpired() ne détectent, elles, que le cas où
+    // le statut est encore 'trial'/'active' alors que la date est déjà dépassée.
+    if(userPlanStatus === 'expired' || isBusinessTrialExpired() || isPlanExpired()){
       return { plan: 'simple', tier: 'free', downgradedFrom: 'business' };
     }
     return { plan: 'business', tier: userPlanStatus }; // 'trial' | 'active'
   }
   if(userPlan === 'pro'){
-    if(isPlanExpired()){
+    if(userPlanStatus === 'expired' || isPlanExpired()){
       return { plan: 'simple', tier: 'free', downgradedFrom: 'pro' };
     }
     return { plan: 'pro', tier: 'active' };
