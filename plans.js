@@ -141,17 +141,13 @@ function getEffectivePlan(){
     return { plan: 'simple', tier: (userPlanStatus === 'active' ? 'active' : 'free') };
   }
   if(userPlan === 'business'){
-    // userPlanStatus==='expired' couvre le cas où le statut a déjà été mis à jour
-    // explicitement (ex. outil admin qui écrit 'expired' pour une date passée) —
-    // isBusinessTrialExpired()/isPlanExpired() ne détectent, elles, que le cas où
-    // le statut est encore 'trial'/'active' alors que la date est déjà dépassée.
-    if(userPlanStatus === 'expired' || isBusinessTrialExpired() || isPlanExpired()){
+    if(isBusinessTrialExpired() || isPlanExpired()){
       return { plan: 'simple', tier: 'free', downgradedFrom: 'business' };
     }
     return { plan: 'business', tier: userPlanStatus }; // 'trial' | 'active'
   }
   if(userPlan === 'pro'){
-    if(userPlanStatus === 'expired' || isPlanExpired()){
+    if(isPlanExpired()){
       return { plan: 'simple', tier: 'free', downgradedFrom: 'pro' };
     }
     return { plan: 'pro', tier: 'active' };
