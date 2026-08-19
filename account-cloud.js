@@ -34,6 +34,21 @@ function signInWithGoogle(){
       if(typeof fbq === 'function' && result.additionalUserInfo && result.additionalUserInfo.isNewUser){
         fbq('track', 'CompleteRegistration');
       }
+      // Demande le métier (boutique/pharmacie/quincaillerie/autre) dès l'inscription plutôt
+      // que d'attendre le premier "Ajout rapide depuis le catalogue" — pour que TOUT nouveau
+      // compte (VIP ou non) profite du bon catalogue suggéré dès l'ajout en masse initial.
+      // Un compte existant qui se reconnecte, ou qui a déjà répondu (myStoreType déjà réglé
+      // localement ou via un autre appareil du même compte), n'est jamais re-sollicité —
+      // reste modifiable ensuite via le lien 🏪 dans la fenêtre d'ajout rapide (voir
+      // community-catalog.js §9, PALIERS.md). Skippable ("Ne pas partager") sans bloquer
+      // l'accès au reste de l'app.
+      if(result.additionalUserInfo && result.additionalUserInfo.isNewUser && !myStoreType){
+        if(typeof openCategoryPromptSheet === 'function'){
+          openCategoryPromptSheet(function(cat){
+            setMyStoreType(cat);
+          }, 'myStoreTypeTitle', 'myStoreTypeDesc');
+        }
+      }
       updateBackupBanner();
     }
   }).catch((e)=>{
@@ -78,6 +93,14 @@ function signOutGoogle(){
     activeStoreId = null;
     storesDataCache = {};
     stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
+    // Le panier en pause (heldCarts) et le panier "vente plusieurs" en cours (multiCart)
+    // sont propres à une session/un appareil, jamais synchronisés (voir §11, PALIERS.md) —
+    // mais ils survivaient à la déconnexion car rien ne les réinitialisait ici, laissant
+    // le bouton 🧺 visible (vide) pour le compte suivant sur le même appareil.
+    heldCarts = [];
+    if(typeof multiCart !== 'undefined') multiCart = {};
+    localSet('mombongo:heldCarts', JSON.stringify(heldCarts));
+    if(typeof updateHeldCartsBadge === 'function') updateHeldCartsBadge();
     localSet('mombongo:products', JSON.stringify(products));
     localSet('mombongo:sales', JSON.stringify(sales));
     localSet('mombongo:lots', JSON.stringify(lots));
