@@ -53,7 +53,7 @@ const PLAN_DEFS = {
     // (2 000 FC/mois). On les distingue via planStatus ('free' vs 'active').
     tiers: {
       free: {
-        maxProducts: 30,
+        maxProducts: 50,
         historyDays: 1,          // fenêtre glissante 24h
         currencies: ['cdf'],
         features: { barcode: false, quickAdd: false }
@@ -138,7 +138,8 @@ function isPlanExpired(){
    d'upgrade et l'historique), seule la RÉSOLUTION change. */
 function getEffectivePlan(){
   if(userPlan === 'simple'){
-    return { plan: 'simple', tier: (userPlanStatus === 'active' ? 'active' : 'free') };
+    const tier = (userPlanStatus === 'active' && !isPlanExpired()) ? 'active' : 'free';
+    return { plan: 'simple', tier };
   }
   if(userPlan === 'business'){
     if(isBusinessTrialExpired() || isPlanExpired()){
@@ -208,6 +209,26 @@ function enforceAllowedCurrencyForPlan(){
   if(cdfBtn) cdfBtn.classList.toggle('active', currentCurrency==='cdf');
   if(rateWrap) rateWrap.style.display = (currentCurrency==='cdf') ? 'block' : 'none';
   if(typeof updateAddFieldLabels === 'function') updateAddFieldLabels();
+}
+
+/* Repli automatique pour la Gestion fournisseurs (Pro uniquement) — même logique que
+   enforceAllowedCurrencyForPlan() juste au-dessus, mêmes points d'appel. Sans ça,
+   suppliersFeatureEnabled (persisté en local + Firestore) restait à true pour toujours
+   après un essai/abonnement Pro expiré : le switch "🚚 Gestion fournisseurs" du menu
+   Compte réaffichait ON à chaque réouverture (juste parce que openAccountSheet() lisait
+   le flag brut sans revérifier le palier), et le bouton 🚚 restait visible dans l'en-tête
+   — la fonctionnalité restait donc accessible bien après la fin du Pro. Appelée après
+   chaque chargement/changement de palier, jamais depuis le clic utilisateur sur le
+   switch lui-même (toggleSuppliersFeature(), data-catalog.js, garde déjà son propre
+   contrôle à l'activation). */
+function enforceSupplierFeatureForPlan(){
+  if(typeof suppliersFeatureEnabled === 'undefined' || !suppliersFeatureEnabled) return;
+  if(isFeatureUnlocked('supplierManagement')) return;
+  suppliersFeatureEnabled = false;
+  if(typeof saveSuppliersFeatureEnabled === 'function') saveSuppliersFeatureEnabled();
+  if(typeof updateHeaderSuppliersButtonVisibility === 'function') updateHeaderSuppliersButtonVisibility();
+  const cb = document.getElementById('in-suppliers-toggle');
+  if(cb) cb.checked = false;
 }
 
 /* Vérifie si UNE fonctionnalité précise est débloquée pour le compte
@@ -518,7 +539,12 @@ function loadPlanFromCache(){
    change (fin d'essai Business, abonnement qui expire) — sans ça, le gel ne serait
    recalculé qu'au prochain rechargement.
    Ne redéclenche un render() que si le palier effectif a réellement changé, pour ne
-   pas re-rendre inutilement toutes les 60s. */
+   pas re-rendre inutilement toutes les 60s.
+   SEUL point d'entrée pour cette vérification en direct — voir l'unique
+   setInterval(checkPlanExpiryLive, 60000) + le seul listener 'visibilitychange' tout en
+   bas de stores-devices.js. Ne jamais ajouter un second minuteur ailleurs : tout ce qui
+   doit réagir à un changement de palier (toast J-5, fermeture des actions VIP en cours,
+   blocage/déblocage de l'appareil employé...) passe par CETTE fonction. */
 let lastKnownEffectivePlanSignature = null;
 function checkPlanExpiryLive(){
   if(!planDataLoaded) return;
@@ -527,6 +553,11 @@ function checkPlanExpiryLive(){
   // moment de la relégation — l'auto-limitation "une fois par jour" est gérée à
   // l'intérieur de maybeShowPlanExpiryWarningToast() elle-même.
   maybeShowPlanExpiryWarningToast();
+  // L'appareil employé doit refléter la réalité du palier du patron à CHAQUE passage
+  // (y compris le tout premier, avant même qu'un "changement" soit détecté) — un employé
+  // qui ouvre l'app alors que le Pro du patron est déjà expiré doit être bloqué
+  // immédiatement, pas seulement à la prochaine bascule en direct.
+  if(typeof updateEmployeeDowngradeBlock === 'function') updateEmployeeDowngradeBlock();
   const eff = getEffectivePlan();
   const signature = eff.plan + ':' + eff.tier;
   if(signature === lastKnownEffectivePlanSignature) return;
@@ -536,7 +567,64 @@ function checkPlanExpiryLive(){
   enforceAllowedCurrencyForPlan();
   if(typeof updatePlanSummary === 'function') updatePlanSummary();
   if(typeof render === 'function') render();
+  // Une fenêtre liée à une fonctionnalité payante restée ouverte au moment précis où le
+  // palier effectif la reperd (essai fini, abonnement expiré) est fermée immédiatement —
+  // jamais laissée utilisable jusqu'à la prochaine action de l'utilisateur. Sans effet si
+  // le changement est une amélioration (rien à fermer pour une fonctionnalité qui vient
+  // au contraire d'être débloquée) — voir closeDowngradedActionSheets() ci-dessous.
+  if(typeof closeDowngradedActionSheets === 'function') closeDowngradedActionSheets();
   if(eff.downgradedFrom){
     showToast(dict[currentLang].planJustDowngradedMsg, 6000);
   }
 }
+
+/* ---------- Fermeture des actions VIP en cours lors d'un downgrade en direct ----------
+   Liste des fenêtres qui n'ont de sens QUE si la fonctionnalité correspondante est
+   débloquée — fermées via leurs vraies fonctions de fermeture quand elles existent (pour
+   couper micro/caméra proprement), sinon un simple retrait de la classe .open (même
+   comportement que les fonctions closeXxxSheet() équivalentes ailleurs dans l'app). */
+const DOWNGRADE_CLOSE_ACTIONS = [
+  { feature:'voiceSales', run: function(){ if(typeof cancelVoiceSale === 'function') cancelVoiceSale(); } },
+  { feature:'barcode', run: function(){
+      if(typeof closeBarcodeScanner === 'function') closeBarcodeScanner();
+      if(typeof cancelBarcodeSale === 'function') cancelBarcodeSale();
+    } },
+  { feature:'supplierManagement', ids: ['suppliers-overlay','supplier-form-overlay','record-purchase-overlay','purchase-history-overlay','pay-supplier-overlay'] },
+  { feature:'multiDevice', run: function(){
+      if(typeof closeDevicesSheet === 'function') closeDevicesSheet();
+      if(typeof closeGeneratePinSheet === 'function') closeGeneratePinSheet();
+      if(typeof closeJoinWithCodeSheet === 'function') closeJoinWithCodeSheet();
+    } },
+  { feature:'multiStore', run: function(){ if(typeof closeNewStoreSheet === 'function') closeNewStoreSheet(); } }
+];
+function closeDowngradedActionSheets(){
+  DOWNGRADE_CLOSE_ACTIONS.forEach(function(entry){
+    if(isFeatureUnlocked(entry.feature)) return; // toujours débloquée : rien à fermer
+    if(entry.run){ entry.run(); return; }
+    (entry.ids || []).forEach(function(id){
+      const el = document.getElementById(id);
+      if(el) el.classList.remove('open');
+    });
+  });
+}
+
+/* ---------- Blocage de l'appareil employé au moment précis d'un downgrade ----------
+   Un appareil employé (caissier/magasinier) n'a de raison d'exister QUE parce que le
+   compte patron a un palier qui débloque 'multiDevice' (Pro). Si ce palier expire pendant
+   qu'un employé est en train de l'utiliser — grâce à attachRealtimeListener() qui
+   synchronise déjà en direct le palier du PATRON sur l'appareil employé via
+   applyDocData() — l'appareil doit être bloqué IMMÉDIATEMENT (écran plein écran, rien
+   d'actionnable derrière), pas seulement au prochain redémarrage de l'app. Dès qu'un
+   renouvellement est détecté (même mécanisme, en sens inverse), le blocage se lève tout
+   seul — aucune action du patron ni de l'employé n'est nécessaire à part rouvrir/garder
+   l'app ouverte, checkPlanExpiryLive() s'en charge. */
+function updateEmployeeDowngradeBlock(){
+  const overlay = document.getElementById('employee-plan-block-overlay');
+  if(!overlay) return;
+  // Un patron (même sur un appareil "secondaire" mais avec currentRole()==='patron')
+  // n'est jamais bloqué par ce mécanisme : seuls les rôles caissier/magasinier le sont —
+  // c'est le patron qui doit rester libre de renouveler ou de repasser à Simple/Business.
+  const shouldBlock = !!isEmployeeMode && typeof currentRole === 'function' && currentRole() !== 'patron' && !isFeatureUnlocked('multiDevice');
+  overlay.classList.toggle('open', shouldBlock);
+}
+
