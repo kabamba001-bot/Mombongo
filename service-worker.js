@@ -15,7 +15,7 @@
    se rafraîchisse toute seule en arrière-plan.
 */
 
-const CACHE_NAME = 'mombongo-cache-v19';
+const CACHE_NAME = 'mombongo-cache-v20';
 const PRECACHE_URLS = [
   './',
   './index.html',
