@@ -137,7 +137,7 @@ function openAddSheet(){
 function openEditSheet(id){
   if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
-    showToast(dict[currentLang].productFrozenMsg, 5000);
+    openLimitSheet('productFrozen');
     return;
   }
   const product = products.find(p=>p.id===id);
@@ -274,6 +274,8 @@ function openLimitSheet(reason){
   // par prudence uniquement s'il était encore appelé quelque part avec cette valeur.
   reason = reason || 'history';
   const link = document.getElementById('limit-whatsapp-link');
+  const secondaryLink = document.getElementById('limit-secondary-link');
+  secondaryLink.style.display = 'none'; // remis à zéro à chaque appel, réactivé seulement pour 'productFrozen'
   if(!currentUser){
     document.getElementById('t-limit-desc').textContent = t.limitNeedsLoginDesc;
     link.textContent = t.limitLoginBtn;
@@ -281,6 +283,31 @@ function openLimitSheet(reason){
       e.preventDefault();
       closeLimitSheet();
       openAccountSheet();
+    };
+  } else if(reason === 'productFrozen'){
+    // Cas particulier : contrairement aux autres raisons (un seul palier cible), un
+    // produit gelé sur Simple gratuit (>50 produits actifs) a DEUX chemins de
+    // déblocage distincts à présenter clairement, avec leurs prix — voir la demande
+    // d'origine : Simple payant (200 produits, 2 000 FC/mois) OU Business (illimité,
+    // 2 000 FC/semaine ou 5 000 FC/mois).
+    document.getElementById('t-limit-desc').textContent = t.limitDescProductFrozen;
+    link.textContent = t.limitCtaSimplePaid;
+    link.onclick = function(e){
+      e.preventDefault();
+      closeLimitSheet();
+      requestPlanUpgradeViaWhatsapp('simple_paid');
+    };
+    const offerFreeTrial = canStartBusinessTrial();
+    secondaryLink.style.display = 'block';
+    secondaryLink.textContent = offerFreeTrial ? t.limitCtaStartTrial : t.limitCtaBusiness;
+    secondaryLink.onclick = function(e){
+      e.preventDefault();
+      closeLimitSheet();
+      if(offerFreeTrial){
+        choosePlanOnboarding('business');
+      } else {
+        requestPlanUpgradeViaWhatsapp('business');
+      }
     };
   } else {
     // Nomme précisément QUEL palier débloque QUELLE fonctionnalité — jamais un simple
@@ -582,7 +609,7 @@ function logActivity(action, label, extra){
 async function deleteProduct(id){
   if(!canEditDeleteProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
-    showToast(dict[currentLang].productFrozenMsg, 5000);
+    openLimitSheet('productFrozen');
     return;
   }
   const product = products.find(p=>p.id===id);
@@ -651,7 +678,7 @@ function openBulkCatalogSheet(){
   openBulkCatalogSheetInner();
 }
 function openBulkCatalogSheetInner(){
-  const merged = getFullCatalogForActiveStore();
+  const merged = getBulkAddCatalogForActiveStore();
   if(!merged || merged.length === 0){
     showToast(currentLang==='fr' ? "Pas encore de catalogue pour cette boutique" : (currentLang==='ln' ? "Catalogue ezali nanu te" : "Bado hakuna katalogi kwa duka hili"));
     return;
@@ -672,11 +699,35 @@ function updateBulkCatalogTypeLabel(){
   if(!el) return;
   const t = dict[currentLang];
   const names = { boutique: t.storeTypeBoutique, pharmacie: t.storeTypePharmacie, quincaillerie: t.storeTypeQuincaillerie, autre: t.storeTypeAutre };
-  el.textContent = '🏪 ' + (names[myStoreType] || t.storeTypeAutre);
+  // Chaque storeTypeXxx (translations.js) porte déjà son propre emoji (🏪/🏥/🔧/❓) — un
+  // préfixe "🏪 " codé en dur ici l'affichait EN PLUS, doublant l'icône pour tout le monde
+  // (double 🏪 pour Boutique, 🏪+🏥 pour Pharmacie...).
+  el.textContent = names[myStoreType] || t.storeTypeAutre;
 }
 function changeMyStoreTypeFromBulkCatalog(){
   openCategoryPromptSheet(function(cat){
     setMyStoreType(cat);
+    // setMyStoreType() ne réécrit JAMAIS stores[0].type s'il est déjà défini (voulu pour
+    // l'inscription, afin de ne jamais écraser un choix déjà fait par erreur). Ici, au
+    // contraire, l'utilisateur vient EXPLICITEMENT de corriger le métier de LA BOUTIQUE
+    // ACTIVE depuis ce lien — et activeStoreCategory() (community-catalog.js) donne
+    // toujours la priorité à store.type sur myStoreType dès qu'il est défini. Sans cette
+    // ligne, setMyStoreType() ne touchait donc que le réglage global (ignoré), et la
+    // liste de produits affichée ci-dessous ne changeait jamais, même si l'étiquette en
+    // haut de l'écran, elle, semblait bien changer.
+    const activeStore = stores.find(s=>s.id===activeStoreId);
+    if(activeStore) activeStore.type = cat;
+    if(typeof pushToCloud === 'function') pushToCloud();
+    // Recharge le catalogue communautaire pour la NOUVELLE catégorie — sans ça,
+    // loadCommunityCatalogForActiveStore() (chargé une seule fois par catégorie et par
+    // session, voir community-catalog.js) resterait vide pour ce métier tant que
+    // l'utilisateur n'aurait pas rouvert l'app, et seul le catalogue statique
+    // apparaîtrait après un changement de métier.
+    if(typeof loadCommunityCatalogForActiveStore === 'function'){
+      loadCommunityCatalogForActiveStore().then(function(){
+        renderBulkCatalogList(document.getElementById('in-bulk-search').value);
+      });
+    }
     renderBulkCatalogList(document.getElementById('in-bulk-search').value);
     updateBulkCatalogTypeLabel();
   }, 'myStoreTypeTitle', 'myStoreTypeDesc');
@@ -685,7 +736,7 @@ function closeBulkCatalogSheet(){
   document.getElementById('bulk-catalog-overlay').classList.remove('open');
 }
 function renderBulkCatalogList(query){
-  const merged = getFullCatalogForActiveStore();
+  const merged = getBulkAddCatalogForActiveStore();
   const q = (query||'').trim().toLowerCase();
   // Affichage limité à 300 lignes à la fois pour rester fluide sur un catalogue de plus
   // de 1000 produits — la recherche permet de retrouver le reste. Sélection illimitée
@@ -721,7 +772,7 @@ function onBulkCatalogSearch(){
 // Prend tout le catalogue affiché par la recherche en cours (ou tout le catalogue si
 // aucune recherche n'est tapée) — disponible pour tous les comptes, gratuit ou VIP.
 function selectAllBulkCatalog(){
-  const merged = getFullCatalogForActiveStore();
+  const merged = getBulkAddCatalogForActiveStore();
   const q = document.getElementById('in-bulk-search').value.trim().toLowerCase();
   const list = q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged;
   list.forEach(name=>bulkCatalogSelection.add(name));
@@ -775,7 +826,7 @@ async function confirmBulkCatalogAdd(){
 async function duplicateProduct(id){
   if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
-    showToast(dict[currentLang].productFrozenMsg, 5000);
+    openLimitSheet('productFrozen');
     return;
   }
   const product = products.find(p=>p.id===id);

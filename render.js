@@ -210,7 +210,7 @@ function render(){
       if(frozen){
         // Gelé : aucune action possible (vendre/modifier/dupliquer/supprimer) tant que
         // le palier n'est pas relevé — un seul cadenas explique pourquoi en un clic.
-        actionButtons = `<button class="frozen-badge" onclick="showToast(dict[currentLang].productFrozenMsg, 5000)" aria-label="${t.productFrozenMsg}" title="${t.productFrozenMsg}">🔒</button>`;
+        actionButtons = `<button class="frozen-badge" onclick="openLimitSheet('productFrozen')" aria-label="${t.productFrozenMsg}" title="${t.productFrozenMsg}">🔒</button>`;
       } else {
         const sellBtn = canSell() ? `<button class="sell" onclick="openSellSheet('${p.id}')">${currentLang==='fr'?'Vendre':'Téka'}</button>` : '';
         const editBtn = canEditDeleteProducts() ? `<button class="edit" onclick="openEditSheet('${p.id}')" aria-label="Modifier">✏️</button>` : '';
@@ -332,6 +332,40 @@ function renderAccountUI(){
     document.getElementById('account-name').textContent = currentUser.displayName || '';
     document.getElementById('account-email').textContent = currentUser.email || '';
     btnLabel.textContent = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Compte';
+    // Garde une copie locale de "qui est connecté" — relue juste en dessous tant que
+    // Firebase Auth n'a pas encore répondu après un rechargement (authResolved===false),
+    // pour ne jamais afficher à tort l'écran "Connecte-toi avec Google" à quelqu'un déjà
+    // connecté (voir le commentaire sur authResolved, config.js).
+    try{
+      localSet('mombongo:lastAccount', JSON.stringify({
+        photoURL: currentUser.photoURL || '', displayName: currentUser.displayName || '', email: currentUser.email || ''
+      }));
+    }catch(e){}
+  } else if(!authResolved){
+    // Connexion Google pas encore vérifiée (juste après un rechargement) : on ne sait
+    // pas encore si la personne est vraiment déconnectée. Si un compte était connu la
+    // dernière fois, on continue de l'afficher tel quel plutôt que de proposer une
+    // reconnexion à tort — corrigé silencieusement dès qu'Auth répond (authResolved
+    // passe à true, ce bloc n'est alors plus jamais atteint pour cette session).
+    let lastAccount = null;
+    try{
+      const cached = localGet('mombongo:lastAccount');
+      lastAccount = cached && cached.value ? JSON.parse(cached.value) : null;
+    }catch(e){ lastAccount = null; }
+    if(lastAccount && lastAccount.email){
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = 'block';
+      employeeBox.style.display = 'none';
+      document.getElementById('account-photo').src = lastAccount.photoURL || '';
+      document.getElementById('account-name').textContent = lastAccount.displayName || '';
+      document.getElementById('account-email').textContent = lastAccount.email || '';
+      btnLabel.textContent = lastAccount.displayName ? lastAccount.displayName.split(' ')[0] : 'Compte';
+    } else {
+      loggedOut.style.display = 'block';
+      loggedIn.style.display = 'none';
+      employeeBox.style.display = 'none';
+      btnLabel.textContent = dict[currentLang].account || 'Compte';
+    }
   } else {
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';

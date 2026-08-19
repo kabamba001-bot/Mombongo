@@ -15,6 +15,12 @@ const firebaseConfig = {
 let cloudEnabled = true;
 let db = null;
 let currentUser = null;
+// Passe à true une seule fois, après le tout premier appel de onAuthStateChanged (voir
+// stores-devices.js) — sert à distinguer "vraiment déconnecté" de "connexion Google pas
+// encore vérifiée" (ça prend un instant après un rechargement), pour ne jamais afficher
+// à tort l'écran "Connecte-toi avec Google" à quelqu'un qui est en fait déjà connecté —
+// voir renderAccountUI() dans render.js.
+let authResolved = false;
 let currentLang = 'fr';
 let currentCurrency = 'usd';
 let exchangeRate = 2300;

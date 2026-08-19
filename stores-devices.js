@@ -161,6 +161,7 @@ function applyDocData(data){
   planDataLoaded = true;
   if(typeof savePlanToCache === 'function') savePlanToCache();
   if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+      if(typeof enforceSupplierFeatureForPlan === 'function') enforceSupplierFeatureForPlan();
   // Revérifie la fenêtre J-5 avec les valeurs qui font foi (Firestore) — le cache local
   // utilisé au tout premier rendu pouvait être périmé (ex. palier changé depuis un
   // autre appareil, ou activé manuellement côté Firestore après un paiement).
@@ -245,6 +246,7 @@ async function handlePostLogin(){
       planDataLoaded = true;
       if(typeof savePlanToCache === 'function') savePlanToCache();
       if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+      if(typeof enforceSupplierFeatureForPlan === 'function') enforceSupplierFeatureForPlan();
       const legacyId = 'store_default';
       stores = [{ id: legacyId, name: dict[currentLang].storesTitle, createdAt: Date.now() }];
       activeStoreId = legacyId;
@@ -279,7 +281,14 @@ async function handlePostLogin(){
   localStorage.removeItem('mombongo:pendingRef');
   renderAccountUI();
   renderStoresList();
-  render();
+  // Pas de render() ici volontairement : à ce stade, applyDocData() vient de remettre
+  // products/sales/debts/expenses/activityLog/suppliers/purchases à vide en mémoire
+  // (ces données ne vivent plus dans le document principal, voir loadStoreDataIntoWorkingArrays)
+  // — un render() ici peindrait donc un flash "Aucun produit" avant que
+  // attachSalesListener/attachProductsListener/etc. (déjà lancés dans applyDocData) ne
+  // livrent les vraies données un instant plus tard, chacun avec son propre render().
+  // Le dernier affichage à l'écran (basé sur le cache local, déjà correct) reste donc
+  // visible sans interruption jusqu'à ce que les vraies données arrivent.
   attachRealtimeListener(currentUser.uid);
   if(notificationsSupported() && Notification.permission === 'granted') registerFcmToken();
   loadReferralStatus();
@@ -668,6 +677,7 @@ function hideBootLoading(){
 setTimeout(hideBootLoading, 6000);
 if(!cloudEnabled){
   // Rien à attendre côté cloud : l'app doit rester utilisable hors-ligne sans délai.
+  authResolved = true;
   hideBootLoading();
 }
 
@@ -688,6 +698,7 @@ if(cloudEnabled){
       return;
     }
     currentUser = user;
+    authResolved = true;
     renderAccountUI();
     if(user) handlePostLogin();
     hideBootLoading();
@@ -808,6 +819,8 @@ function applyTranslations(){
   document.getElementById('t-appname').textContent = t.appname;
   document.getElementById('t-tagline').textContent = t.tagline;
   document.getElementById('t-boot-loading-text').textContent = t.bootLoadingText;
+  document.getElementById('t-employee-plan-block-title').textContent = t.employeePlanBlockTitle;
+  document.getElementById('t-employee-plan-block-body').textContent = t.employeePlanBlockBody;
   document.getElementById('t-seo-subtitle').textContent = t.seoSubtitle;
   document.getElementById('t-today').textContent = t.today;
   document.getElementById('t-profit-today').textContent = t.profitToday;
