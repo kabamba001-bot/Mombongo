@@ -15,7 +15,7 @@
    se rafraîchisse toute seule en arrière-plan.
 */
 
-const CACHE_NAME = 'mombongo-cache-v20';
+const CACHE_NAME = 'mombongo-cache-v21';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ const PRECACHE_URLS = [
   './style.css',
   './webview-guard.js',
   './config.js',
+  './plans.js',
   './translations.js',
   './helpers.js',
   './account-cloud.js',
@@ -44,6 +45,7 @@ const PRECACHE_URLS = [
   './sales.js',
   './receipt.js',
   './render.js',
+  './plan-onboarding.js',
   './navigation.js',
   './export.js',
   './debts-expenses-alerts.js',
