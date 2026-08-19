@@ -53,7 +53,7 @@ const PLAN_DEFS = {
     // (2 000 FC/mois). On les distingue via planStatus ('free' vs 'active').
     tiers: {
       free: {
-        maxProducts: 50,
+        maxProducts: 30,
         historyDays: 1,          // fenêtre glissante 24h
         currencies: ['cdf'],
         features: { barcode: false, quickAdd: false }

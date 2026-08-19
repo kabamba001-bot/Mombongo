@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mombongo — Activation manuelle</title>
+<!--
+  ==========================================================================
+  OUTIL RÉSERVÉ AU DÉVELOPPEUR/PROPRIÉTAIRE DE MOMBONGO — pas un écran client.
+  ==========================================================================
+  Sert à activer en quelques secondes le palier d'un client qui vient de payer
+  par mobile money (en dehors de l'app), sans passer par la console Firebase à
+  la main à chaque fois — voir PALIERS.md §5.
+
+  Fonctionne SEULEMENT connecté avec le compte Google du développeur
+  (kabambavincent120@gmail.com) : c'est la règle Firestore
+  (firestore.rules, dans /mombongo_users/{ownerUid}) qui l'impose vraiment
+  côté serveur — ce fichier n'est qu'une interface, il n'a par lui-même
+  aucun accès spécial. N'importe qui peut ouvrir cette page, mais seul CE
+  compte peut réellement écrire quoi que ce soit.
+
+  Cette page est volontairement à part de index.html (pas un onglet cliente
+  de plus) : plus simple à garder à l'écart des clients, et plus rapide à
+  ouvrir directement (un raccourci sur l'écran d'accueil du téléphone du
+  développeur, par exemple) sans naviguer dans l'app elle-même.
+  ==========================================================================
+-->
+<style>
+  :root{
+    --emerald:#1f6f5c; --charcoal:#2b2b2b; --charcoal-soft:#6b6b6b;
+    --paper:#faf6ef; --paper-2:#e8e1d2; --alert:#c0392b; --marigold:#e0a336;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--paper); color:var(--charcoal); padding:20px 16px 60px; max-width:480px; margin:0 auto;
+  }
+  h1{font-size:19px; margin:8px 0 20px;}
+  .card{background:#fff; border-radius:14px; padding:18px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  label{display:block; font-size:12.5px; font-weight:700; color:var(--charcoal-soft); margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  input, select{
+    width:100%; padding:11px 12px; border-radius:9px; border:1.5px solid var(--paper-2);
+    font-size:15px; font-family:inherit; background:var(--paper);
+  }
+  button{
+    width:100%; padding:13px; border-radius:10px; border:none; font-size:14.5px; font-weight:700;
+    font-family:inherit; cursor:pointer; margin-top:14px;
+  }
+  .btn-primary{background:var(--emerald); color:#fff;}
+  .btn-secondary{background:var(--paper-2); color:var(--charcoal);}
+  .btn-alert{background:var(--alert); color:#fff;}
+  .muted{font-size:12.5px; color:var(--charcoal-soft); line-height:1.5;}
+  .msg{margin-top:14px; padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.5;}
+  .msg-ok{background:#e3f3ee; color:var(--emerald);}
+  .msg-err{background:#fbe8e6; color:var(--alert);}
+  .found-box{background:var(--paper); border-radius:10px; padding:12px; margin-top:12px;}
+  .found-box b{display:block; font-size:15px; margin-bottom:2px;}
+  #denied-view{text-align:center; padding:40px 20px;}
+</style>
+</head>
+<body>
+
+  <h1>🔑 Mombongo — Activation manuelle</h1>
+
+  <div id="signin-view" class="card">
+    <p class="muted">Connecte-toi avec ton compte Google Mombongo pour activer le palier d'un client.</p>
+    <button class="btn-primary" onclick="adminSignIn()">Se connecter avec Google</button>
+  </div>
+
+  <div id="denied-view" style="display:none;">
+    <p>🚫 Ce compte n'est pas autorisé à utiliser cet outil.</p>
+    <button class="btn-secondary" onclick="adminSignOut()">Se déconnecter</button>
+  </div>
+
+  <div id="tool-view" style="display:none;">
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <span class="muted">Connecté : <b id="admin-email" style="color:var(--charcoal);"></b></span>
+      <button class="btn-secondary" style="width:auto; margin:0; padding:8px 14px; font-size:12.5px;" onclick="adminSignOut()">Se déconnecter</button>
+    </div>
+
+    <div class="card">
+      <label>Email du client (celui utilisé pour se connecter dans Mombongo)</label>
+      <input id="client-email" type="email" placeholder="client@gmail.com" autocomplete="off" autocapitalize="off">
+      <button class="btn-primary" onclick="searchClient()">🔍 Chercher le compte</button>
+      <div id="search-msg"></div>
+    </div>
+
+    <div id="found-card" class="card" style="display:none;">
+      <div class="found-box">
+        <b id="found-name"></b>
+        <span class="muted" id="found-email"></span>
+        <div class="muted" style="margin-top:8px;">Palier actuel : <b id="found-current-plan"></b></div>
+      </div>
+
+      <label>Nouveau palier</label>
+      <select id="plan-select">
+        <option value="simple">Simple payant</option>
+        <option value="business">Business</option>
+        <option value="pro">Pro</option>
+      </select>
+
+      <label>Durée payée</label>
+      <select id="duration-select">
+        <option value="7">1 semaine</option>
+        <option value="14">2 semaines</option>
+        <option value="30" selected>1 mois</option>
+        <option value="60">2 mois</option>
+        <option value="90">3 mois</option>
+        <option value="180">6 mois</option>
+        <option value="365">1 an</option>
+        <option value="custom">Autre nombre de jours…</option>
+      </select>
+      <input id="custom-days" type="number" min="1" placeholder="Nombre de jours" style="display:none; margin-top:8px;">
+
+      <button class="btn-primary" onclick="activateClient()">✅ Activer ce palier</button>
+      <p class="muted" style="margin-top:10px;">
+        Écrase le palier actuel du client, quel qu'il soit (essai en cours,
+        autre palier payant...) — vérifie bien le nom et l'email affichés
+        au-dessus avant de confirmer.
+      </p>
+    </div>
+
+    <div id="result-msg"></div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script>
+// Même config que l'app principale (voir config.js) — projet Firebase gratuit unique,
+// pas besoin d'un second projet pour cet outil.
+const firebaseConfig = {
+  apiKey: "AIzaSyAwVvxkSekMU0mXpR1A5lGcplJNwXcU9F4",
+  authDomain: "mombongo-15323.firebaseapp.com",
+  projectId: "mombongo-15323",
+  storageBucket: "mombongo-15323.firebasestorage.app",
+  messagingSenderId: "212073636592",
+  appId: "1:212073636592:web:a15328ff9389c6b8ebd835"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Doit correspondre EXACTEMENT au compte autorisé côté règles Firestore
+// (firestore.rules, /mombongo_users/{ownerUid}) — un changement ici sans changer aussi
+// les règles ne débloque rien, la vraie barrière est côté serveur.
+const ADMIN_EMAIL = 'kabambavincent120@gmail.com';
+
+let foundClientUid = null;
+
+function adminSignIn(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).catch(e=>{
+    alert("Erreur de connexion : " + e.message);
+  });
+}
+function adminSignOut(){
+  firebase.auth().signOut();
+}
+
+firebase.auth().onAuthStateChanged(function(user){
+  document.getElementById('signin-view').style.display = 'none';
+  document.getElementById('denied-view').style.display = 'none';
+  document.getElementById('tool-view').style.display = 'none';
+  if(!user){
+    document.getElementById('signin-view').style.display = 'block';
+    return;
+  }
+  if(user.email !== ADMIN_EMAIL){
+    document.getElementById('denied-view').style.display = 'block';
+    return;
+  }
+  document.getElementById('tool-view').style.display = 'block';
+  document.getElementById('admin-email').textContent = user.email;
+});
+
+document.getElementById('duration-select').addEventListener('change', function(){
+  document.getElementById('custom-days').style.display = (this.value === 'custom') ? 'block' : 'none';
+});
+
+const PLAN_LABELS = { simple: 'Simple', business: 'Business', pro: 'Pro' };
+function describeCurrentPlan(data){
+  const plan = PLAN_LABELS[data.userPlan] || 'Simple';
+  const status = data.userPlanStatus || 'free';
+  if(status === 'free') return plan + ' (gratuit)';
+  if(status === 'trial') return plan + ' (essai)';
+  if(status === 'active'){
+    const exp = data.userPlanExpiresAt ? new Date(data.userPlanExpiresAt).toLocaleDateString('fr-FR') : '?';
+    return plan + ' (actif jusqu\'au ' + exp + ')';
+  }
+  if(status === 'expired') return plan + ' (expiré)';
+  return plan + ' (' + status + ')';
+}
+
+async function searchClient(){
+  const email = document.getElementById('client-email').value.trim().toLowerCase();
+  const searchMsg = document.getElementById('search-msg');
+  const foundCard = document.getElementById('found-card');
+  foundCard.style.display = 'none';
+  foundClientUid = null;
+  searchMsg.innerHTML = '';
+  document.getElementById('result-msg').innerHTML = '';
+  if(!email){ searchMsg.innerHTML = '<div class="msg msg-err">Tape un email.</div>'; return; }
+  searchMsg.innerHTML = '<p class="muted">Recherche…</p>';
+  try{
+    const snap = await db.collection('mombongo_users').where('email', '==', email).limit(1).get();
+    if(snap.empty){
+      searchMsg.innerHTML = '<div class="msg msg-err">Aucun compte trouvé avec cet email. Vérifie l\'orthographe, ou demande au client de te confirmer l\'email affiché dans Menu compte de l\'app.</div>';
+      return;
+    }
+    const doc = snap.docs[0];
+    foundClientUid = doc.id;
+    const data = doc.data();
+    document.getElementById('found-name').textContent = data.displayName || '(sans nom)';
+    document.getElementById('found-email').textContent = data.email || email;
+    document.getElementById('found-current-plan').textContent = describeCurrentPlan(data);
+    document.getElementById('plan-select').value = data.userPlan === 'pro' ? 'pro' : (data.userPlan === 'business' ? 'business' : 'simple');
+    searchMsg.innerHTML = '';
+    foundCard.style.display = 'block';
+  }catch(e){
+    console.error(e);
+    searchMsg.innerHTML = '<div class="msg msg-err">Erreur de recherche : ' + e.message + '</div>';
+  }
+}
+
+async function activateClient(){
+  if(!foundClientUid) return;
+  const plan = document.getElementById('plan-select').value;
+  const durationSel = document.getElementById('duration-select').value;
+  const days = durationSel === 'custom'
+    ? parseInt(document.getElementById('custom-days').value, 10)
+    : parseInt(durationSel, 10);
+  const resultMsg = document.getElementById('result-msg');
+  if(!days || days <= 0){
+    resultMsg.innerHTML = '<div class="msg msg-err">Nombre de jours invalide.</div>';
+    return;
+  }
+  const expiresAt = Date.now() + days * 24 * 60 * 60 * 1000;
+  resultMsg.innerHTML = '<p class="muted">Activation…</p>';
+  try{
+    // Volontairement SEULEMENT ces 4 champs (voir la règle Firestore correspondante,
+    // qui refuse explicitement tout le reste) — jamais touché : displayName, email,
+    // stores, produits, ventes... rien de la boutique du client elle-même.
+    await db.collection('mombongo_users').doc(foundClientUid).update({
+      userPlan: plan,
+      userPlanStatus: 'active',
+      userPlanExpiresAt: expiresAt,
+      userPlanTrialEndsAt: null
+    });
+    const expDate = new Date(expiresAt).toLocaleDateString('fr-FR');
+    resultMsg.innerHTML = '<div class="msg msg-ok">✅ ' + PLAN_LABELS[plan] + ' activé jusqu\'au ' + expDate + '.</div>';
+  }catch(e){
+    console.error(e);
+    resultMsg.innerHTML = '<div class="msg msg-err">Erreur pendant l\'activation : ' + e.message + '</div>';
+  }
+}
+</script>
+</body>
+</html>

@@ -23,76 +23,111 @@ window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
   localStorage.setItem('mombongo:apkPromptSeen', '1');
   if(typeof fbq === 'function'){ fbq('trackCustom', 'InstallPWA'); }
-  // Popup cadeau "50 premiers utilisateurs d'août" — installation confirmée (voie native).
+  // Popup "places offertes" — installation confirmée (voie native) ; n'affiche quoi que
+  // ce soit que s'il y a une campagne promo active au sens de PROMO_CAMPAIGNS ci-dessous.
   setTimeout(maybeShowPromoPopup, 600);
 });
 
 /* =========================================================================
-   PROMO "50 PLACES PAR PALIER" (Business et Pro) : fenêtre de 3 mois, du
-   1er août au 1er novembre 2026 (fin exclusive). Contrairement à la première
-   version de cette promo, le cadeau n'est plus accordé automatiquement à la
-   création du compte — il est accordé au moment où le patron CHOISIT
-   explicitement Business ou Pro (voir choosePlanOnboarding() dans
-   plan-onboarding.js), et porte directement sur CE palier :
-     - 50 places pour Business, 50 places pour Pro — deux compteurs séparés
-       (mombongo_meta/promo_business_2026 et mombongo_meta/promo_pro_2026).
-       Être dans les 50 premiers Business n'a aucun effet sur les places Pro,
-       et inversement.
-     - Le cadeau accordé, c'est 2 mois du palier CHOISI directement actifs
-       (userPlanStatus='active', pas un essai à surveiller) — pour Business,
-       ça remplace l'essai de 14 jours habituel ; pour Pro (normalement
-       payant dès l'inscription, sans essai), ça donne exactement le même
-       traitement que Business le temps du cadeau.
-     - Un seul cadeau par compte, à VIE, tous paliers confondus : le verrou
-       est un unique document mombongo_promo_claims/{uid} (indépendant du
-       palier). Un patron qui a déjà eu ses 2 mois Business offerts et qui
-       tente ensuite de passer à Pro NE bénéficie PAS d'une deuxième place,
-       même s'il reste des places Pro disponibles — voir tryClaimPlanPromo().
+   PROMOS "PLACES OFFERTES PAR PALIER" (Business et/ou Pro) — SYSTÈME GÉNÉRALISÉ.
+   ---------------------------------------------------------------------------
+   Contrairement à la toute première version (une seule promo, tout codé en dur),
+   PROMO_CAMPAIGNS ci-dessous est une LISTE : lancer une nouvelle promo ponctuelle
+   ("X places Business et Y Pro, pendant 1 semaine, 1 mois offert") ne demande
+   plus de toucher à la logique, juste d'ajouter une ligne à ce tableau — voir le
+   modèle donné en commentaire juste après.
 
-   Anti-fraude / anti-course : comme pour l'ancienne version, le comptage
-   passe par une transaction Firestore (jamais une déclaration du client) :
-   si deux patrons choisissent Business à la même seconde, Firestore ne
-   laisse passer qu'une seule des deux écritures tant que le compteur de
-   cette catégorie est encore sous 50.
+   Le cadeau n'est jamais accordé automatiquement à la création du compte — il se
+   joue au moment où le patron CHOISIT explicitement Business ou Pro (voir
+   choosePlanOnboarding() dans plan-onboarding.js), et porte directement sur CE
+   palier : le patron reçoit alors `giftMonths` mois de ce palier directement
+   actifs (userPlanStatus='active', pas un essai à surveiller).
+
+   NOMBRE DE PLACES : volontairement PAS dans ce tableau JS, mais dans un document
+   Firestore (mombongo_meta/{campaignId}) que TOI seul crées/modifies à la main
+   via la console Firebase quand tu lances une promo — voir la marche à suivre
+   complète dans PALIERS.md §7. Ça permet d'ajuster un nombre de places (ou de
+   suivre en direct combien ont déjà été prises) sans jamais redéployer l'app —
+   seule la FENÊTRE (dates) et la durée du cadeau restent ici, dans le code,
+   parce qu'elles doivent être connues par TOUS les appareils dès l'ouverture de
+   l'app, avant même la moindre connexion réseau.
+
+   Un seul cadeau par compte, à VIE, tous paliers ET toutes campagnes confondus :
+   le verrou est un unique document mombongo_promo_claims/{uid}. Quelqu'un qui a
+   déjà gagné une promo passée (Business ou Pro, peu importe laquelle) ne peut
+   plus jamais rien gagner d'une promo suivante — voir tryClaimPlanPromo().
+
+   Anti-fraude / anti-course : comme pour la première version, tout le comptage
+   passe par une transaction Firestore (jamais une déclaration du client), et les
+   règles Firestore (firestore.rules) revérifient indépendamment côté serveur que
+   le rang réclamé correspond bien au compteur de la bonne catégorie et ne dépasse
+   jamais le plafond fixé manuellement dans mombongo_meta/{campaignId}.
    ========================================================================= */
-const PROMO_SLOTS_PER_PLAN = 50;
-const PROMO_GIFT_MONTHS = 2;
-const PROMO_COUNTER_DOCS = { business: 'promo_business_2026', pro: 'promo_pro_2026' };
-const PROMO_START = new Date(2026, 7, 1).getTime();   // 1er août 2026 00:00 (mois 0-indexé : 7 = août)
-const PROMO_END = new Date(2026, 10, 1).getTime();    // 1er novembre 2026 00:00 (fin exclusive) — fenêtre de 3 mois : août, septembre, octobre
+const PROMO_CAMPAIGNS = [
+  {
+    id: 'promo_2026_launch',                          // sert d'identifiant Firestore — voir mombongo_meta/{id}
+    start: new Date(2026, 7, 1).getTime(),             // 1er août 2026 00:00 (mois 0-indexé : 7 = août)
+    end: new Date(2026, 10, 1).getTime(),               // 1er novembre 2026 00:00 (fin exclusive)
+    giftMonths: 2
+  }
+  // Modèle pour une promo ponctuelle : "20 places Business + 10 Pro, 1 mois offert,
+  // du 15 au 22 septembre 2026" — ajoute simplement CET OBJET ici (aucune autre
+  // ligne de code à toucher), PUIS crée à la main sur Firebase le document
+  // mombongo_meta/promo_rentree_sept2026 avec { maxSlotsBusiness: 20, claimedBusiness: 0,
+  // maxSlotsPro: 10, claimedPro: 0 } (voir PALIERS.md §7) :
+  // {
+  //   id: 'promo_rentree_sept2026',
+  //   start: new Date(2026, 8, 15).getTime(),
+  //   end: new Date(2026, 8, 22).getTime(),
+  //   giftMonths: 1
+  // },
+];
 let promoPopupShown = false;
 
-function isPromoWindowOpen(){
+// La campagne active EN CE MOMENT, s'il y en a une (jamais deux en même temps dans
+// l'usage prévu — si jamais deux fenêtres se chevauchaient par erreur de config, la
+// première trouvée dans le tableau gagne).
+function getActivePromoCampaign(){
   const now = Date.now();
-  return now >= PROMO_START && now < PROMO_END;
+  return PROMO_CAMPAIGNS.find(c => now >= c.start && now < c.end) || null;
+}
+function isPromoWindowOpen(){
+  return getActivePromoCampaign() !== null;
 }
 
-// Tente d'accorder la promo pour le palier CHOISI (plan = 'business' ou 'pro') au compte
-// connecté uid. Renvoie true si gagné. Appelée uniquement depuis choosePlanOnboarding()
-// (plan-onboarding.js), au moment précis où le patron choisit ce palier — jamais à la
-// création du compte. Le verrou mombongo_promo_claims/{uid} est commun aux deux paliers :
-// s'il existe déjà (quel que soit le palier gagné à l'époque), aucune nouvelle réclamation
-// n'est possible, même dans l'autre catégorie — "un seul cadeau à vie, tous paliers
-// confondus".
+// Tente d'accorder la promo en cours (s'il y en a une) pour le palier CHOISI
+// (plan = 'business' ou 'pro') au compte connecté uid. Renvoie true si gagné.
+// Appelée uniquement depuis choosePlanOnboarding() (plan-onboarding.js), au moment
+// précis où le patron choisit ce palier — jamais à la création du compte.
 async function tryClaimPlanPromo(uid, plan){
-  if(!cloudEnabled || !db || !isPromoWindowOpen()) return false;
+  if(!cloudEnabled || !db) return false;
   if(plan !== 'business' && plan !== 'pro') return false;
-  const counterRef = db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS[plan]);
+  const campaign = getActivePromoCampaign();
+  if(!campaign) return false;
+  const claimedField = plan === 'business' ? 'claimedBusiness' : 'claimedPro';
+  const maxField = plan === 'business' ? 'maxSlotsBusiness' : 'maxSlotsPro';
+  const counterRef = db.collection('mombongo_meta').doc(campaign.id);
   const claimRef = db.collection('mombongo_promo_claims').doc(uid);
   try{
     const won = await db.runTransaction(async (tx)=>{
       const claimSnap = await tx.get(claimRef);
-      if(claimSnap.exists) return false; // cadeau déjà utilisé une fois (business OU pro, peu importe lequel)
+      if(claimSnap.exists) return false; // cadeau déjà utilisé une fois, campagne/palier peu importe
       const counterSnap = await tx.get(counterRef);
-      const claimed = (counterSnap.exists && counterSnap.data().claimed) || 0;
-      if(claimed >= PROMO_SLOTS_PER_PLAN) return false;
-      tx.set(counterRef, { claimed: claimed + 1 }, { merge: true });
-      tx.set(claimRef, { uid, plan, rank: claimed + 1, timestamp: Date.now() });
+      // Le document n'existe pas encore ⇒ la promo n'a pas (ou plus) été configurée
+      // côté Firestore, même si sa fenêtre de dates est ouverte dans le code — voir
+      // PALIERS.md §7 : ce document doit être créé à la main AVANT le début réel.
+      if(!counterSnap.exists) return false;
+      const data = counterSnap.data();
+      const claimed = data[claimedField] || 0;
+      const maxSlots = data[maxField] || 0;
+      if(claimed >= maxSlots) return false;
+      tx.update(counterRef, { [claimedField]: claimed + 1 });
+      tx.set(claimRef, { uid, plan, campaignId: campaign.id, rank: claimed + 1, timestamp: Date.now() });
       return true;
     });
     if(won){
       const until = new Date();
-      until.setMonth(until.getMonth() + PROMO_GIFT_MONTHS);
+      until.setMonth(until.getMonth() + campaign.giftMonths);
       userPlan = plan;
       userPlanStatus = 'active';
       userPlanExpiresAt = until.getTime();
@@ -110,26 +145,23 @@ async function tryClaimPlanPromo(uid, plan){
   }
 }
 
-// Nombre de places restantes par catégorie, en direct sur les compteurs partagés — pour
-// ne jamais promettre (popup, badge) un cadeau qui n'existe plus dans l'une des deux
-// catégories. Renvoie les 50 places par défaut si la lecture échoue (hors ligne, etc.).
+// Nombre de places restantes par catégorie pour la campagne active, en direct sur le
+// document Firestore partagé — pour ne jamais promettre (popup, badge) un cadeau qui
+// n'existe plus. Renvoie 0/0 s'il n'y a pas de campagne active, hors ligne, ou si le
+// document Firestore n'a pas encore été créé (voir tryClaimPlanPromo()).
 async function getPromoRemaining(){
-  if(!cloudEnabled || !db){
-    return { business: PROMO_SLOTS_PER_PLAN, pro: PROMO_SLOTS_PER_PLAN };
-  }
+  const campaign = getActivePromoCampaign();
+  if(!campaign || !cloudEnabled || !db) return { business: 0, pro: 0 };
   try{
-    const [businessSnap, proSnap] = await Promise.all([
-      db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS.business).get(),
-      db.collection('mombongo_meta').doc(PROMO_COUNTER_DOCS.pro).get()
-    ]);
-    const businessClaimed = (businessSnap.exists && businessSnap.data().claimed) || 0;
-    const proClaimed = (proSnap.exists && proSnap.data().claimed) || 0;
+    const snap = await db.collection('mombongo_meta').doc(campaign.id).get();
+    if(!snap.exists) return { business: 0, pro: 0 };
+    const data = snap.data();
     return {
-      business: Math.max(0, PROMO_SLOTS_PER_PLAN - businessClaimed),
-      pro: Math.max(0, PROMO_SLOTS_PER_PLAN - proClaimed)
+      business: Math.max(0, (data.maxSlotsBusiness||0) - (data.claimedBusiness||0)),
+      pro: Math.max(0, (data.maxSlotsPro||0) - (data.claimedPro||0))
     };
   }catch(e){
-    return { business: PROMO_SLOTS_PER_PLAN, pro: PROMO_SLOTS_PER_PLAN };
+    return { business: 0, pro: 0 };
   }
 }
 

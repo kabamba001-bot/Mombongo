@@ -208,9 +208,9 @@
   .products-tab{
     background:none; border:none; padding:0; margin:0; cursor:pointer;
     font-size:14px; text-transform:uppercase; letter-spacing:.05em; font-weight:700;
-    color:var(--charcoal-soft); opacity:.45; font-family:'Inter'; transition:color .15s, opacity .15s;
+    color:var(--paper-2); font-family:'Inter'; transition:color .15s;
   }
-  .products-tab.active{color:var(--charcoal-soft); opacity:1;}
+  .products-tab.active{color:var(--charcoal-soft);}
   .products-tab:last-child{margin-left:auto;}
 
   .alert-banner{
@@ -340,13 +340,9 @@
     left:calc(50% + 62px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
   }
-  /* En miroir de .barcode-fab, côté gauche du micro. Le barcode-fab est positionné par son
-     bord GAUCHE (left:50%+62px, largeur 48px) ; pour un espacement identique de l'autre
-     côté, on doit ancrer held-carts-fab par son bord DROIT au même decalage — d'où
-     50% - 62px - 48px = 50% - 110px, et non 50% - 62px (qui alignait les bords gauches
-     des deux boutons et faisait chevaucher son bord droit sur le micro). */
+  /* En miroir de .barcode-fab, côté gauche du micro. */
   .held-carts-fab{
-    left:calc(50% - 110px); transform:none; width:48px; height:48px; font-size:20px;
+    left:calc(50% - 62px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
     position:fixed;
   }

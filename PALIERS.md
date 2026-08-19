@@ -129,8 +129,23 @@ de Y. Veux-tu y passer ?") — jamais un "c'est VIP" générique.
 Aucun paiement en ligne intégré. Le parcours est le même que l'ancien
 `isVip` : le commerçant clique sur un CTA de paiement → WhatsApp s'ouvre avec
 un message pré-rempli vers `DEV_WHATSAPP` (`243980979141`) → une fois payé
-(mobile money, en dehors de l'app), **toi** tu actives manuellement dans la
-console Firebase, sur le document `mombongo_users/{uid}` :
+(mobile money, en dehors de l'app), **toi** tu actives manuellement.
+
+**Méthode rapide (recommandée) : `admin.html`.** Page autonome, à part de
+l'app cliente — ouvre-la, connecte-toi avec ton propre compte Google
+(`kabambavincent120@gmail.com`, le seul autorisé — voir la règle dédiée
+dans `firestore.rules`, `/mombongo_users/{ownerUid}`), tape l'email du
+client, cherche son compte, choisis le palier et la durée payée, et clique
+sur Activer. Quelques secondes, pas besoin d'ouvrir la console Firebase ni
+de calculer un timestamp à la main. Mets-la en raccourci sur l'écran
+d'accueil de ton téléphone pour l'ouvrir aussi vite qu'une app. L'écriture
+Firestore qu'elle déclenche est strictement limitée à 4 champs (voir plus
+bas) — impossible, même par erreur, de toucher aux données de la boutique
+du client.
+
+**Méthode de secours : console Firebase**, si `admin.html` est
+inaccessible pour une raison quelconque (pas de compte Google sous la main,
+page cassée...). Sur le document `mombongo_users/{uid}` du client :
 
 ```
 userPlan: "business"          // ou "simple" / "pro"
@@ -188,40 +203,75 @@ ne concerne que l'essai gratuit, pas les abonnements payés.
   `navigation.js`, qui appelle maintenant `closeSellSheet()` (ou
   `pauseCurrentCartIfAny()`, §11) au lieu de retirer juste la classe CSS.
 
-## 7. Promo "50 places par palier" (Business et Pro séparément)
+## 7. Promos "places offertes par palier" — système généralisé
 
-Voir `tryClaimPlanPromo()` dans `debts-expenses-alerts.js`. Remplace
-l'ancienne promo "50 premiers utilisateurs d'août", qui accordait l'ancien
-`isVip`/`vipUntil` legacy à la création du compte, indépendamment de tout
-palier.
+Voir `PROMO_CAMPAIGNS` dans `debts-expenses-alerts.js`. Généralise la
+première version (une seule promo, tout codé en dur : fenêtre, plafonds ET
+comptage, tout dans le JS) en une **liste de campagnes** : lancer une promo
+ponctuelle ne demande plus de toucher à la logique de réclamation, juste
+d'ajouter une entrée à ce tableau — voir le modèle donné en commentaire dans
+le fichier.
 
-**Règles :**
-- Fenêtre de 3 mois : du 1er août 2026 au 1er novembre 2026 (fin exclusive) —
-  `PROMO_START`/`PROMO_END`.
-- **50 places par catégorie, séparément** : un compteur Firestore dédié par
-  palier (`mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`).
-  Être dans les 50 premiers Business n'a aucun effet sur les places Pro, et
-  inversement.
+**⚠️ Migration à faire manuellement AVANT de déployer ce changement.** La
+promo de lancement (1er août → 1er novembre 2026) est **déjà en cours** au
+moment où ce système a été généralisé (nous sommes le 19 août 2026) — elle
+utilisait encore l'ancien schéma à deux documents séparés
+(`mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`,
+champ `claimed` seul). Le nouveau schéma fusionne tout dans un seul document
+par campagne. Avant de déployer :
+1. Sur la console Firebase, relève les valeurs `claimed` actuelles de
+   `mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`.
+2. Crée un nouveau document `mombongo_meta/promo_2026_launch` avec :
+   `{ claimedBusiness: <valeur relevée>, maxSlotsBusiness: 50,
+   claimedPro: <valeur relevée>, maxSlotsPro: 50 }`.
+3. Déploie le code (JS + `firestore.rules`).
+Sans cette étape, `tryClaimPlanPromo()` verra que le document
+`promo_2026_launch` n'existe pas encore et refusera toute réclamation en
+silence (échec sûr, pas de triche possible — mais la promo serait en pause
+sans que personne ne le sache) jusqu'à ce que le document soit créé.
+
+**Comment lancer une NOUVELLE promo ponctuelle (ex. "X places Business et Y
+Pro, pendant 1 semaine, 1 mois offert") — deux étapes, jamais de logique à
+réécrire :**
+1. Ajoute un objet à `PROMO_CAMPAIGNS` (`debts-expenses-alerts.js`) :
+   `{ id, start, end, giftMonths }` — un identifiant unique, la fenêtre de
+   dates, et la durée du cadeau. Déploie.
+2. Sur la console Firebase, crée `mombongo_meta/{id}` (le même id que
+   choisi ci-dessus) avec `{ claimedBusiness: 0, maxSlotsBusiness: X,
+   claimedPro: 0, maxSlotsPro: Y }` — ne mets `X` ou `Y` que pour les
+   paliers réellement offerts par cette promo (0 ou champ absent = personne
+   ne peut rien gagner sur ce palier-là pour cette campagne).
+
+Ajuster le nombre de places d'une promo déjà lancée (ou simplement suivre en
+direct combien ont déjà été prises) se fait **uniquement** sur ce document
+Firestore, à la main — jamais besoin de redéployer pour ça. Seules la
+fenêtre de dates et la durée du cadeau restent dans le code (elles doivent
+être connues par tous les appareils dès l'ouverture de l'app, avant toute
+connexion réseau).
+
+**Règles inchangées d'une campagne à l'autre :**
+- **Places comptées séparément par palier** : être dans les places Business
+  d'une campagne n'a aucun effet sur ses places Pro, et inversement.
 - **Le cadeau se joue au choix du palier, pas à la création du compte** :
   la réclamation est tentée dans `choosePlanOnboarding()`
   (`plan-onboarding.js`) au moment précis où le patron choisit Business ou
-  Pro — jamais à l'inscription (`handlePostLogin()` ne s'en occupe plus).
-- Gagnée, la promo accorde **2 mois du palier choisi directement actifs**
-  (`userPlanStatus:'active'`, `userPlanExpiresAt` = maintenant + 2 mois),
-  à la place de l'essai de 14 jours habituel (Business) ou du paiement
-  manuel via WhatsApp (Pro).
-- **Un seul cadeau par compte, à vie, tous paliers confondus** : le verrou
-  est un unique document `mombongo_promo_claims/{uid}` (indexé par uid seul,
-  pas par uid+palier). Un patron qui a déjà eu ses 2 mois Business offerts
-  et qui tente ensuite de passer à Pro NE bénéficie PAS d'une deuxième
-  place, même s'il reste des places Pro disponibles — le document existe
-  déjà, donc la transaction échoue avant même de vérifier le compteur Pro.
-- Anti-fraude : comme pour l'ancienne version, tout passe par une
-  transaction Firestore (jamais une déclaration du client), et les règles
-  Firestore (`firestore.rules`, collections `mombongo_meta` et
-  `mombongo_promo_claims`) revérifient indépendamment côté serveur que le
-  rang réclamé correspond bien au compteur de la bonne catégorie et ne
-  dépasse jamais 50.
+  Pro — jamais à l'inscription (`handlePostLogin()` ne s'en occupe pas).
+- Gagnée, la promo accorde **`giftMonths` mois du palier choisi directement
+  actifs** (`userPlanStatus:'active'`), à la place de l'essai de 14 jours
+  habituel (Business) ou du paiement manuel via WhatsApp (Pro).
+- **Un seul cadeau par compte, à vie, tous paliers ET toutes campagnes
+  confondus** : le verrou est un unique document
+  `mombongo_promo_claims/{uid}` (indexé par uid seul). Un patron qui a déjà
+  gagné une promo passée (Business ou Pro, peu importe laquelle) NE
+  bénéficie PAS d'une deuxième place lors d'une promo suivante, même sur un
+  palier différent — le document existe déjà, donc la transaction échoue
+  avant même de vérifier le compteur de la nouvelle campagne.
+- Anti-fraude : tout passe par une transaction Firestore (jamais une
+  déclaration du client), et les règles Firestore (`firestore.rules`,
+  collections `mombongo_meta` et `mombongo_promo_claims`) revérifient
+  indépendamment côté serveur que le rang réclamé correspond bien au
+  compteur de la bonne campagne+catégorie et ne dépasse jamais le plafond
+  fixé manuellement pour elle — voir la note #5 en bas de `firestore.rules`.
 
 ## 8. Alerte de fin d'essai/abonnement (J-5)
 
