@@ -138,3 +138,113 @@ window.addEventListener('load', function(){
   }
   updateBackupBanner();
 });
+
+/* =========================================================================
+   POLITIQUE DE CONFIDENTIALITÉ + SUPPRESSION DE COMPTE
+   ========================================================================= */
+function openPrivacySheet(){
+  const el = document.getElementById('privacy-content');
+  if(el) el.innerHTML = dict[currentLang].privacyPolicyHtml || '';
+  document.getElementById('privacy-overlay').classList.add('open');
+}
+function closePrivacySheet(){
+  document.getElementById('privacy-overlay').classList.remove('open');
+}
+
+function startDeleteAccountFlow(){
+  const t = dict[currentLang];
+  if(isEmployeeMode){
+    // Un appareil employé (caissier/magasinier) n'a jamais de vrai compte Google
+    // (currentUser reste null, voir getDataOwnerUid()) — seul le patron, depuis SON
+    // appareil, peut décider de supprimer tout le compte.
+    showToast(t.deleteAccountEmployeeMsg, 5000);
+    return;
+  }
+  if(!currentUser){
+    showToast(t.deleteAccountNoAccountMsg, 5000);
+    return;
+  }
+  closePrivacySheet();
+  document.getElementById('in-delete-confirm-word').value = '';
+  document.getElementById('delete-account-confirm-overlay').classList.add('open');
+}
+function closeDeleteAccountConfirm(){
+  document.getElementById('delete-account-confirm-overlay').classList.remove('open');
+}
+
+// Supprime tous les documents d'une sous-collection Firestore par lots de 400 (marge
+// sous la limite de 500 opérations par batch) — nécessaire car Firestore ne propose
+// aucune opération "supprimer toute la collection" côté client.
+async function deleteAllDocsInCollection(collRef){
+  const snap = await collRef.get();
+  if(snap.empty) return;
+  const docs = snap.docs;
+  for(let i=0; i<docs.length; i+=400){
+    const batch = db.batch();
+    docs.slice(i, i+400).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+async function confirmDeleteAccountFinal(){
+  const t = dict[currentLang];
+  const word = document.getElementById('in-delete-confirm-word').value.trim().toUpperCase();
+  const expected = (t.deleteConfirmWord || 'SUPPRIMER').toUpperCase();
+  if(word !== expected){
+    showToast(t.deleteConfirmWordMismatch, 4000);
+    return;
+  }
+  if(!currentUser || !db) return;
+  const uid = currentUser.uid;
+  const btn = document.getElementById('t-delete-confirm-btn');
+  if(btn) btn.disabled = true;
+  showToast(t.deleteAccountInProgress, 20000);
+  try{
+    const userRef = db.collection('mombongo_users').doc(uid);
+    // Toutes les sous-collections réelles de ce compte — voir products-sync.js,
+    // sales-sync.js, debts-sync.js, expenses-sync.js, suppliers-sync.js,
+    // purchases-sync.js, activity-log-sync.js, et le token FCM (config.js).
+    await deleteAllDocsInCollection(userRef.collection('products'));
+    await deleteAllDocsInCollection(userRef.collection('sales'));
+    await deleteAllDocsInCollection(userRef.collection('debts'));
+    await deleteAllDocsInCollection(userRef.collection('expenses'));
+    await deleteAllDocsInCollection(userRef.collection('suppliers'));
+    await deleteAllDocsInCollection(userRef.collection('purchases'));
+    await deleteAllDocsInCollection(userRef.collection('activityLog'));
+    await deleteAllDocsInCollection(userRef.collection('fcmTokens'));
+    // mombongo_promo_claims/{uid} n'est PAS supprimé volontairement : ce n'est pas une
+    // donnée personnelle de l'utilisateur mais un registre anti-fraude de la promo "50
+    // places par palier" (voir debts-expenses-alerts.js) — le garder empêche de
+    // supprimer son compte pour en recréer un autre et réclamer une deuxième fois le
+    // même cadeau, qui n'est censé être obtenu qu'une seule fois à vie.
+    await userRef.delete();
+    await firebase.auth().currentUser.delete();
+    showToast(t.deleteAccountDone, 4000);
+    // Le moyen le plus sûr de garantir qu'aucune miette d'état en mémoire (compte,
+    // panier en pause, produits affichés...) ne survit à une suppression de compte est
+    // de recharger l'app à zéro, comme au tout premier lancement.
+    localStorage.clear();
+    setTimeout(()=> window.location.reload(), 1200);
+  }catch(e){
+    console.error('Erreur suppression de compte', e);
+    if(e.code === 'auth/requires-recent-login'){
+      // Firebase exige une connexion "récente" pour un geste aussi sensible qu'une
+      // suppression de compte — on redemande la connexion Google puis on relance la
+      // suppression depuis le tout début, plutôt que de continuer à un stade
+      // intermédiaire incertain (certaines sous-collections déjà vidées, d'autres non).
+      showToast(t.deleteAccountNeedsRelogin, 6000);
+      try{
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await firebase.auth().currentUser.reauthenticateWithPopup(provider);
+        if(btn) btn.disabled = false;
+        await confirmDeleteAccountFinal();
+        return;
+      }catch(e2){
+        console.error('Erreur reconnexion pour suppression', e2);
+      }
+    } else {
+      showToast(t.deleteAccountError, 6000);
+    }
+    if(btn) btn.disabled = false;
+  }
+}

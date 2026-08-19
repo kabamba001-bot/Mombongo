@@ -174,7 +174,14 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </section>
 
     <section>
-      <h2 id="t-products-title">Mes produits</h2>
+      <div class="products-header-row">
+        <button type="button" class="products-tab active" id="tab-my-products" onclick="setProductsView('all')">
+          <span id="t-products-title">Mes produits</span>
+        </button>
+        <button type="button" class="products-tab" id="tab-favorites" onclick="setProductsView('favorites')">
+          ⭐ <span id="t-favorites-tab">Favoris</span>
+        </button>
+      </div>
       <!-- Compteur de produits actifs vs limite du palier — masqué si illimité (Business/Pro).
            Voir updateProductsCounter() dans render.js, plans.js pour getMaxActiveProducts(). -->
       <div id="products-counter" class="products-counter" style="display:none;"></div>
@@ -203,11 +210,12 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <!-- Scan de code-barres pour vendre — fonctionnalité VIP (voir barcode.js). Reste visible pour
        tout le monde selon le rôle, comme les autres boutons VIP de l'app (cadenas si pas VIP). -->
   <button type="button" class="voice-fab barcode-fab" id="barcode-sale-btn" onclick="openBarcodeScanner('sell')" aria-label="Scanner un code-barres pour vendre">📷</button>
-  <!-- Confirmer une "vente plusieurs" sans devoir descendre jusqu'en bas d'une liste de
-       centaines/milliers de produits — flotte au-dessus de la fiche de vente, uniquement
-       visible quand le mode "Vente plusieurs" est activé (voir toggleMultiFields() dans
-       sales.js). Même cercle que le micro de vente vocale, pour rester cohérent visuellement. -->
-  <button type="button" class="voice-fab multi-confirm-fab" id="multi-confirm-fab" onclick="confirmSale()" aria-label="Confirmer la vente" style="display:none;">✅</button>
+  <!-- Panier(s) en pause — en miroir du bouton scan, mais à gauche du micro. Uniquement
+       visible s'il y a au moins une vente en attente (voir updateHeldCartsBadge() dans
+       sales.js) : pas de bouton vide qui traîne sans raison. -->
+  <button type="button" class="voice-fab held-carts-fab" id="held-carts-btn" onclick="openHeldCartsSheet()" aria-label="Ventes en attente" style="display:none;">
+    🧺<span id="held-carts-badge" class="held-carts-badge">0</span>
+  </button>
 
   <div class="sheet-overlay" id="voice-confirm-overlay">
     <div class="sheet">
@@ -271,8 +279,20 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
            ce formulaire à chaque fois — utile même quand les produits ne sont PAS dans le
            catalogue intégré (fait main, nom inconnu du catalogue...). -->
       <button type="button" class="btn-secondary" id="t-grid-add-open-btn"
-              style="background:var(--paper-2); border-radius:10px; margin-bottom:16px; display:none;"
+              style="background:var(--paper-2); border-radius:10px; margin-bottom:10px; display:none;"
               onclick="openGridAddSheet()">🧮 Saisie rapide en tableau</button>
+
+      <!-- Import en masse depuis un fichier Excel/CSV — pensé pour Business/Pro qui
+           démarrent avec un catalogue de 500-1000 produits déjà existant ailleurs
+           (tableur du fournisseur, ancien inventaire...), mais ouvert à tous les
+           paliers, comme le reste de l'ajout en masse. Voir handleExcelImportFile()
+           dans products.js. -->
+      <button type="button" class="btn-secondary" id="t-excel-import-open-btn"
+              style="background:var(--paper-2); border-radius:10px; margin-bottom:4px; display:none;"
+              onclick="openExcelImportPicker()">📊 Importer depuis Excel/CSV</button>
+      <button type="button" id="t-excel-import-template-link" onclick="downloadExcelImportTemplate()"
+              style="display:none; background:none; border:none; padding:0; margin:0 0 16px; font-size:11.5px; color:var(--emerald); text-decoration:underline; font-weight:600; cursor:pointer;">📄 Télécharger le modèle</button>
+      <input type="file" id="excel-import-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleExcelImportFile(event)">
 
       <div id="mode-simple-fields">
         <div class="field">
@@ -537,6 +557,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           <input id="in-multi-search" type="text" placeholder="Rechercher un produit" oninput="renderMultiProductList()">
         </div>
         <div id="multi-product-list"></div>
+        <button id="load-more-multi-btn" class="load-more-btn" onclick="loadMoreMultiProducts()" style="display:none;"></button>
         <div class="multi-total-divider"></div>
         <div class="multi-total-row">
           <span class="lbl" id="t-multi-total-label">Total</span>
@@ -578,7 +599,19 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </div>
 
       <button class="btn-primary" onclick="confirmSale()" id="t-confirm-sale">Confirmer la vente</button>
+      <button class="btn-secondary" id="clear-multi-cart-btn" onclick="clearMultiCart()" style="display:none; color:var(--alert); border-color:var(--alert);">🗑️ <span id="t-clear-multi-cart-btn">Tout supprimer</span></button>
       <button class="btn-secondary" onclick="closeSellSheet()" id="t-cancel2">Annuler</button>
+    </div>
+  </div>
+
+  <!-- Liste des ventes mises en pause (voir heldCarts, config.js) — ouverte depuis le
+       bouton 🧺. Chaque ligne peut être reprise (rouvre sell-overlay avec ce panier) ou
+       abandonnée (le client a finalement renoncé pendant qu'il patientait). -->
+  <div class="sheet-overlay" id="held-carts-overlay">
+    <div class="sheet">
+      <h3 id="t-held-carts-title">🧺 Ventes en attente</h3>
+      <div id="held-carts-list"></div>
+      <button class="btn-secondary" onclick="closeHeldCartsSheet()" id="t-cancel-held-carts">Fermer</button>
     </div>
   </div>
 
@@ -663,10 +696,50 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         </div>
       </div>
 
-      <a href="./guide-suivi-boutique.html" style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-guide-link">📖 Comment bien suivre les ventes de sa boutique</a>
       <a href="./mombongo.apk" download style="display:block; text-align:center; font-size:13px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-download-apk-link" onclick="if(deferredInstallPrompt){ event.preventDefault(); acceptInstallApk(); }">⬇️ Installer l'application</a>
-      <a href="https://wa.me/243980979141" target="_blank" rel="noopener" style="display:block; text-align:center; font-size:12.5px; color:var(--emerald); margin-top:14px; text-decoration:underline; font-weight:600;" id="t-whatsapp-contact-link">💬 Contacte-nous sur WhatsApp au +243 980 979 141</a>
+      <div class="account-bottom-links">
+        <a href="https://wa.me/243980979141" target="_blank" rel="noopener" id="t-whatsapp-contact-link">💬 Contacte-nous</a>
+        <a href="./guide-suivi-boutique.html" id="t-guide-link">📖 Bon à savoir</a>
+      </div>
+      <button type="button" class="account-privacy-link" onclick="openPrivacySheet()" id="t-privacy-link">🔒 Politique de confidentialité</button>
       <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Politique de confidentialité, en fenêtre in-app (pas une page séparée) : la
+       suppression de compte tout en bas a besoin du contexte Firebase déjà chargé ici
+       (utilisateur connecté, base de données) — une page HTML statique à part aurait dû
+       tout réinitialiser elle-même. Voir openPrivacySheet()/startDeleteAccountFlow()
+       dans account-cloud.js. -->
+  <div class="sheet-overlay" id="privacy-overlay">
+    <div class="sheet" style="max-height:88vh; overflow-y:auto;">
+      <h3 id="t-privacy-title">🔒 Politique de confidentialité</h3>
+      <div id="privacy-content" style="font-size:13px; line-height:1.7; color:var(--charcoal-soft);"></div>
+      <div style="margin:22px 0 4px; padding-top:16px; border-top:1px solid var(--paper-2);">
+        <h3 style="font-size:14px; color:var(--alert); margin:0 0 8px;" id="t-delete-account-title">Supprimer mon compte</h3>
+        <p style="font-size:12px; color:var(--charcoal-soft); margin:0 0 12px;" id="t-delete-account-desc">
+          Supprime définitivement toutes tes données (produits, ventes, dettes, dépenses, appareils connectés) et ton compte. Aucun retour en arrière possible.
+        </p>
+        <button type="button" class="btn-secondary" style="width:100%; color:var(--alert); border-color:var(--alert);" onclick="startDeleteAccountFlow()" id="t-delete-account-btn">🗑️ Supprimer mon compte</button>
+      </div>
+      <button class="btn-secondary" onclick="closePrivacySheet()" id="t-cancel-privacy" style="margin-top:14px;">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Confirmation de suppression de compte : geste irréversible, donc on ne se contente
+       jamais d'un simple "OK" — voir confirmDeleteAccountFinal() dans account-cloud.js. -->
+  <div class="sheet-overlay center-modal" id="delete-account-confirm-overlay">
+    <div class="sheet">
+      <h3 id="t-delete-confirm-title">⚠️ Es-tu vraiment sûr ?</h3>
+      <p style="font-size:13px; color:var(--charcoal-soft); line-height:1.6;" id="t-delete-confirm-desc">
+        Toutes tes données seront effacées définitivement — produits, historique des ventes, dettes, dépenses, appareils connectés (caissier, magasinier). Personne, pas même le support Mombongo, ne pourra les récupérer ensuite.
+      </p>
+      <div class="field">
+        <label id="t-delete-confirm-label">Tape SUPPRIMER pour confirmer</label>
+        <input id="in-delete-confirm-word" type="text" autocomplete="off" autocapitalize="characters">
+      </div>
+      <button class="btn-secondary" style="width:100%; color:#fff; background:var(--alert); border-color:var(--alert);" onclick="confirmDeleteAccountFinal()" id="t-delete-confirm-btn">Supprimer définitivement</button>
+      <button class="btn-secondary" onclick="closeDeleteAccountConfirm()" id="t-delete-confirm-cancel">Annuler</button>
     </div>
   </div>
 
@@ -872,6 +945,8 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <div class="sheet-overlay" id="bulk-catalog-overlay">
     <div class="sheet" style="min-height:75vh;">
       <h3 id="t-bulk-catalog-title">📋 Ajout rapide depuis le catalogue</h3>
+      <button type="button" id="bulk-catalog-type-label" onclick="changeMyStoreTypeFromBulkCatalog()"
+              style="background:none; border:none; padding:0; margin:-6px 0 10px; font-size:12px; font-weight:700; color:var(--emerald); text-decoration:underline; cursor:pointer;">🏪</button>
       <p style="font-size:12.5px; color:var(--charcoal-soft); line-height:1.5; margin:-8px 0 14px;" id="t-bulk-catalog-desc">
         Voici tout le catalogue de ton métier. Coche ce que tu vends — le prix de vente et la quantité par défaut ci-dessous s'appliquent à tous, tu pourras corriger chaque produit ensuite avec "Modifier". Ajout illimité pour tous les comptes. Compte VIP : en plus, "Tout cocher" pour prendre tout le catalogue en un clic.
       </p>

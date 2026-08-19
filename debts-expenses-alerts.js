@@ -308,7 +308,7 @@ async function confirmRepay(){
 
 /* ---------- Dépenses ---------- */
 function openExpenseSheet(){
-  if(!isFeatureUnlocked('expenseTracking')){ openLimitSheet('expense'); return; }
+  if(expenses.length >= getMaxExpenses()){ openLimitSheet('expense'); return; }
   document.getElementById('in-expense-desc').value = '';
   document.getElementById('in-expense-amount').value = '';
   document.getElementById('expense-overlay').classList.add('open');
@@ -317,7 +317,7 @@ function closeExpenseSheet(){
   document.getElementById('expense-overlay').classList.remove('open');
 }
 async function confirmExpense(){
-  if(!isFeatureUnlocked('expenseTracking')){ closeExpenseSheet(); openLimitSheet('expense'); return; }
+  if(expenses.length >= getMaxExpenses()){ closeExpenseSheet(); openLimitSheet('expense'); return; }
   const desc = document.getElementById('in-expense-desc').value.trim();
   const rawAmount = parseFloat(document.getElementById('in-expense-amount').value) || 0;
   if(!desc || rawAmount <= 0){

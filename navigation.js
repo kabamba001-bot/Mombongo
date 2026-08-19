@@ -8,7 +8,28 @@ try{ history.pushState({ mombongoBuffer: true }, ''); }catch(e){}
 window.addEventListener('popstate', function(){
   const openSheet = document.querySelector('.sheet-overlay.open');
   if(openSheet){
-    document.querySelectorAll('.sheet-overlay.open').forEach(el=>el.classList.remove('open'));
+    // Certains écrans gardent un état (variables JS) ou des boutons flottants en dehors
+    // de la fenêtre elle-même (ex. #sell-overlay ↔ multiCart, voir sales.js) — un simple
+    // retrait de la classe .open ne les nettoie pas, contrairement à un clic sur leur
+    // propre bouton "Fermer"/"Annuler". Sans ça, après un retour arrière pendant une
+    // "vente plusieurs", le panier restait figé avec les anciens produits sélectionnés,
+    // et le prochain "Vendre" tapé ailleurs revendait ces anciens produits au lieu de
+    // ceux vraiment affichés à l'écran.
+    if(openSheet.id === 'sell-overlay'){
+      // Un panier "vente plusieurs" non vide n'est pas juste perdu : il est mis de côté
+      // (voir pauseCurrentCartIfAny(), sales.js) pour être repris plus tard depuis le
+      // bouton 🧺 — sauf si la file d'attente est déjà pleine (3 max), auquel cas on
+      // laisse volontairement la fiche ouverte plutôt que de perdre le panier en silence.
+      const outcome = (typeof pauseCurrentCartIfAny === 'function') ? pauseCurrentCartIfAny() : 'none';
+      if(outcome !== 'blocked' && typeof closeSellSheet === 'function'){
+        closeSellSheet();
+      } else if(outcome === 'blocked'){
+        try{ history.pushState({ mombongoBuffer: true }, ''); }catch(e){}
+        return;
+      }
+    } else {
+      document.querySelectorAll('.sheet-overlay.open').forEach(el=>el.classList.remove('open'));
+    }
     readyToExitApp = false;
     clearTimeout(exitArmTimeout);
     try{ history.pushState({ mombongoBuffer: true }, ''); }catch(e){}

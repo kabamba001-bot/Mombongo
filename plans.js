@@ -82,8 +82,10 @@ const PLAN_DEFS = {
     // avant comme payant" sur l'écran d'onboarding — pas à restreindre l'essai.
     baseFeatures: {
       barcode: true,             // scan de base — dispo dès Simple payant, donc a fortiori ici
-      profitTracking: true,
-      customerDebts: true
+      profitTracking: true
+      // customerDebts n'est plus listé ici : cette fonctionnalité est désormais
+      // universelle (gratuite et illimitée pour tous les paliers) — voir le cas
+      // spécial tout en haut de isFeatureUnlocked() ci-dessous.
     },
     paidFeatures: {               // mis en avant comme "Version Payante" dans la pub/l'onboarding
       voiceSales: true,
@@ -160,6 +162,20 @@ function getMaxActiveProducts(){
   return Infinity; // business & pro : illimité
 }
 
+// Nombre maximum de DÉPENSES actives (non supprimées) : 3 sur Simple gratuit, illimité
+// dès qu'un palier est payant (Simple payant, Business, Pro — "VIP" au sens large,
+// n'importe quel abonnement payé). Contrairement aux dettes/crédits (universellement
+// gratuits, voir isFeatureUnlocked() plus bas), les dépenses restent un vrai levier
+// d'upgrade sur Simple gratuit — mais accessibles dès le premier jour, pas bloquées en
+// bloc comme avant. Une dépense supprimée depuis l'historique libère sa place (comme les
+// produits), pas de compteur qui grimpe pour toujours.
+const SIMPLE_FREE_MAX_EXPENSES = 3;
+function getMaxExpenses(){
+  const eff = getEffectivePlan();
+  if(eff.plan === 'simple' && eff.tier === 'free') return SIMPLE_FREE_MAX_EXPENSES;
+  return Infinity;
+}
+
 // Profondeur d'historique (en jours) autorisée pour le palier effectif.
 function getMaxHistoryDays(){
   const eff = getEffectivePlan();
@@ -200,6 +216,17 @@ function enforceAllowedCurrencyForPlan(){
    'exportPdf', 'multiCurrency', 'pushNotifications' (Business payant) ;
    'multiDevice', 'multiStore', 'supplierManagement' (Pro). */
 function isFeatureUnlocked(featureKey){
+  // Dettes/crédits clients : gratuits et illimités pour TOUS les paliers, y compris
+  // Simple gratuit — ce n'est plus une fonctionnalité à débloquer. Traité ici, au même
+  // endroit pour tous les appelants existants (sales.js, render.js,
+  // debts-expenses-alerts.js...), plutôt que de retirer chaque vérification une par une
+  // dans chaque fichier — un seul endroit à retenir si la règle change encore.
+  if(featureKey === 'customerDebts') return true;
+  // Dépenses : désormais accessibles à TOUS les paliers (avant : Business+ uniquement),
+  // mais plafonnées en quantité sur Simple gratuit — voir getMaxExpenses() ci-dessous,
+  // vérifié séparément (quantité, pas un simple on/off) dans openExpenseSheet() /
+  // confirmExpense() (debts-expenses-alerts.js).
+  if(featureKey === 'expenseTracking') return true;
   const eff = getEffectivePlan();
   if(eff.plan === 'simple'){
     return !!(PLAN_DEFS.simple.tiers[eff.tier].features || {})[featureKey];
@@ -334,9 +361,9 @@ function setSimplePaidTier(durationMs){
    Toujours le palier le MOINS cher qui débloque la fonctionnalité — ex. le scan de
    code-barres existe dès Simple payant, inutile de pousser vers Business pour ça. */
 const LIMIT_REASON_TARGET_PLAN = {
-  history: 'simple_paid', barcode: 'simple_paid',
+  history: 'simple_paid', barcode: 'simple_paid', expense: 'simple_paid',
   voice: 'business', export: 'business', notif: 'business', currency: 'business',
-  debts: 'business', expense: 'business', stock: 'business',
+  stock: 'business',
   stores: 'pro', devices: 'pro', suppliers: 'pro'
 };
 function getLimitReasonTargetPlan(reason){

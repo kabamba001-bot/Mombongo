@@ -31,8 +31,15 @@ let communityCatalogCache = {};          // { boutique: [...noms], pharmacie: [.
 let communityCatalogFetchedCategory = null;
 
 function activeStoreCategory(){
+  // myStoreType (voir config.js) répond directement à "quel est ton métier ?", sans
+  // dépendre du multi-boutique (Pro) — c'est la source qui doit gagner dès qu'elle
+  // existe. store.type ne reste utile que pour un compte Pro qui gère plusieurs
+  // boutiques de métiers DIFFÉRENTS (ex. une pharmacie ET une quincaillerie) — dans ce
+  // cas précis, le type de la boutique active prime sur le réglage global.
   const store = stores.find(s=>s.id===activeStoreId);
-  return (store && store.type) || 'autre';
+  if(store && store.type) return store.type;
+  if(myStoreType) return myStoreType;
+  return 'autre';
 }
 
 function getCommunityCatalogNames(){
@@ -153,12 +160,12 @@ function ensureCategoryPromptDom(){
     pendingCategoryPromptCallback = null; // l'utilisateur préfère ne pas contribuer cette fois-ci
   });
 }
-function openCategoryPromptSheet(onChoose){
+function openCategoryPromptSheet(onChoose, titleKey, descKey){
   const t = dict[currentLang];
   ensureCategoryPromptDom();
   pendingCategoryPromptCallback = onChoose;
-  document.getElementById('category-prompt-title').textContent = t.categoryPromptTitle;
-  document.getElementById('category-prompt-desc').textContent = t.categoryPromptDesc;
+  document.getElementById('category-prompt-title').textContent = t[titleKey] || t.categoryPromptTitle;
+  document.getElementById('category-prompt-desc').textContent = t[descKey] || t.categoryPromptDesc;
   document.querySelector('#category-prompt-card .cp-opt[data-cat="boutique"]').textContent = t.storeTypeBoutique;
   document.querySelector('#category-prompt-card .cp-opt[data-cat="pharmacie"]').textContent = t.storeTypePharmacie;
   document.querySelector('#category-prompt-card .cp-opt[data-cat="quincaillerie"]').textContent = t.storeTypeQuincaillerie;
@@ -169,6 +176,28 @@ function openCategoryPromptSheet(onChoose){
 function closeCategoryPromptSheet(){
   const el = document.getElementById('category-prompt-overlay');
   if(el) el.classList.remove('open');
+}
+
+/* ---------- Type de commerce universel (voir myStoreType, config.js) ----------
+   Décorrélé du multi-boutique (Pro) : n'importe quel compte, gratuit ou payant, hors
+   ligne ou connecté, peut répondre à "quel est ton métier ?" pour débloquer le bon
+   catalogue partagé dans "Ajout rapide depuis le catalogue" (voir openBulkCatalogSheet()
+   dans products.js, seul point d'entrée actuel). */
+function setMyStoreType(type){
+  myStoreType = type;
+  localSet('mombongo:storeType', type);
+  // Si un compte Google avec au moins une boutique existe déjà (aucune n'a encore de
+  // type — le cas le plus courant, une boutique par défaut créée sans qu'on lui ait
+  // jamais demandé) : on le renseigne aussi là, par cohérence si ce compte passe un jour
+  // à Pro et se met à gérer plusieurs boutiques. Ne redéfinit jamais un type déjà choisi
+  // explicitement pour une boutique précise (voir openNewStoreSheet()).
+  if(typeof stores !== 'undefined' && stores.length && !stores[0].type){
+    stores[0].type = type;
+    if(typeof pushToCloud === 'function') pushToCloud();
+  }
+  // Le catalogue communautaire déjà mis en cache correspondait à l'ancienne catégorie
+  // ('autre' par défaut) — on force un rechargement pour la nouvelle.
+  communityCatalogFetchedCategory = null;
 }
 
 /* ---------- Point d'entrée : appelé depuis products.js juste après l'enregistrement

@@ -132,6 +132,14 @@ async function loadData(){
   // sans ça, planDataLoaded resterait à false et le gel des produits ne s'appliquerait
   // jamais tant que Firebase n'a pas fini de répondre (ou jamais, en mode hors-ligne).
   if(typeof loadPlanFromCache === 'function') loadPlanFromCache();
+  try{
+    const mt = localGet('mombongo:storeType');
+    myStoreType = (mt && mt.value) ? mt.value : null;
+  }catch(e){ myStoreType = null; }
+  try{
+    const hc = localGet('mombongo:heldCarts');
+    heldCarts = (hc && hc.value) ? JSON.parse(hc.value) : [];
+  }catch(e){ heldCarts = []; }
   if(isEmployeeMode){
     // Les vraies données arrivent via attachRealtimeListener (temps réel, compte du
     // patron). En attendant cette réponse (qui prend un instant après un rafraîchissement),
@@ -155,6 +163,11 @@ async function loadData(){
       stats = { todayDate: '', todaySales: 0, todayProfit: 0, totalProfit: 0, totalExpenses: 0 };
     }
     render();
+    // Les données à l'écran sont déjà les bonnes (cache local le temps que le listener
+    // temps réel réponde) : plus aucune raison de garder l'app cachée derrière l'écran de
+    // chargement en attendant Firebase Auth — voir le commentaire détaillé sur l'appel
+    // équivalent, un peu plus bas dans cette fonction, pour le raisonnement complet.
+    if(typeof hideBootLoading === 'function') hideBootLoading();
     return;
   }
   try{
@@ -203,6 +216,19 @@ async function loadData(){
   if(typeof checkPlanExpiryLive === 'function') checkPlanExpiryLive();
   await archiveOldData();
   render();
+  // Auparavant, hideBootLoading() n'était appelée QUE depuis onAuthStateChanged() (voir
+  // stores-devices.js) — donc l'app entière restait cachée derrière l'écran de chargement
+  // plein écran jusqu'à ce que Firebase Auth réponde, alors même que les vraies données
+  // (chiffres, produits...) venaient d'être chargées depuis le cache local juste au-dessus
+  // et affichées à l'écran par le render() ci-dessus. Sur une connexion lente, ça pouvait
+  // prendre plusieurs secondes de "rien" pour un commerçant qui a besoin de voir son stock
+  // tout de suite. On révèle donc l'app dès que CES données-ci sont prêtes, sans attendre
+  // Auth — le bouton de compte affiche son état neutre ("Compte") le temps que la vraie
+  // connexion se résolve en arrière-plan, ce qui n'a rien de trompeur ni de bloquant.
+  // hideBootLoading() reste aussi appelée depuis onAuthStateChanged() (idempotente) et
+  // depuis le filet de sécurité de 6s, pour couvrir les cas où ce fichier n'aurait pas pu
+  // s'exécuter normalement.
+  if(typeof hideBootLoading === 'function') hideBootLoading();
 }
 
 /* ---------- Catalogue commun : Pharmacie (1268 produits) ---------- */
@@ -215,11 +241,14 @@ const QUINCAILLERIE_PRODUCTS = ["Abattant WC", "Agitateurs magnétiques", "Alarm
 const BOUTIQUE_PRODUCTS = ["Adaptateur universel", "Adoucissant linge 1 L", "Adoucissant linge 2 L", "Agrafes 24/6 — boîte 1000", "Agrafeuse — format bureau", "Allumettes — boîte 40", "Ampoule LED 10W", "Ampoule LED 15W", "Ampoule LED 20W", "Ampoule LED 5W", "Après-rasage 100 ml", "Après-shampoing 250 ml", "Ardoise scolaire — avec craie", "Assiettes creuses Ø22 cm", "Assiettes dessert Ø18 cm", "Assiettes plates Ø22 cm — céramique", "Assiettes plates Ø26 cm — porcelaine", "BAT Zaire", "Baignoire bébé plastique", "Bain de bouche 250 ml", "Balai coco", "Balai plastique", "Balai serpillière", "Ballons football", "Ballons plastique", "Beurre 200 g", "Biberon plastique 250 ml", "Biberon plastique 330 ml", "Biberon verre 250 ml", "Biscuits 100 g", "Biscuits 500 g", "Blender 1,5 L", "Bloc WC parfumé — pack 2", "Bloc-notes A4", "Bloc-notes A5", "Body coton 0–3 mois", "Body coton 3–6 mois", "Bol céramique Ø12 cm", "Bol plastique Ø14 cm", "Bonbons sachet 100 pcs", "Bonnet bébé coton", "Bottes femme", "Bottes homme", "Boucles d'oreilles fantaisie", "Bougies cire 20 cm — pack 6", "Bougies décoratives — parfumées, neutres", "Bougies parfumées", "Bouilloire électrique 1,5 L", "Bouilloire électrique 2 L", "Bouteilles verre 1 L", "Boîtes alimentaires plastique 1 L", "Boîtes alimentaires plastique 500 ml", "Boîtes alimentaires verre 1 L", "Boîtes alimentaires verre 500 ml", "Boîtes rangement tissu", "Bracelets fantaisie", "Briquets jetables — pack 5", "Briquets rechargeables", "Brosse à dents medium", "Brosse à dents souple", "Cacahuètes grillées 250 g", "Cadres multiples muraux", "Cadres photo 10x15 cm", "Cadres photo 20x30 cm", "Café moulu 250 g", "Cahier 200 pages", "Cahier 32 pages", "Cahier 48 pages", "Cahier 96 pages", "Carafes eau 1,5 L", "Cartable enfant — petit format", "Cartable scolaire — moyen format", "Casquettes — sport, mode", "Casserole aluminium Ø20 cm", "Casserole aluminium Ø24 cm", "Casserole inox Ø20 cm", "Casserole inox Ø24 cm", "Ceintures cuir — noir, marron", "Ceintures tissu", "Chapeaux coton", "Chargeur téléphone universel", "Chauffe-biberon électrique", "Chaussettes bébé pack 3", "Chaussures cuir femme", "Chaussures cuir homme", "Chaussures sport femme", "Chaussures sport homme", "Chemise manches courtes", "Chemise manches longues", "Chemisier femme", "Chips 100 g", "Chips 50 g", "Chocolat poudre 500 g", "Chocolat tablette 100 g", "Cintres bois — pack 6", "Cintres plastique — pack 6", "Classeurs A4 — dos 5 cm", "Climatiseur portable 9000 BTU", "Cocotte minute 5 L", "Cocotte minute 7 L", "Colle bâton 20 g", "Colle liquide 50 ml", "Colliers fantaisie", "Compas métallique", "Compas plastique", "Compotes bébé 100 g — pomme, banane", "Correcteur liquide", "Correcteur ruban", "Costume complet homme", "Coton démaquillant 100 pcs", "Couches jetables taille 1 — pack 30", "Couches jetables taille 2 — pack 30", "Couches jetables taille 3 — pack 40", "Couches jetables taille 4 — pack 40", "Couches jetables taille 5 — pack 40", "Coussins décoratifs 40x40 cm", "Coussins décoratifs 50x50 cm", "Couteaux de cuisine — chef, désosseur, office", "Couteaux inox — pack 6", "Craies blanches — boîte 100", "Craies de couleur — boîte 50", "Cravates — soie, polyester", "Crayon de couleur 12 pcs", "Crayon de couleur 24 pcs", "Crayon graphite HB — pack 12", "Crème coiffante 250 ml", "Crème mains 75 ml", "Crème protectrice 100 g", "Crème visage 50 ml", "Cube Jumbo 100 pcs", "Cube Maggi 100 pcs", "Cuillères inox — pack 6", "Cuillères à dessert — pack 6", "Cuillères à soupe — pack 6", "Céréales infantiles 250 g", "Céréales infantiles 500 g", "Dentifrice 100 ml", "Dentifrice 75 ml — Colgate, Signal", "Dessous de plat — bois, métal", "Dominos", "Dunhill", "Déodorant roll-on 50 ml", "Déodorant spray 150 ml", "Déodorant stick 50 g", "Désinfectant sol 1 L", "Désinfectant sol 5 L", "Détartrant WC 750 ml", "Détergent multi-usages 1 L", "Détergent multi-usages 5 L", "Eau de Javel 1 L", "Eau de Javel 5 L", "Eau minérale 0,5 L", "Eau minérale 1,5 L", "Enceinte portable 10W", "Essuie-tout — rouleau", "Farine de manioc 10 kg", "Farine de maïs 10 kg", "Fer à repasser vapeur", "Fer à repasser électrique", "Fil dentaire 50 m", "Films alimentaires — 30 m", "Fourchettes inox — pack 6", "Fromage portion 200 g", "Gants ménagers — tailles M, L", "Gel douche 250 ml", "Gel douche 500 ml", "Gel à raser 200 ml", "Gomme bicolore", "Gomme blanche", "Grill fonte", "Grille-pain 2 fentes", "Grille-pain 4 fentes", "Guirlandes LED 10 m", "Guirlandes LED 5 m", "Haricots rouges 1 kg", "Horloge murale Ø30 cm", "Horloge murale Ø40 cm", "Huile capillaire 100 ml — coco, ricin", "Huile de palme 1 L", "Huile de palme 5 L", "Huile végétale 1 L", "Huile végétale 5 L", "Intercalaires A4 — pack 10", "Jeux cartes", "Jupe courte", "Jupe longue", "Jus en poudre 25 g", "Jus naturel 1 L — mangue, ananas, goyave", "Lait concentré sucré 397 g", "Lait corporel 250 ml", "Lait corporel 500 ml", "Lait en poudre 400 g", "Lait en poudre 900 g", "Lait infantile 0–6 mois 400 g", "Lait infantile 1–3 ans 900 g", "Lait infantile 6–12 mois 400 g", "Lampadaires salon — 1,5 m", "Lampe de bureau LED", "Lampe torche rechargeable", "Lampe veilleuse", "Lampes de chevet — abat-jour tissu", "Lampes de table — métal, bois", "Legging femme", "Lessive liquide 1 L", "Lessive liquide 3 L", "Lessive poudre 1 kg", "Lessive poudre 5 kg", "Lessive poudre 500 g", "Lingettes bébé 120 pcs", "Lingettes bébé 72 pcs", "Lingettes intimes 20 pcs", "Liquide vaisselle 1 L", "Liquide vaisselle 5 L", "Liquide vaisselle 500 ml", "Lit parapluie bébé", "Lotion bébé 200 ml", "Louches inox", "Margarine 250 g", "Marlboro", "Marmite aluminium 10 L", "Marmite aluminium 20 L", "Marmite inox 15 L", "Marqueurs permanents — pack 4", "Mayonnaise 500 g", "Mini enceinte Bluetooth", "Mini ventilateur USB", "Miroir mural rectangulaire 50x70 cm", "Miroir mural rond Ø40 cm", "Mixeur bol 1,5 L", "Mixeur plongeant", "Monte Carlo", "Montres enfants", "Montres femme", "Montres homme", "Mousse à raser 200 ml", "Moutarde 250 g", "Mugs céramique 30 cl", "Multiprise 3 sorties", "Multiprise 6 sorties", "Nappes PVC 140x200 cm", "Nappes tissu 140x200 cm", "Nettoyant cuisine 500 ml", "Nettoyant salle de bain 500 ml", "Nettoyant vitres 1 L", "Nettoyant vitres 500 ml", "Noeuds papillon", "Oris", "Ouvre-boîtes", "Paniers rangement osier", "Paniers rangement plastique — petit, moyen, grand", "Pantalon femme", "Pantalon jean homme", "Pantalon tissu homme", "Papier aluminium — 10 m", "Papier blanc A4 500 feuilles", "Papier couleur A4 — pack 100", "Parapluies grands", "Parapluies pliables", "Parfum 100 ml", "Parfum 30 ml", "Parfum 50 ml", "Passoires inox", "Passoires plastique", "Patères murales — pack 3", "Petits pots bébé plastique — pack 3", "Photophores verre — pack 3", "Piles AA — pack 4", "Piles AAA — pack 4", "Piles bouton — montres", "Planche à découper bois", "Planche à découper plastique", "Plantes artificielles — petit, moyen, grand", "Pochettes plastiques A4 — pack 100", "Pois chiches 1 kg", "Popcorn 100 g", "Portefeuilles cuir", "Portefeuilles tissu", "Portemanteaux bois", "Portemanteaux métal", "Poudre de toilette 200 g", "Poudre vaisselle 1 kg", "Poupées jouet", "Poussette double", "Poussette simple", "Powerbank 10 000 mAh", "Powerbank 20 000 mAh", "Poêle antiadhésive Ø24 cm", "Poêle antiadhésive Ø28 cm", "Poêle fonte Ø26 cm", "Pyjama bébé 0–6 mois", "Pyjama bébé 6–12 mois", "Pâtes alimentaires 500 g", "Radio portable FM/AM", "Radio rechargeable", "Radio solaire", "Rallonge électrique 10 m", "Rallonge électrique 5 m", "Rapporteur 180°", "Rasoir jetable 2 lames — pack 5", "Rasoir jetable 3 lames — pack 5", "Rasoir électrique", "Rideaux occultants 2x2 m", "Rideaux tissu 2x2 m — coton, polyester", "Riz blanc 25 kg", "Riz local 10 kg", "Riz parfumé 5 kg", "Robe coton — courtes, longues", "Robe soirée", "Robot multifonction", "Rothmans", "Ruban adhésif 18 mm", "Ruban adhésif 48 mm", "Râpes inox", "Règle métallique 30 cm", "Règle plastique 30 cm", "Sac bandoulière", "Sac à dos femme", "Sac à dos homme", "Sac à dos étudiant", "Sac à langer", "Sac à main femme", "Sacs plastiques — petits, moyens, grands", "Sacs réutilisables", "Sandales femme", "Sandales homme", "Savon antibactérien 125 g", "Savon bébé 100 g", "Savon de Marseille 200 g", "Savon de toilette 100 g — Dove, Lux, Palmolive", "Seau plastique 10 L", "Seau plastique 20 L", "Sel fin 1 kg", "Sel iodé 500 g", "Semoule de maïs 5 kg", "Serpillière coton", "Serpillière microfibres", "Serviettes hygiéniques 10 pcs", "Serviettes hygiéniques 20 pcs", "Serviettes papier — pack 100", "Sets de table PVC — pack 6", "Shampoing 250 ml — anti-pelliculaire, nourrissant", "Shampoing 500 ml", "Shampoing bébé 200 ml", "Short homme", "Siège auto bébé", "Soda 1 L", "Soda 33 cl — Coca, Fanta, Sprite", "Spaghetti 1 kg", "Spatules bois", "Spatules silicone", "Spray antibactérien 500 ml", "Spray désodorisant 300 ml", "Spray désodorisant 500 ml", "Stella", "Stylo bille bleu — pack 12", "Stylo bille noir — pack 12", "Stylo bille rouge — pack 12", "Stylo plume", "Sucre blanc 1 kg", "Sucre roux 1 kg", "Supermatch", "Surligneurs fluo — pack 6", "Sèche-cheveux 1200W", "Sèche-cheveux 2000W", "T-shirt coton homme — tailles M, L, XL", "Table à langer", "Tableaux décoratifs — abstraits, paysages", "Tablettes lave-vaisselle — pack 30", "Taille-crayon double", "Taille-crayon simple", "Tailleur femme", "Tampons 20 pcs", "Tapis de table — set 4", "Tapis salon 120x180 cm", "Tapis salon 160x230 cm", "Tasses café 10 cl — pack 6", "Tasses thé 20 cl — pack 6", "Thermomètre bébé", "Thé noir 25 sachets", "Thé vert 25 sachets", "Tire-bouchon", "Tire-lait manuel", "Tire-lait électrique", "Tomate concentrée 400 g", "Tondeuse barbe rechargeable", "Tondeuse cheveux électrique", "Torchons coton", "Transat bébé", "Trousse scolaire", "Tétines silicone — pack 2", "Valises cabine", "Valises grandes", "Vaseline 100 g", "Vaseline 250 g", "Vases céramique — Ø15 cm, Ø20 cm", "Vases verre — Ø10 cm, Ø15 cm", "Ventilateur mural Ø40 cm", "Ventilateur sur pied Ø40 cm", "Ventilateur table Ø30 cm", "Verres eau 25 cl — pack 6", "Verres eau 33 cl — pack 6", "Verres vin 20 cl — pack 6", "Vinaigre 1 L", "Voilages légers 2x2 m", "Voitures miniatures", "Yaourt aromatisé 500 ml", "Yaourt nature 250 ml", "Écharpes coton", "Écharpes laine", "Élastiques — pack 50", "Épingles — boîte 100", "Éponge grattante — pack 3", "Éponge vaisselle — pack 5", "Équateur", "Équerre plastique"];
 
 function getCatalogForStore(storeId){
-  const store = stores.find(s=>s.id===storeId);
-  if(!store) return null;
-  if(store.type === 'pharmacie') return PHARMA_PRODUCTS;
-  if(store.type === 'quincaillerie') return QUINCAILLERIE_PRODUCTS;
-  if(store.type === 'boutique') return BOUTIQUE_PRODUCTS;
+  // Ne dépend plus de stores.find(...) directement : un compte purement hors-ligne (ou
+  // Simple/Business qui n'a jamais créé de 2e boutique) a `stores` vide, ce qui rendait
+  // ce catalogue vide à tort. activeStoreCategory() (community-catalog.js) sait déjà
+  // retomber sur myStoreType (réglage universel) puis sur 'autre'.
+  const category = (typeof activeStoreCategory === 'function') ? activeStoreCategory() : 'autre';
+  if(category === 'pharmacie') return PHARMA_PRODUCTS;
+  if(category === 'quincaillerie') return QUINCAILLERIE_PRODUCTS;
+  if(category === 'boutique') return BOUTIQUE_PRODUCTS;
   return null; // autre : pas encore de catalogue partagé (mais garde ses suggestions personnelles)
 }
 
@@ -262,6 +291,11 @@ function updateProductNameSuggestions(){
   // manuelle) — uniquement du mode "nouveau produit".
   const gridBtn = document.getElementById('t-grid-add-open-btn');
   if(gridBtn) gridBtn.style.display = isNewProductMode ? 'block' : 'none';
+  // Même règle pour l'import Excel/CSV — ni catalogue-dépendant, ni utile en modification.
+  const excelBtn = document.getElementById('t-excel-import-open-btn');
+  if(excelBtn) excelBtn.style.display = isNewProductMode ? 'block' : 'none';
+  const excelTemplateLink = document.getElementById('t-excel-import-template-link');
+  if(excelTemplateLink) excelTemplateLink.style.display = isNewProductMode ? 'block' : 'none';
 }
 
 function maybeOfferCustomCatalogSave(name){

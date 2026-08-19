@@ -652,18 +652,19 @@ function initEmployeeModeIfAny(){
 }
 
 // Écran de chargement au démarrage/rechargement : reste affiché jusqu'à ce que Firebase
-// Auth ait déterminé l'état de connexion réel (ou après un délai de sécurité) — sans ça,
-// pendant ce court instant, l'app affiche par défaut le bouton de compte "déconnecté",
-// ce qui donne l'impression trompeuse à quelqu'un déjà connecté qu'il vient d'être
-// déconnecté, et peut le pousser à essayer (inutilement) de se reconnecter.
+// Révèle l'app (voir data-catalog.js, fin de loadData(), qui l'appelle dès que les
+// données en cache sont affichées — plus rapide que d'attendre Auth). Appelée aussi ici
+// une fois Auth réellement résolu (idempotente, ne fait rien la 2e fois) pour couvrir le
+// mode employé (compte anonyme, jamais traité par loadData()) et servir de filet de
+// sécurité si loadData() n'a pas pu tourner normalement.
 function hideBootLoading(){
   const el = document.getElementById('boot-loading-overlay');
   if(el) el.style.display = 'none';
   if(typeof maybeShowPlanOnboarding === 'function') maybeShowPlanOnboarding();
 }
-// Filet de sécurité : si Firebase met du temps à répondre (connexion lente) ou ne répond
-// jamais (ex : requête bloquée), on ne laisse jamais l'écran de chargement bloqué pour de
-// bon — au pire, l'app démarre après ce délai avec l'état de compte qu'elle a pu déterminer.
+// Filet de sécurité ultime : si pour une raison quelconque ni loadData() ni Auth n'ont
+// démasqué l'app (script cassé, exception inattendue...), on ne laisse jamais l'écran de
+// chargement bloqué pour de bon.
 setTimeout(hideBootLoading, 6000);
 if(!cloudEnabled){
   // Rien à attendre côté cloud : l'app doit rester utilisable hors-ligne sans délai.
@@ -821,6 +822,27 @@ function applyTranslations(){
   document.getElementById('t-alerts-sheet-empty').textContent = t.alertsSheetEmpty;
   document.getElementById('t-cancel10').textContent = t.close;
   document.getElementById('t-products-title').textContent = t.productsTitle;
+  document.getElementById('t-favorites-tab').textContent = t.favoritesTab;
+  document.getElementById('t-clear-multi-cart-btn').textContent = t.clearMultiCartBtn;
+  document.getElementById('t-held-carts-title').textContent = t.heldCartsTitle;
+  document.getElementById('t-cancel-held-carts').textContent = t.close;
+  document.getElementById('t-privacy-link').textContent = t.privacyLink;
+  document.getElementById('t-privacy-title').textContent = t.privacyTitle;
+  document.getElementById('t-delete-account-title').textContent = t.deleteAccountTitle;
+  document.getElementById('t-delete-account-desc').textContent = t.deleteAccountDesc;
+  document.getElementById('t-delete-account-btn').textContent = t.deleteAccountBtn;
+  document.getElementById('t-cancel-privacy').textContent = t.close;
+  document.getElementById('t-delete-confirm-title').textContent = t.deleteConfirmTitle;
+  document.getElementById('t-delete-confirm-desc').textContent = t.deleteConfirmDesc;
+  document.getElementById('t-delete-confirm-label').textContent = (t.deleteConfirmLabel || '').replace('{word}', t.deleteConfirmWord);
+  document.getElementById('t-delete-confirm-btn').textContent = t.deleteConfirmBtn;
+  document.getElementById('t-delete-confirm-cancel').textContent = t.close;
+  if(document.getElementById('privacy-overlay').classList.contains('open')){
+    document.getElementById('privacy-content').innerHTML = t.privacyPolicyHtml || '';
+  }
+  if(typeof renderHeldCartsList === 'function' && document.getElementById('held-carts-overlay').classList.contains('open')){
+    renderHeldCartsList();
+  }
   document.getElementById('t-empty').textContent = t.empty;
   document.getElementById('t-no-results').textContent = t.noResults;
   document.getElementById('search-input').placeholder = t.searchPlaceholder;
@@ -905,6 +927,8 @@ function applyTranslations(){
   document.getElementById('t-promo-popup-decline').textContent = t.promoPopupDecline;
   if(typeof initFirstUsersPromoBadge === 'function') initFirstUsersPromoBadge();
   document.getElementById('t-bulk-catalog-open-btn').textContent = t.bulkCatalogOpenBtn;
+  document.getElementById('t-excel-import-open-btn').textContent = '📊 ' + (t.excelImportBtn || 'Importer depuis Excel/CSV');
+  document.getElementById('t-excel-import-template-link').textContent = '📄 ' + (t.excelImportTemplateLink || 'Télécharger le modèle');
   document.getElementById('t-bulk-catalog-title').textContent = t.bulkCatalogTitle;
   document.getElementById('t-bulk-catalog-desc').textContent = t.bulkCatalogDesc;
   document.getElementById('t-bulk-default-sell').textContent = t.bulkDefaultSell;
@@ -915,6 +939,7 @@ function applyTranslations(){
   document.getElementById('t-bulk-select-all-btn').textContent = t.bulkSelectAllBtn;
   document.getElementById('t-bulk-deselect-all-btn').textContent = t.bulkDeselectAllBtn;
   if(typeof updateBulkCatalogCount === 'function') updateBulkCatalogCount();
+  if(typeof updateBulkCatalogTypeLabel === 'function') updateBulkCatalogTypeLabel();
   document.getElementById('t-discover-btn').textContent = t.discoverBtn;
   document.getElementById('t-discover-title').textContent = t.discoverTitle;
   document.getElementById('t-discover-intro').textContent = t.discoverIntro;

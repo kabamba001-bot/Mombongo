@@ -151,6 +151,10 @@ function openEditSheet(id){
   if(bulkBtn) bulkBtn.style.display = 'none';
   const gridBtn = document.getElementById('t-grid-add-open-btn');
   if(gridBtn) gridBtn.style.display = 'none';
+  const excelBtn = document.getElementById('t-excel-import-open-btn');
+  if(excelBtn) excelBtn.style.display = 'none';
+  const excelTemplateLink = document.getElementById('t-excel-import-template-link');
+  if(excelTemplateLink) excelTemplateLink.style.display = 'none';
   resetMesurettes();
   setAddMode('simple');
   resetFieldCurrencies();
@@ -633,6 +637,20 @@ let bulkCatalogSelection = new Set();
 
 function openBulkCatalogSheet(){
   if(!canAddProducts()){ showToast(dict[currentLang].restrictedFeature); return; }
+  // Le catalogue proposé dépend du métier (boutique/pharmacie/quincaillerie) — voir
+  // activeStoreCategory() dans community-catalog.js. Si ce n'est pas encore réglé (tout
+  // premier usage de cette fonctionnalité), on le demande d'abord, une seule fois —
+  // ensuite openBulkCatalogSheetInner() peut être rappelée directement.
+  if(!myStoreType){
+    openCategoryPromptSheet(function(cat){
+      setMyStoreType(cat);
+      openBulkCatalogSheetInner();
+    }, 'myStoreTypeTitle', 'myStoreTypeDesc');
+    return;
+  }
+  openBulkCatalogSheetInner();
+}
+function openBulkCatalogSheetInner(){
   const merged = getFullCatalogForActiveStore();
   if(!merged || merged.length === 0){
     showToast(currentLang==='fr' ? "Pas encore de catalogue pour cette boutique" : (currentLang==='ln' ? "Catalogue ezali nanu te" : "Bado hakuna katalogi kwa duka hili"));
@@ -644,7 +662,24 @@ function openBulkCatalogSheet(){
   document.getElementById('in-bulk-default-qty').value = '';
   document.getElementById('in-bulk-default-threshold').value = '3';
   renderBulkCatalogList('');
+  updateBulkCatalogTypeLabel();
   document.getElementById('bulk-catalog-overlay').classList.add('open');
+}
+// Petit lien "🏪 Boutique (changer)" en haut de la fenêtre d'ajout rapide, pour corriger
+// un choix de métier fait par erreur sans devoir passer par un réglage caché.
+function updateBulkCatalogTypeLabel(){
+  const el = document.getElementById('bulk-catalog-type-label');
+  if(!el) return;
+  const t = dict[currentLang];
+  const names = { boutique: t.storeTypeBoutique, pharmacie: t.storeTypePharmacie, quincaillerie: t.storeTypeQuincaillerie, autre: t.storeTypeAutre };
+  el.textContent = '🏪 ' + (names[myStoreType] || t.storeTypeAutre);
+}
+function changeMyStoreTypeFromBulkCatalog(){
+  openCategoryPromptSheet(function(cat){
+    setMyStoreType(cat);
+    renderBulkCatalogList(document.getElementById('in-bulk-search').value);
+    updateBulkCatalogTypeLabel();
+  }, 'myStoreTypeTitle', 'myStoreTypeDesc');
 }
 function closeBulkCatalogSheet(){
   document.getElementById('bulk-catalog-overlay').classList.remove('open');
@@ -873,4 +908,122 @@ function scrollConfirmIntoView(){
     const btn = document.getElementById('t-confirm-sale');
     if(btn) btn.scrollIntoView({ behavior:'smooth', block:'center' });
   }, 300);
+}
+
+/* =========================================================================
+   IMPORT EN MASSE DEPUIS UN FICHIER EXCEL/CSV
+   ---------------------------------------------------------------------------
+   Pensé pour Business/Pro qui démarrent avec un catalogue de 500-1000 produits
+   déjà existant ailleurs (tableur du fournisseur, ancien inventaire papier
+   recopié...) — mais ouvert à tous les paliers, comme "Ajout rapide depuis le
+   catalogue". La librairie XLSX (déjà chargée pour l'export, voir export.js)
+   lit aussi bien le xlsx que le csv. Les en-têtes de colonnes sont reconnus de
+   façon souple (accents/majuscules ignorés, plusieurs libellés acceptés par
+   colonne) plutôt que d'exiger un format rigide que le commerçant devrait
+   deviner — voir EXCEL_IMPORT_HEADER_ALIASES ci-dessous. Seuls "Nom" et
+   "Prix de vente" sont obligatoires ; tout le reste a une valeur par défaut
+   raisonnable si la colonne manque.
+   ========================================================================= */
+const EXCEL_IMPORT_ALLOWED_UNITS = ['pc','kg','g','l','ml','m','cm'];
+const EXCEL_IMPORT_HEADER_ALIASES = {
+  name: ['nom du produit','nom','produit','article','designation','désignation'],
+  buy: ["prix d'achat","prix achat","achat","pa"],
+  sell: ['prix de vente','prix vente','vente','pv'],
+  qty: ['quantite','quantité','stock','qte','qty'],
+  threshold: ["seuil d'alerte",'seuil','alerte'],
+  unit: ['unite','unité','unit']
+};
+function normalizeImportHeader(h){
+  return String(h==null ? '' : h).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function detectExcelImportColumns(headerRow){
+  const map = {};
+  headerRow.forEach((raw, idx)=>{
+    const norm = normalizeImportHeader(raw);
+    if(!norm) return;
+    for(const key in EXCEL_IMPORT_HEADER_ALIASES){
+      if(map[key] !== undefined) continue;
+      if(EXCEL_IMPORT_HEADER_ALIASES[key].some(alias => norm === alias || norm.includes(alias))){
+        map[key] = idx;
+      }
+    }
+  });
+  return map;
+}
+
+// Génère et télécharge un petit modèle .xlsx avec les bons en-têtes de colonnes et une
+// ligne d'exemple — évite au commerçant de devoir deviner le format attendu.
+function downloadExcelImportTemplate(){
+  const t = dict[currentLang];
+  const headers = [t.excelColName, t.excelColBuy, t.excelColSell, t.excelColQty, t.excelColThreshold, t.excelColUnit];
+  const example = ['Savon Jabon', 500, 800, 24, 3, 'pc'];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Produits');
+  XLSX.writeFile(wb, 'mombongo-modele-import.xlsx');
+}
+
+function openExcelImportPicker(){
+  document.getElementById('excel-import-file-input').click();
+}
+
+async function handleExcelImportFile(event){
+  const file = event.target.files[0];
+  event.target.value = ''; // permet de réimporter le même fichier une 2e fois si besoin (correction, nouvel essai...)
+  if(!file) return;
+  const t = dict[currentLang];
+  showToast(t.excelImportReading, 2500);
+  try{
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    if(rows.length < 2){
+      showToast(t.excelImportEmpty, 5000);
+      return;
+    }
+    const colMap = detectExcelImportColumns(rows[0]);
+    if(colMap.name === undefined || colMap.sell === undefined){
+      showToast(t.excelImportBadHeaders, 7000);
+      return;
+    }
+    let added = 0, skippedInvalid = 0, offset = 0;
+    const newIds = [];
+    for(let i=1; i<rows.length; i++){
+      const row = rows[i];
+      if(!row || row.every(c => c === '' || c === undefined || c === null)) continue; // ligne vide
+      const name = String(row[colMap.name] != null ? row[colMap.name] : '').trim();
+      const rawSell = colMap.sell !== undefined ? parseFloat(row[colMap.sell]) : NaN;
+      if(!name || !rawSell || rawSell <= 0){ skippedInvalid++; continue; }
+      const rawBuy = colMap.buy !== undefined ? (parseFloat(row[colMap.buy]) || 0) : 0;
+      const qty = colMap.qty !== undefined ? (parseInt(row[colMap.qty], 10) || 0) : 0;
+      const threshold = colMap.threshold !== undefined ? (parseInt(row[colMap.threshold], 10) || 3) : 3;
+      let unit = colMap.unit !== undefined ? normalizeImportHeader(row[colMap.unit]) : 'pc';
+      if(!EXCEL_IMPORT_ALLOWED_UNITS.includes(unit)) unit = 'pc';
+      offset++;
+      const id = (Date.now() + offset).toString();
+      products.push({
+        id, name, buy: toInternal(rawBuy), sell: toInternal(rawSell), unit,
+        qty, threshold, expiryDate: null, lastSoldAt: null, createdAt: Date.now()
+      });
+      newIds.push(id);
+      added++;
+    }
+    if(added === 0){
+      showToast(t.excelImportNothingValid, 6000);
+      return;
+    }
+    await saveProducts();
+    closeAddSheet();
+    const gotFrozenToast = typeof notifyIfNewProductsFrozen === 'function' && notifyIfNewProductsFrozen(newIds);
+    if(!gotFrozenToast){
+      const msg = (skippedInvalid > 0 ? t.excelImportSuccessWithSkipped : t.excelImportSuccess)
+        .replace('{n}', added).replace('{skipped}', skippedInvalid);
+      showToast(msg, 5500);
+    }
+    render();
+  }catch(e){
+    console.error('Erreur import Excel/CSV', e);
+    showToast(t.excelImportError, 6000);
+  }
 }

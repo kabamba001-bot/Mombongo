@@ -204,6 +204,15 @@
   section{margin-bottom:22px;}
   section h2{font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft); margin:0 0 10px; font-weight:700;}
 
+  .products-header-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px;}
+  .products-tab{
+    background:none; border:none; padding:0; margin:0; cursor:pointer;
+    font-size:14px; text-transform:uppercase; letter-spacing:.05em; font-weight:700;
+    color:var(--paper-2); font-family:'Inter'; transition:color .15s;
+  }
+  .products-tab.active{color:var(--charcoal-soft);}
+  .products-tab:last-child{margin-left:auto;}
+
   .alert-banner{
     background:var(--alert-bg); border-left:4px solid var(--alert);
     border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:13.5px;
@@ -331,11 +340,34 @@
     left:calc(50% + 62px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
   }
-  /* z-index au-dessus des .sheet-overlay (30) : ce bouton doit rester cliquable PENDANT
-     qu'une fiche de vente est ouverte, contrairement au micro/scanner qui sont masqués
-     par le fond assombri des fiches. */
-  .multi-confirm-fab{
-    z-index:33; bottom:20px; background:var(--emerald); font-size:28px;
+  /* En miroir de .barcode-fab, côté gauche du micro. */
+  .held-carts-fab{
+    left:calc(50% - 62px); transform:none; width:48px; height:48px; font-size:20px;
+    background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
+    position:fixed;
+  }
+  .held-carts-badge{
+    position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; padding:0 4px;
+    border-radius:999px; background:var(--alert); color:#fff; font-size:11px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+    box-shadow:0 0 0 2px var(--paper);
+  }
+  .held-cart-row{
+    display:flex; align-items:center; gap:8px; padding:12px 0;
+    border-bottom:1px solid var(--paper-2);
+  }
+  .held-cart-row:last-child{border-bottom:none;}
+  .held-cart-row .info{flex:1; min-width:0;}
+  .held-cart-row .info .name{font-weight:700; font-size:14px;}
+  .held-cart-row .info .meta{font-size:12px; color:var(--charcoal-soft); margin-top:2px;}
+  .held-cart-row .held-cart-drop{width:40px; padding:8px; flex:none;}
+  .held-cart-row .held-cart-resume{width:auto; padding:8px 14px; flex:none; font-size:13px;}
+  .account-bottom-links{display:flex; justify-content:space-between; gap:10px; margin-top:16px;}
+  .account-bottom-links a{font-size:12.5px; color:var(--emerald); text-decoration:underline; font-weight:600;}
+  .account-privacy-link{
+    display:block; width:100%; text-align:center; background:none; border:none;
+    font-size:12px; color:var(--charcoal-soft); text-decoration:underline; margin:10px 0 14px;
+    font-family:'Inter'; cursor:pointer;
   }
   @keyframes voiceWave{
     0%{ box-shadow:0 0 0 0 rgba(192,57,43,0.55), 0 0 0 0 rgba(192,57,43,0.35); }
@@ -572,6 +604,7 @@
   }
   .multi-qty-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .multi-total-divider{height:1px; background:var(--paper-2); margin:12px 0;}
+  .multi-list-separator{height:1px; background:var(--paper-2); margin:8px 0;}
   .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
   .multi-total-row .lbl{font-size:13.5px; font-weight:700;}
   .multi-total-row .val{font-family:'Sora'; font-size:19px; font-weight:800; color:var(--emerald);}

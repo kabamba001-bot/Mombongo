@@ -19,7 +19,37 @@ let currentLang = 'fr';
 let currentCurrency = 'usd';
 let exchangeRate = 2300;
 // (ancienne FREE_EXPENSE_LIMIT retirée — dépenses illimitées pour tous)
+// Type de commerce ('boutique' | 'pharmacie' | 'quincaillerie' | 'autre' | null tant que
+// pas encore choisi) — sert à afficher le bon catalogue partagé dans "Ajout rapide depuis
+// le catalogue" (voir community-catalog.js, activeStoreCategory()). Volontairement
+// stocké à part de `stores`/`store.type` (qui, eux, ne sont utilisables que via la
+// création d'une boutique, une fonctionnalité Pro) : TOUT compte, même Simple gratuit et
+// même purement hors-ligne, doit pouvoir répondre à "quel est ton métier ?" — voir
+// maybeAskStoreType() dans community-catalog.js. Se synchronise vers stores[0].type une
+// fois connecté à un compte Google, uniquement pour rester cohérent si jamais ce compte
+// passe à Pro et se met à gérer plusieurs boutiques ensuite.
+let myStoreType = null;
 const DEV_WHATSAPP = '243980979141';
+
+/* =========================================================================
+   PANIER EN PAUSE ("vente plusieurs" uniquement) — voir pauseCurrentCartIfAny(),
+   resumeHeldCart() et openHeldCartsSheet() dans sales.js.
+   Cas d'usage : un client est en train de payer (vente multiple en cours), se rend
+   compte qu'il a oublié un article ou n'a pas assez d'argent, et retourne dans les
+   rayons pendant que la file d'attente s'allonge. Le caissier appuie sur retour : le
+   panier en cours (ses produits + quantités déjà sélectionnés) est mis de côté au lieu
+   d'être perdu, il sert le client suivant, puis reprend le premier panier là où il en
+   était. Jusqu'à MAX_HELD_CARTS clients en attente à la fois (au-delà, le retour arrière
+   refuse de mettre un nouveau panier en pause tant qu'une des ventes déjà en attente
+   n'a pas été confirmée ou annulée).
+   Volontairement stocké en local uniquement (pas sur Firestore) : c'est une file
+   d'attente de caisse propre à CET appareil, à CE moment précis — elle n'a pas de sens à
+   synchroniser vers un autre appareil ni à survivre au-delà de la session en cours.
+   Persisté quand même dans localStorage (voir saveHeldCarts()) pour ne pas perdre les
+   paniers en attente si l'app recharge entre-temps (perte de réseau, écran verrouillé
+   trop longtemps...). ========================================================================= */
+const MAX_HELD_CARTS = 3;
+let heldCarts = []; // [{ id, cart: {productId: qty}, savedAt }]
 
 try{
   firebase.initializeApp(firebaseConfig);

@@ -26,7 +26,7 @@ function openSellSheet(id){
   document.getElementById('in-multi-search').value = '';
   document.getElementById('in-has-debt').checked = false;
   document.getElementById('debt-fields').style.display = 'none';
-  document.getElementById('multi-confirm-fab').style.display = 'none';
+  document.getElementById('clear-multi-cart-btn').style.display = 'none';
   document.getElementById('in-debt-amount').value = '';
   document.getElementById('in-debt-client-name').value = '';
   document.getElementById('in-debt-client-phone').value = '';
@@ -40,16 +40,14 @@ function openSellSheet(id){
 }
 function closeSellSheet(){
   document.getElementById('sell-overlay').classList.remove('open');
-  document.getElementById('multi-confirm-fab').style.display = 'none';
   sellingProductId = null;
 }
 function toggleCreditFields(){
   const cb = document.getElementById('in-is-credit');
-  if(cb.checked && !isFeatureUnlocked('customerDebts')){
-    cb.checked = false;
-    openLimitSheet('debts');
-    return;
-  }
+  // Dettes/crédits clients : gratuits et illimités pour tous les paliers, y compris
+  // Simple gratuit — voir plans.js (customerDebts n'existe plus comme fonctionnalité
+  // à débloquer). Seules les DÉPENSES restent plafonnées sur Simple gratuit (voir
+  // openExpenseSheet() dans debts-expenses-alerts.js).
   const isCredit = cb.checked;
   document.getElementById('credit-fields').style.display = isCredit ? 'block' : 'none';
   // Une vente est soit 100% crédit, soit partiellement en dette — pas les deux.
@@ -62,14 +60,21 @@ function toggleMultiFields(){
   const isMulti = document.getElementById('in-is-multi').checked;
   document.getElementById('single-sale-fields').style.display = isMulti ? 'none' : 'block';
   document.getElementById('multi-fields').style.display = isMulti ? 'block' : 'none';
-  // Bouton flottant ✅ : évite de devoir descendre jusqu'en bas d'un catalogue de
-  // plusieurs centaines/milliers de produits juste pour valider le panier.
-  document.getElementById('multi-confirm-fab').style.display = isMulti ? 'flex' : 'none';
+  // "Tout supprimer" n'a de sens que sur un panier à plusieurs produits — masqué en
+  // vente simple (voir aussi le 🗑️ par produit, dans renderMultiProductRow()).
+  document.getElementById('clear-multi-cart-btn').style.display = isMulti ? 'block' : 'none';
   if(isMulti) renderMultiProductList();
   else {
     document.getElementById('in-has-debt').checked = false;
     toggleDebtFields();
   }
+}
+// Vide entièrement le panier en cours (mode "vente plusieurs") — bouton "🗑️ Tout
+// supprimer", sous "Confirmer la vente". Pour retirer UN SEUL produit, voir plutôt le
+// 🗑️ affiché sur chaque ligne déjà sélectionnée (renderMultiProductRow()).
+function clearMultiCart(){
+  multiCart = {};
+  renderMultiProductList();
 }
 function toggleDebtFields(){
   const cb = document.getElementById('in-has-debt');
@@ -110,33 +115,79 @@ function setMultiQtyDirect(productId, rawValue){
   else multiCart[productId] = qty;
   updateMultiTotal();
 }
+/* ---------- Pagination de la liste "vente plusieurs" ----------
+   Même esprit que PRODUCTS_PAGE_SIZE dans render.js (tableau de bord principal) : sans
+   ça, un catalogue de plusieurs centaines de produits rendrait la fiche de vente lente à
+   ouvrir. Les produits DÉJÀ dans le panier restent toujours visibles tout en haut, quelle
+   que soit la page affichée — un caissier qui cherche un autre article ne doit jamais
+   perdre de vue ce qu'il a déjà sélectionné pour ce client. */
+const MULTI_LIST_PAGE_SIZE = 50;
+let multiListRevealCount = MULTI_LIST_PAGE_SIZE;
+let lastMultiSearchQuery = null;
+function loadMoreMultiProducts(){
+  multiListRevealCount += MULTI_LIST_PAGE_SIZE;
+  renderMultiProductList();
+}
+function renderMultiProductRow(p, removable){
+  const qty = multiCart[p.id] || 0;
+  const unit = p.unit || 'pc';
+  const row = document.createElement('div');
+  row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
+  const qtyControlHtml = isDecimalUnit(unit)
+    ? '<input type="number" class="multi-qty-input" inputmode="decimal" step="' + unitStep(unit) + '" min="0" max="' + p.qty + '" value="' + (qty || '') + '" placeholder="0" data-id="' + p.id + '">'
+    : '<div class="qty-stepper">' +
+        '<button type="button" data-id="' + p.id + '" data-d="-1"' + (qty<=0?' disabled':'') + '>−</button>' +
+        '<span>' + qty + '</span>' +
+        '<button type="button" data-id="' + p.id + '" data-d="1"' + (qty>=p.qty?' disabled':'') + '>+</button>' +
+      '</div>';
+  // 🗑️ uniquement sur les lignes déjà DANS le panier (voir l'appel depuis
+  // renderMultiProductList()) — retirer un produit qu'on n'a pas encore sélectionné
+  // n'aurait pas de sens, le stepper à 0 suffit pour celles-là.
+  const removeBtnHtml = removable
+    ? '<button type="button" class="multi-row-remove" data-remove-id="' + p.id + '" aria-label="Retirer">🗑️</button>'
+    : '';
+  row.innerHTML =
+    '<div class="info">' +
+      '<div class="name">' + escapeHtml(p.name) + '</div>' +
+      '<div class="meta">' + formatMoney(p.sell) + ' · ' + formatQty(p.qty, unit) + ' disponible' + (p.qty>1?'s':'') + '</div>' +
+    '</div>' +
+    qtyControlHtml + removeBtnHtml;
+  return row;
+}
 function renderMultiProductList(){
   const wrap = document.getElementById('multi-product-list');
   const search = document.getElementById('in-multi-search').value.trim().toLowerCase();
-  const list = products.filter(p=> !search || p.name.toLowerCase().includes(search));
+  // Une recherche qui change réellement la liste repart de la première page (même
+  // logique que la liste principale, voir render.js).
+  if(search !== lastMultiSearchQuery){
+    multiListRevealCount = MULTI_LIST_PAGE_SIZE;
+    lastMultiSearchQuery = search;
+  }
+  const filtered = products.filter(p=> !search || p.name.toLowerCase().includes(search));
+  const selected = filtered.filter(p => (multiCart[p.id]||0) > 0);
+  const rest = filtered.filter(p => !(multiCart[p.id]||0) > 0);
+  const visibleRest = rest.slice(0, multiListRevealCount);
   wrap.innerHTML = '';
-  list.forEach(p=>{
-    const qty = multiCart[p.id] || 0;
-    const unit = p.unit || 'pc';
-    const row = document.createElement('div');
-    row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
-    const qtyControlHtml = isDecimalUnit(unit)
-      ? '<input type="number" class="multi-qty-input" inputmode="decimal" step="' + unitStep(unit) + '" min="0" max="' + p.qty + '" value="' + (qty || '') + '" placeholder="0" data-id="' + p.id + '">'
-      : '<div class="qty-stepper">' +
-          '<button type="button" data-id="' + p.id + '" data-d="-1"' + (qty<=0?' disabled':'') + '>−</button>' +
-          '<span>' + qty + '</span>' +
-          '<button type="button" data-id="' + p.id + '" data-d="1"' + (qty>=p.qty?' disabled':'') + '>+</button>' +
-        '</div>';
-    row.innerHTML =
-      '<div class="info">' +
-        '<div class="name">' + escapeHtml(p.name) + '</div>' +
-        '<div class="meta">' + formatMoney(p.sell) + ' · ' + formatQty(p.qty, unit) + ' disponible' + (p.qty>1?'s':'') + '</div>' +
-      '</div>' +
-      qtyControlHtml;
-    wrap.appendChild(row);
-  });
+  selected.forEach(p => wrap.appendChild(renderMultiProductRow(p, true)));
+  if(selected.length > 0 && visibleRest.length > 0){
+    const sep = document.createElement('div');
+    sep.className = 'multi-list-separator';
+    wrap.appendChild(sep);
+  }
+  visibleRest.forEach(p => wrap.appendChild(renderMultiProductRow(p, false)));
+  const loadMoreBtn = document.getElementById('load-more-multi-btn');
+  if(loadMoreBtn){
+    const remaining = rest.length - visibleRest.length;
+    loadMoreBtn.style.display = remaining > 0 ? 'block' : 'none';
+    if(remaining > 0){
+      loadMoreBtn.textContent = (dict[currentLang].loadMoreProductsBtn || 'Afficher plus ({n} restants)').replace('{n}', remaining);
+    }
+  }
   wrap.querySelectorAll('button[data-id]').forEach(btn=>{
     btn.addEventListener('click', ()=> changeMultiQty(btn.dataset.id, parseInt(btn.dataset.d)));
+  });
+  wrap.querySelectorAll('button[data-remove-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ delete multiCart[btn.dataset.removeId]; renderMultiProductList(); });
   });
   wrap.querySelectorAll('input.multi-qty-input').forEach(inp=>{
     inp.addEventListener('input', ()=> setMultiQtyDirect(inp.dataset.id, inp.value));
@@ -863,5 +914,102 @@ function initVoiceSaleButton(){
   btn.addEventListener('mousedown', startVoiceSale);
   btn.addEventListener('mouseup', stopVoiceSale);
   btn.addEventListener('mouseleave', stopVoiceSale);
+}
+
+/* =========================================================================
+   PANIER EN PAUSE — voir la doc complète sur heldCarts (config.js).
+   ========================================================================= */
+function saveHeldCarts(){
+  try{ localSet('mombongo:heldCarts', JSON.stringify(heldCarts)); }catch(e){}
+}
+
+// Appelée depuis navigation.js quand le bouton retour (Android/navigateur) est pressé
+// pendant qu'une vente est ouverte. Renvoie :
+//   'none'    → rien à mettre en pause (vente simple, ou panier vide) : fermeture normale.
+//   'paused'  → panier mis de côté avec succès : fermeture normale, mais le panier
+//               réapparaîtra dans la liste "🧺" au lieu d'être perdu.
+//   'blocked' → 3 ventes déjà en attente : on refuse d'en empiler une 4e en silence
+//               (mieux vaut forcer à en reprendre/annuler une d'abord que de perdre
+//               discrètement les articles déjà choisis pour ce client-ci).
+function pauseCurrentCartIfAny(){
+  const isMulti = document.getElementById('in-is-multi').checked;
+  const itemCount = Object.keys(multiCart).length;
+  if(!isMulti || itemCount === 0) return 'none';
+  if(heldCarts.length >= MAX_HELD_CARTS){
+    showToast(dict[currentLang].heldCartsFullMsg, 4500);
+    return 'blocked';
+  }
+  heldCarts.push({ id: 'held' + Date.now() + Math.random().toString(36).slice(2,6), cart: { ...multiCart }, savedAt: Date.now() });
+  saveHeldCarts();
+  updateHeldCartsBadge();
+  showToast(dict[currentLang].cartPausedMsg, 3000);
+  return 'paused';
+}
+
+// Bouton 🧺, à gauche du micro (même emplacement, en miroir, que 📷 à droite) — visible
+// uniquement s'il y a au moins un panier en attente, avec un badge "1"/"2"/"3" au-dessus.
+function updateHeldCartsBadge(){
+  const btn = document.getElementById('held-carts-btn');
+  const badge = document.getElementById('held-carts-badge');
+  if(!btn || !badge) return;
+  const n = heldCarts.length;
+  btn.style.display = (n > 0 && canSell()) ? 'flex' : 'none';
+  badge.textContent = n;
+}
+
+function openHeldCartsSheet(){
+  renderHeldCartsList();
+  document.getElementById('held-carts-overlay').classList.add('open');
+}
+function closeHeldCartsSheet(){
+  document.getElementById('held-carts-overlay').classList.remove('open');
+}
+function renderHeldCartsList(){
+  const wrap = document.getElementById('held-carts-list');
+  const t = dict[currentLang];
+  wrap.innerHTML = '';
+  heldCarts.forEach((held, index)=>{
+    const items = Object.entries(held.cart).map(([id, qty])=>{
+      const product = products.find(p=>p.id===id);
+      return product ? { product, qty } : null;
+    }).filter(Boolean);
+    const total = items.reduce((s,it)=>s + it.qty*it.product.sell, 0);
+    const row = document.createElement('div');
+    row.className = 'held-cart-row';
+    row.innerHTML =
+      '<div class="info">' +
+        '<div class="name">' + t.heldCartLabel.replace('{n}', index+1) + '</div>' +
+        '<div class="meta">' + (t.heldCartItemsCount || '{n} article(s)').replace('{n}', items.length) + ' · ' + formatMoney(total) + '</div>' +
+      '</div>' +
+      '<button type="button" class="btn-secondary held-cart-drop" data-drop="' + index + '" aria-label="' + t.heldCartDropBtn + '">🗑️</button>' +
+      '<button type="button" class="btn-primary held-cart-resume" data-resume="' + index + '">' + t.heldCartResumeBtn + '</button>';
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('button[data-resume]').forEach(btn=>{
+    btn.addEventListener('click', ()=> resumeHeldCart(parseInt(btn.dataset.resume,10)));
+  });
+  wrap.querySelectorAll('button[data-drop]').forEach(btn=>{
+    btn.addEventListener('click', ()=> dropHeldCart(parseInt(btn.dataset.drop,10)));
+  });
+}
+function resumeHeldCart(index){
+  const held = heldCarts[index];
+  if(!held) return;
+  heldCarts.splice(index, 1);
+  saveHeldCarts();
+  updateHeldCartsBadge();
+  closeHeldCartsSheet();
+  openSellSheet(null);
+  multiCart = { ...held.cart };
+  document.getElementById('in-is-multi').checked = true;
+  toggleMultiFields();
+}
+// Retire une vente de la liste d'attente SANS la reprendre — pour un client qui a
+// finalement renoncé à cet achat pendant qu'il patientait dans les rayons.
+function dropHeldCart(index){
+  heldCarts.splice(index, 1);
+  saveHeldCarts();
+  updateHeldCartsBadge();
+  renderHeldCartsList();
 }
 

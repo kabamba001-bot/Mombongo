@@ -24,10 +24,57 @@ function isToday(ts){
 }
 function daysSince(ts){ return Math.floor((Date.now()-ts)/86400000); }
 
+// 'all' | 'favorites' — voir setProductsView() plus bas et le couple d'onglets
+// #tab-my-products / #tab-favorites dans index.html.
+let productsView = 'all';
+function setProductsView(view){
+  if(productsView === view) return;
+  productsView = view;
+  productsRevealCount = PRODUCTS_PAGE_SIZE; // repart de la première page, comme une recherche
+  document.getElementById('tab-my-products').classList.toggle('active', view==='all');
+  document.getElementById('tab-favorites').classList.toggle('active', view==='favorites');
+  render();
+}
+
+/* ---------- Favoris : loi de Pareto classique sur 30 jours glissants ----------
+   Les produits qui, cumulés par chiffre d'affaires décroissant, représentent ~80% des
+   ventes des 30 derniers jours — pas "aujourd'hui" (trop instable pour une petite
+   boutique d'un jour à l'autre) ni "à vie" (un produit qui se vendait bien il y a 6 mois
+   mais plus du tout resterait favori pour toujours). Recalculé à chaque appel : même
+   avec plusieurs milliers de lignes de ventes sur 30 jours, ça reste largement assez
+   rapide pour ne pas justifier un cache. */
+const FAVORITES_WINDOW_DAYS = 30;
+const FAVORITES_PARETO_SHARE = 0.8;
+function getFavoriteProductIds(){
+  const since = Date.now() - FAVORITES_WINDOW_DAYS*24*60*60*1000;
+  const revenueByProduct = {};
+  let totalRevenue = 0;
+  sales.forEach(s=>{
+    if(!s.productId || s.date < since) return;
+    revenueByProduct[s.productId] = (revenueByProduct[s.productId] || 0) + s.total;
+    totalRevenue += s.total;
+  });
+  const favIds = new Set();
+  if(totalRevenue <= 0) return favIds;
+  const ranked = Object.entries(revenueByProduct).sort((a,b)=>b[1]-a[1]);
+  let cumulative = 0;
+  for(const [productId, revenue] of ranked){
+    favIds.add(productId);
+    cumulative += revenue;
+    if(cumulative >= totalRevenue * FAVORITES_PARETO_SHARE) break;
+  }
+  return favIds;
+}
+
 function getFilteredProducts(){
   const q = document.getElementById('search-input').value.trim().toLowerCase();
-  if(!q) return products;
-  return products.filter(p=>p.name.toLowerCase().includes(q));
+  let base = products;
+  if(productsView === 'favorites'){
+    const favIds = getFavoriteProductIds();
+    base = products.filter(p => favIds.has(p.id));
+  }
+  if(!q) return base;
+  return base.filter(p=>p.name.toLowerCase().includes(q));
 }
 
 /* ---------- Pagination de la liste produits ----------
@@ -72,6 +119,7 @@ function render(){
   document.getElementById('t-add-btn').style.display = (role==='caissier') ? 'none' : '';
   document.getElementById('t-expense-btn').style.display = (role==='patron' || role==='caissier' || role==='magasinier') ? '' : 'none';
   document.getElementById('voice-sale-btn').style.display = canSell() ? '' : 'none';
+  if(typeof updateHeldCartsBadge === 'function') updateHeldCartsBadge();
   ['reset-today-sales-btn','reset-today-profit-btn','reset-total-profit-btn','reset-expenses-btn'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = isPatron() ? '' : 'none';
@@ -139,6 +187,11 @@ function render(){
   } else if(filtered.length === 0){
     empty.style.display = 'none';
     noResults.style.display = 'block';
+    // Vue Favoris sans recherche active et sans assez de ventes sur 30 jours pour en
+    // dégager : le message générique "aucun résultat pour ta recherche" serait trompeur
+    // (il n'y a pas de recherche en cours).
+    document.getElementById('t-no-results').textContent = (productsView === 'favorites' && !currentSearchQuery)
+      ? t.noFavoritesYet : t.noResults;
     if(loadMoreBtn) loadMoreBtn.style.display = 'none';
   } else {
     empty.style.display = 'none';
