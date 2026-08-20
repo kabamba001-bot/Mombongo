@@ -678,16 +678,16 @@ function openBulkCatalogSheet(){
   openBulkCatalogSheetInner();
 }
 function openBulkCatalogSheetInner(){
-  const merged = getBulkAddCatalogForActiveStore();
-  if(!merged || merged.length === 0){
-    showToast(currentLang==='fr' ? "Pas encore de catalogue pour cette boutique" : (currentLang==='ln' ? "Catalogue ezali nanu te" : "Bado hakuna katalogi kwa duka hili"));
-    return;
-  }
   bulkCatalogSelection = new Set();
   document.getElementById('in-bulk-search').value = '';
   document.getElementById('in-bulk-default-sell').value = '';
   document.getElementById('in-bulk-default-qty').value = '';
   document.getElementById('in-bulk-default-threshold').value = '3';
+  // Ouvre toujours la fenêtre, même si le catalogue de cette catégorie est vide pour
+  // l'instant — avant, un catalogue vide empêchait l'ouverture (juste un toast fugace),
+  // ce qui donnait l'impression que le bouton ne réagissait pas du tout. Le message vide
+  // s'affiche maintenant DANS la fenêtre (voir renderBulkCatalogList), avec le lien pour
+  // changer de métier bien visible pour corriger si la catégorie choisie est en cause.
   renderBulkCatalogList('');
   updateBulkCatalogTypeLabel();
   document.getElementById('bulk-catalog-overlay').classList.add('open');
@@ -744,6 +744,23 @@ function renderBulkCatalogList(query){
   const list = (q ? merged.filter(n=>n.toLowerCase().includes(q)) : merged).slice(0, 300);
   const wrap = document.getElementById('bulk-catalog-list');
   wrap.innerHTML = '';
+  if(merged.length === 0){
+    // Catalogue vide pour cette catégorie (soit "autre", qui n'a pas de catalogue
+    // statique — voir getCatalogForStore(), soit un métier dont personne n'a encore
+    // scanné de produit dans le catalogue communautaire). On l'explique ici, dans la
+    // fenêtre elle-même, plutôt que de refuser de l'ouvrir — avec un rappel du lien
+    // juste au-dessus pour corriger la catégorie si elle ne correspond pas au commerce.
+    const empty = document.createElement('p');
+    empty.style.cssText = 'font-size:13px; color:var(--charcoal-soft); text-align:center; padding:16px 4px;';
+    empty.textContent = currentLang==='fr'
+      ? "Pas encore de catalogue pour cette catégorie. Vérifie le métier choisi ci-dessus, ou ajoute tes produits un par un avec le bouton \"+ Produit\"."
+      : (currentLang==='ln'
+        ? "Catalogue ezali nanu te mpo na metie oyo. Tala metie oponi likolo, to bakisa biloko na yo moko na moko na bouton \"+ Produit\"."
+        : "Bado hakuna katalogi kwa kazi hii. Angalia kazi uliyochagua hapo juu, au ongeza bidhaa moja moja kwa kitufe \"+ Produit\".");
+    wrap.appendChild(empty);
+    updateBulkCatalogCount();
+    return;
+  }
   list.forEach(name=>{
     const checked = bulkCatalogSelection.has(name);
     const row = document.createElement('label');
