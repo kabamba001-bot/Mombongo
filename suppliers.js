@@ -37,44 +37,13 @@ function canManageSuppliers(){
   return r === 'patron' || r === 'caissier';
 }
 
-/* ---------- Interrupteur VIP (menu Compte → Boutiques) ---------- */
-async function toggleSuppliersFeature(){
-  const t = dict[currentLang];
-  const checkbox = document.getElementById('in-suppliers-toggle');
-  if(!isVip){
-    if(checkbox) checkbox.checked = false;
-    closeAccountSheet();
-    openLimitSheet('suppliers');
-    return;
-  }
-  suppliersFeatureEnabled = checkbox ? checkbox.checked : !suppliersFeatureEnabled;
-  await saveSuppliersFeatureEnabled();
-  updateHeaderSuppliersButtonVisibility();
-  showToast(suppliersFeatureEnabled ? t.suppliersEnabled : t.suppliersDisabled);
-}
-
-// Le bouton d'en-tête n'existe que si : la fonctionnalité est activée pour cette boutique,
-// ET l'utilisateur est actuellement VIP (un VIP expiré masque le bouton, sans perdre les
-// données déjà enregistrées — elles réapparaissent dès que le VIP est renouvelé), ET son
-// rôle l'autorise à voir des informations financières.
-function updateHeaderSuppliersButtonVisibility(){
-  const btn = document.getElementById('suppliers-header-btn');
-  if(!btn) return;
-  btn.style.display = (suppliersFeatureEnabled && isVip && canManageSuppliers()) ? 'flex' : 'none';
-}
-// Se greffe sur render(), comme updateBackupBanner()/updateBarcodeButtonsVisibility() —
-// le statut VIP ou le rôle peuvent changer sans repasser par ce fichier.
-window.addEventListener('load', function(){
-  if(typeof render === 'function' && !render.__suppliersButtonWrapped){
-    const _originalRenderForSuppliers = render;
-    render = function(){
-      _originalRenderForSuppliers.apply(this, arguments);
-      updateHeaderSuppliersButtonVisibility();
-    };
-    render.__suppliersButtonWrapped = true;
-  }
-  updateHeaderSuppliersButtonVisibility();
-});
+/* ---------- Interrupteur du menu Compte → Boutiques ----------
+   Ne redéfinit PAS toggleSuppliersFeature()/updateHeaderSuppliersButtonVisibility() :
+   ces deux fonctions existent déjà, à jour, dans data-catalog.js (branchées sur le
+   système de paliers actuel — isFeatureUnlocked('supplierManagement') — plutôt que sur
+   l'ancien isVip, retiré depuis). Les redéfinir ici les écraserait silencieusement,
+   puisque suppliers.js se charge APRÈS data-catalog.js dans index.html : le doublon
+   qui existait ici a été supprimé pour ne garder qu'une seule version, la bonne. */
 
 /* ---------- Montant dû à un fournisseur (somme de ses achats à crédit non réglés) ---------- */
 function supplierTotalOwed(supplierId){
@@ -90,7 +59,7 @@ function totalOwedToAllSuppliers(){
 
 /* ---------- Fiche principale : liste des fournisseurs ---------- */
 function openSuppliersSheet(){
-  if(!isVip || !suppliersFeatureEnabled){ openLimitSheet('suppliers'); return; }
+  if(!isFeatureUnlocked('supplierManagement') || !suppliersFeatureEnabled){ openLimitSheet('suppliers'); return; }
   if(!canManageSuppliers()){ showToast(dict[currentLang].restrictedFeature); return; }
   renderSuppliersList();
   document.getElementById('suppliers-overlay').classList.add('open');

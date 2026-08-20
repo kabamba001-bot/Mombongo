@@ -30,10 +30,15 @@ function saveSuppliersFeatureEnabled(){
   pushToCloud();
 }
 // Affiche/masque le bouton 🚚 Fournisseurs dans l'en-tête (ligne du taux de change),
-// selon que la fonctionnalité a été activée dans Compte → Gestion fournisseurs.
+// selon que la fonctionnalité a été activée dans Compte → Gestion fournisseurs ET que
+// le rôle courant y a accès (un magasinier n'a pas le droit de lire cette collection —
+// voir suppliers-sync.js/firestore.rules — le bouton reste donc caché pour lui, plutôt
+// que de l'amener vers un écran qui refuserait de s'ouvrir).
 function updateHeaderSuppliersButtonVisibility(){
   const btn = document.getElementById('suppliers-header-btn');
-  if(btn) btn.style.display = suppliersFeatureEnabled ? 'flex' : 'none';
+  if(!btn) return;
+  const roleOk = (typeof canManageSuppliers === 'function') ? canManageSuppliers() : true;
+  btn.style.display = (suppliersFeatureEnabled && roleOk) ? 'flex' : 'none';
 }
 // Appelé par le switch "🚚 Gestion fournisseurs" du menu Compte (fonctionnalité VIP).
 function toggleSuppliersFeature(){
@@ -264,6 +269,27 @@ function getFullCatalogForActiveStore(){
   const seen = new Set();
   const merged = [];
   [...customCatalog, ...community, ...shared].forEach(n=>{
+    const key = n.toLowerCase();
+    if(!seen.has(key)){ seen.add(key); merged.push(n); }
+  });
+  return merged;
+}
+
+// Variante utilisée UNIQUEMENT par "Ajout rapide depuis le catalogue" (openBulkCatalogSheet,
+// products.js) — sans customCatalog. customCatalog est l'historique personnel de CE compte
+// (tout ce qu'il a déjà tapé manuellement un jour, boutique/pharmacie/quincaillerie confondus,
+// voir maybeOfferCustomCatalogSave() plus bas) : parfaitement pertinent en autosuggestion
+// pendant la saisie d'un nom de produit (updateProductNameSuggestions(), qui garde
+// getFullCatalogForActiveStore() ci-dessus telle quelle), mais hors-sujet dans "Ajout rapide"
+// qui promet justement "le catalogue de TON métier" — y injecter en tête de liste l'historique
+// personnel, identique quel que soit le métier choisi, donnait l'impression trompeuse que
+// changer de métier ne changeait rien (les mêmes produits restaient toujours en haut).
+function getBulkAddCatalogForActiveStore(){
+  const shared = getCatalogForStore(activeStoreId) || [];
+  const community = (typeof getCommunityCatalogNames === 'function') ? getCommunityCatalogNames() : [];
+  const seen = new Set();
+  const merged = [];
+  [...community, ...shared].forEach(n=>{
     const key = n.toLowerCase();
     if(!seen.has(key)){ seen.add(key); merged.push(n); }
   });
