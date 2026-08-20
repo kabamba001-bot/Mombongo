@@ -128,6 +128,10 @@ async function pushToCloud(){
       update.userPlanTrialEndsAt = userPlanTrialEndsAt;
       update.userPlanExpiresAt = userPlanExpiresAt;
       update.userHasUsedBusinessTrial = userHasUsedBusinessTrial;
+      update.pausedPlan = pausedPlan;
+      update.pausedPlanStatus = pausedPlanStatus;
+      update.pausedPlanTrialEndsAt = pausedPlanTrialEndsAt;
+      update.pausedPlanExpiresAt = pausedPlanExpiresAt;
     } else if(employeeRole === 'patron'){
       // Appareil secondaire en rôle patron : mêmes droits que le compte principal
       // sur les boutiques et le taux de change (pas de profil Google à renvoyer ici).
@@ -140,6 +144,10 @@ async function pushToCloud(){
       update.userPlanTrialEndsAt = userPlanTrialEndsAt;
       update.userPlanExpiresAt = userPlanExpiresAt;
       update.userHasUsedBusinessTrial = userHasUsedBusinessTrial;
+      update.pausedPlan = pausedPlan;
+      update.pausedPlanStatus = pausedPlanStatus;
+      update.pausedPlanTrialEndsAt = pausedPlanTrialEndsAt;
+      update.pausedPlanExpiresAt = pausedPlanExpiresAt;
     }
     await db.collection('mombongo_users').doc(ownerUid).set(update, { merge: true });
     lastSyncOk = true;
@@ -158,6 +166,10 @@ function applyDocData(data){
   userPlanTrialEndsAt = data.userPlanTrialEndsAt || null;
   userPlanExpiresAt = data.userPlanExpiresAt || null;
   userHasUsedBusinessTrial = !!data.userHasUsedBusinessTrial;
+  pausedPlan = data.pausedPlan || null;
+  pausedPlanStatus = data.pausedPlanStatus || null;
+  pausedPlanTrialEndsAt = data.pausedPlanTrialEndsAt || null;
+  pausedPlanExpiresAt = data.pausedPlanExpiresAt || null;
   planDataLoaded = true;
   if(typeof savePlanToCache === 'function') savePlanToCache();
   if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
@@ -243,6 +255,7 @@ async function handlePostLogin(){
     } else {
       userPlan = 'simple'; userPlanStatus = 'free'; userPlanTrialEndsAt = null; userPlanExpiresAt = null;
       userHasUsedBusinessTrial = false;
+      pausedPlan = null; pausedPlanStatus = null; pausedPlanTrialEndsAt = null; pausedPlanExpiresAt = null;
       planDataLoaded = true;
       if(typeof savePlanToCache === 'function') savePlanToCache();
       if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
@@ -254,7 +267,8 @@ async function handlePostLogin(){
       await db.collection('mombongo_users').doc(currentUser.uid).set({
         stores, activeStoreId, storesData: storesDataCache, rate: exchangeRate, currency: currentCurrency,
         email: currentUser.email || '', displayName: currentUser.displayName || '', updatedAt: Date.now(),
-        userPlan, userPlanStatus, userPlanTrialEndsAt, userPlanExpiresAt, userHasUsedBusinessTrial
+        userPlan, userPlanStatus, userPlanTrialEndsAt, userPlanExpiresAt, userHasUsedBusinessTrial,
+        pausedPlan, pausedPlanStatus, pausedPlanTrialEndsAt, pausedPlanExpiresAt
       }, { merge: true });
       const pendingRef = localStorage.getItem('mombongo:pendingRef');
       if(pendingRef && pendingRef !== currentUser.uid){

@@ -98,6 +98,10 @@ async function choosePlanOnboarding(plan){
     // paiement en jeu côté Simple), mais peut geler des produits au-delà de la
     // limite Simple : on prévient avant d'agir.
     if(!window.confirm(t.confirmDowngradeToSimple)) return;
+    // Garde une trace de ce qu'il reste de payé/en essai AVANT de l'effacer — voir
+    // pauseCurrentPlanIfWorthSaving() (plans.js) : sans ça, quelqu'un qui vient juste
+    // "voir" Simple depuis un Pro payé perdait le reste de son abonnement pour de bon.
+    if(typeof pauseCurrentPlanIfWorthSaving === 'function') pauseCurrentPlanIfWorthSaving();
     userPlan = 'simple'; userPlanStatus = 'free'; userPlanExpiresAt = null;
     // userPlanTrialEndsAt et userHasUsedBusinessTrial NE sont PAS remis à zéro : un
     // essai Business déjà consommé reste consommé, même après ce retour à Simple.
@@ -115,6 +119,20 @@ async function choosePlanOnboarding(plan){
     if(eff.plan === 'business'){
       markPlanOnboardingSeen();
       closePlanOnboardingOverlay();
+      return;
+    }
+    // Reprise d'un essai/abonnement Business mis en pause (voir choosePlanOnboarding
+    // ('simple') plus haut) — encore valide, donc restaurée tel quel, sans repasser par
+    // l'essai/le paiement/WhatsApp : la personne n'a fait qu'un aller-retour, elle n'a
+    // pas "fini" son Business.
+    if(typeof restorePausedPlanIfStillValid === 'function' && restorePausedPlanIfStillValid('business')){
+      if(typeof savePlanToCache === 'function') savePlanToCache();
+      if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+      markPlanOnboardingSeen();
+      closePlanOnboardingOverlay();
+      if(typeof pushToCloud === 'function') await pushToCloud();
+      if(typeof render === 'function') render();
+      showToast(t.planResumedMsg || t.planChosenBusinessMsg || '', 4000);
       return;
     }
     // Promo "50 places Business" (voir debts-expenses-alerts.js) : tentée AVANT l'essai
@@ -160,6 +178,19 @@ async function choosePlanOnboarding(plan){
     if(eff.plan === 'pro'){
       markPlanOnboardingSeen();
       closePlanOnboardingOverlay();
+      return;
+    }
+    // Même reprise que côté Business ci-dessus — c'est le cas visé en premier lieu : un
+    // compte Pro payé qui fait juste un tour sur Simple/Business ne doit pas retomber sur
+    // un mur "contacte-nous" à son retour tant que sa date d'expiration n'est pas dépassée.
+    if(typeof restorePausedPlanIfStillValid === 'function' && restorePausedPlanIfStillValid('pro')){
+      if(typeof savePlanToCache === 'function') savePlanToCache();
+      if(typeof enforceAllowedCurrencyForPlan === 'function') enforceAllowedCurrencyForPlan();
+      markPlanOnboardingSeen();
+      closePlanOnboardingOverlay();
+      if(typeof pushToCloud === 'function') await pushToCloud();
+      if(typeof render === 'function') render();
+      showToast(t.planResumedMsg || '', 4000);
       return;
     }
     // Promo "50 places Pro" — même logique que côté Business ci-dessus, tentée avant la

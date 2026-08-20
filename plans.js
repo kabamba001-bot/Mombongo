@@ -28,6 +28,18 @@ let userPlanExpiresAt = null;     // ms epoch ou null
    ça, un commerçant pourrait faire simple→business→simple→business... et relancer
    14 jours gratuits à chaque fois. Un seul essai gratuit par compte, point final. */
 let userHasUsedBusinessTrial = false;
+/* Mémoire d'un abonnement payé/en essai qu'on a mis "en pause" volontairement (voir
+   choosePlanOnboarding('simple') dans plan-onboarding.js) — sans ça, quelqu'un qui a payé
+   Pro et fait juste un tour sur Simple/Business perdait purement et simplement le reste de
+   son abonnement : à son retour sur Pro, l'app le traitait comme un tout nouveau client et
+   lui redemandait de payer/contacter, alors que sa date d'expiration n'était pas encore
+   passée. Restauré automatiquement par restorePausedPlanIfStillValid() ci-dessous, tant que
+   pausedPlanExpiresAt (abonnement payé) ou pausedPlanTrialEndsAt (essai Business) n'est pas
+   dépassé — au-delà, il s'agit d'une vraie expiration, pas d'un simple aller-retour.  */
+let pausedPlan = null;              // 'business' | 'pro' | null
+let pausedPlanStatus = null;        // 'trial' | 'active' | null
+let pausedPlanTrialEndsAt = null;
+let pausedPlanExpiresAt = null;
 
 /* GARDE-FOU — planDataLoaded ne passe à true qu'une fois la vraie valeur du compte
    connue (cache local via loadPlanFromCache(), ou compte Google via applyDocData()) —
@@ -513,7 +525,11 @@ const PLAN_CACHE_KEYS = {
   status: 'mombongo:userPlanStatus',
   trialEndsAt: 'mombongo:userPlanTrialEndsAt',
   expiresAt: 'mombongo:userPlanExpiresAt',
-  trialUsed: 'mombongo:userHasUsedBusinessTrial'
+  trialUsed: 'mombongo:userHasUsedBusinessTrial',
+  pausedPlan: 'mombongo:pausedPlan',
+  pausedPlanStatus: 'mombongo:pausedPlanStatus',
+  pausedPlanTrialEndsAt: 'mombongo:pausedPlanTrialEndsAt',
+  pausedPlanExpiresAt: 'mombongo:pausedPlanExpiresAt'
 };
 
 function savePlanToCache(){
@@ -522,6 +538,10 @@ function savePlanToCache(){
   localSet(PLAN_CACHE_KEYS.trialEndsAt, userPlanTrialEndsAt === null ? '' : String(userPlanTrialEndsAt));
   localSet(PLAN_CACHE_KEYS.expiresAt, userPlanExpiresAt === null ? '' : String(userPlanExpiresAt));
   localSet(PLAN_CACHE_KEYS.trialUsed, userHasUsedBusinessTrial ? '1' : '');
+  localSet(PLAN_CACHE_KEYS.pausedPlan, pausedPlan || '');
+  localSet(PLAN_CACHE_KEYS.pausedPlanStatus, pausedPlanStatus || '');
+  localSet(PLAN_CACHE_KEYS.pausedPlanTrialEndsAt, pausedPlanTrialEndsAt === null ? '' : String(pausedPlanTrialEndsAt));
+  localSet(PLAN_CACHE_KEYS.pausedPlanExpiresAt, pausedPlanExpiresAt === null ? '' : String(pausedPlanExpiresAt));
 }
 
 function loadPlanFromCache(){
@@ -530,12 +550,64 @@ function loadPlanFromCache(){
   const te = localGet(PLAN_CACHE_KEYS.trialEndsAt);
   const ee = localGet(PLAN_CACHE_KEYS.expiresAt);
   const tu = localGet(PLAN_CACHE_KEYS.trialUsed);
+  const pp = localGet(PLAN_CACHE_KEYS.pausedPlan);
+  const pps = localGet(PLAN_CACHE_KEYS.pausedPlanStatus);
+  const ppte = localGet(PLAN_CACHE_KEYS.pausedPlanTrialEndsAt);
+  const ppee = localGet(PLAN_CACHE_KEYS.pausedPlanExpiresAt);
   if(p && p.value) userPlan = p.value;
   if(s && s.value) userPlanStatus = s.value;
   userPlanTrialEndsAt = (te && te.value) ? parseInt(te.value, 10) : null;
   userPlanExpiresAt = (ee && ee.value) ? parseInt(ee.value, 10) : null;
   userHasUsedBusinessTrial = !!(tu && tu.value === '1');
+  pausedPlan = (pp && pp.value) ? pp.value : null;
+  pausedPlanStatus = (pps && pps.value) ? pps.value : null;
+  pausedPlanTrialEndsAt = (ppte && ppte.value) ? parseInt(ppte.value, 10) : null;
+  pausedPlanExpiresAt = (ppee && ppee.value) ? parseInt(ppee.value, 10) : null;
   planDataLoaded = true;
+}
+
+/* ---------- Mise en pause / restauration d'un abonnement (voir pausedPlan ci-dessus) ----------
+   pauseCurrentPlanIfWorthSaving() : appelée juste avant d'appliquer une rétrogradation
+   volontaire vers Simple (plan-onboarding.js). Ne sauvegarde que s'il y a réellement quelque
+   chose à perdre (essai en cours ou abonnement payé, pas déjà expiré) — et ne remplace jamais
+   une pause existante par une moins bonne (ex. : Pro en pause, on regarde Business, on ne veut
+   pas écraser le Pro en pause par du Business). */
+function pauseCurrentPlanIfWorthSaving(){
+  const rank = { business: 1, pro: 2 };
+  if((userPlan !== 'business' && userPlan !== 'pro')) return;
+  if(userPlanStatus !== 'active' && userPlanStatus !== 'trial') return;
+  if(userPlanStatus === 'active' && (!userPlanExpiresAt || userPlanExpiresAt <= Date.now())) return;
+  if(userPlanStatus === 'trial' && (!userPlanTrialEndsAt || userPlanTrialEndsAt <= Date.now())) return;
+  if(pausedPlan && rank[pausedPlan] > rank[userPlan]) return; // garde la meilleure pause déjà en mémoire
+  pausedPlan = userPlan;
+  pausedPlanStatus = userPlanStatus;
+  pausedPlanTrialEndsAt = userPlanTrialEndsAt;
+  pausedPlanExpiresAt = userPlanExpiresAt;
+}
+
+// true si un abonnement en pause pour EXACTEMENT `plan` est encore valide (pas expiré depuis
+// la mise en pause) — restorePausedPlanIfStillValid() fait le vrai travail de restauration.
+function hasValidPausedPlan(plan){
+  if(pausedPlan !== plan) return false;
+  if(pausedPlanStatus === 'active') return !!pausedPlanExpiresAt && pausedPlanExpiresAt > Date.now();
+  if(pausedPlanStatus === 'trial') return !!pausedPlanTrialEndsAt && pausedPlanTrialEndsAt > Date.now();
+  return false;
+}
+
+// Restaure l'abonnement en pause pour `plan` s'il est toujours valide, et nettoie la pause
+// dans tous les cas (valide restaurée, ou périmée entretemps — dans les deux cas elle ne doit
+// pas rester traînante indéfiniment). Retourne true si une restauration a eu lieu.
+function restorePausedPlanIfStillValid(plan){
+  if(pausedPlan !== plan) return false;
+  const stillValid = hasValidPausedPlan(plan);
+  if(stillValid){
+    userPlan = plan;
+    userPlanStatus = pausedPlanStatus;
+    userPlanTrialEndsAt = pausedPlanTrialEndsAt;
+    userPlanExpiresAt = pausedPlanExpiresAt;
+  }
+  pausedPlan = null; pausedPlanStatus = null; pausedPlanTrialEndsAt = null; pausedPlanExpiresAt = null;
+  return stillValid;
 }
 
 /* Détecte, pendant que l'app reste ouverte, le moment précis où le palier effectif
