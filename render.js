@@ -301,9 +301,6 @@ function openHistorySheet(){
   document.getElementById('custom-range-fields').style.display = 'none';
   setDateValue('in-period-from', '');
   setDateValue('in-period-to', '');
-  document.getElementById('in-history-search').value = '';
-  document.getElementById('in-history-amount-min').value = '';
-  document.getElementById('in-history-amount-max').value = '';
   renderHistory();
   document.getElementById('history-overlay').classList.add('open');
 }
@@ -542,33 +539,6 @@ function renderHistory(){
   } else if(role === 'caissier'){
     sorted = sorted.map(e => e.type === 'sale' ? { ...e, sub: '' } : e); // masque le bénéfice par vente
   }
-
-  // Recherche avancée : se combine avec le filtre de période ci-dessus (jamais à sa
-  // place) — un texte cherche dans le libellé de chaque entrée (nom de produit,
-  // description de dépense, et nom du client pour une vente à crédit ou un
-  // remboursement, voir buildUnifiedHistory()), insensible aux accents/casse via
-  // normalizeForMatch() (déjà utilisé pour la vente vocale, sales.js). Le filtre de
-  // montant compare la VALEUR ABSOLUE (une dépense a un montant négatif) au montant
-  // saisi, converti dans la devise interne comme pour tout autre champ de prix.
-  const searchEl = document.getElementById('in-history-search');
-  const searchRaw = (searchEl && isFeatureUnlocked('advancedHistorySearch')) ? searchEl.value.trim() : '';
-  if(searchRaw){
-    const needle = normalizeForMatch(searchRaw);
-    sorted = sorted.filter(e => normalizeForMatch(e.label).includes(needle));
-  }
-  const minEl = document.getElementById('in-history-amount-min');
-  const maxEl = document.getElementById('in-history-amount-max');
-  const minRaw = (minEl && isFeatureUnlocked('advancedHistorySearch')) ? minEl.value : '';
-  const maxRaw = (maxEl && isFeatureUnlocked('advancedHistorySearch')) ? maxEl.value : '';
-  if(minRaw !== ''){
-    const min = toInternal(parseFloat(minRaw) || 0);
-    sorted = sorted.filter(e => Math.abs(e.amount) >= min - 1e-9);
-  }
-  if(maxRaw !== ''){
-    const max = toInternal(parseFloat(maxRaw) || 0);
-    sorted = sorted.filter(e => Math.abs(e.amount) <= max + 1e-9);
-  }
-
   list.innerHTML = '';
   if(sorted.length === 0){
     empty.style.display = 'block';
@@ -618,32 +588,6 @@ function renderHistory(){
 // Révèle une page de plus dans l'historique déjà affiché (voir HISTORY_PAGE_SIZE).
 function loadMoreHistory(){
   historyPage++;
-  renderHistory();
-}
-// Une recherche ou un filtre de montant qui change réellement le résultat repart de
-// la première page, comme un changement de période (voir setHistoryPeriod()).
-// Blocage palier : appelé au premier "appuie" (focus) sur un des 3 champs — avant
-// même que l'utilisateur ait pu taper quoi que ce soit — pour un compte Simple. Voir
-// le même principe pour les remises dans toggleSaleDiscountFields() (sales.js).
-function guardHistoryAdvancedSearch(inputEl){
-  if(isFeatureUnlocked('advancedHistorySearch')) return true;
-  inputEl.value = '';
-  inputEl.blur();
-  openLimitSheet('historySearch');
-  return false;
-}
-function applyHistorySearch(){
-  if(!isFeatureUnlocked('advancedHistorySearch')){ document.getElementById('in-history-search').value = ''; return; }
-  historyPage = 1;
-  renderHistory();
-}
-function applyHistoryAmountFilter(){
-  if(!isFeatureUnlocked('advancedHistorySearch')){
-    document.getElementById('in-history-amount-min').value = '';
-    document.getElementById('in-history-amount-max').value = '';
-    return;
-  }
-  historyPage = 1;
   renderHistory();
 }
 

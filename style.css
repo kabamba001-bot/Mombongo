@@ -61,6 +61,75 @@
     color:var(--paper); font-family:'Inter',sans-serif; padding:24px; text-align:center;
   }
   #employee-plan-block-overlay.open{ display:flex; }
+  /* Fenêtre obligatoire d'inscription/connexion — voir maybeScheduleAuthGate()
+     dans phone-auth.js. Z-index juste sous #boot-loading-overlay/#employee-plan-block-overlay
+     (ne doit jamais s'afficher tant que l'un des deux couvre encore l'écran), mais
+     largement au-dessus des .sheet-overlay classiques (30). */
+  #auth-gate-overlay{
+    position:fixed; inset:0; z-index:99996; background:rgba(18,16,12,0.82);
+    backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    padding:20px; overflow-y:auto;
+  }
+  #auth-gate-overlay.open{ display:flex; }
+  @keyframes authGatePop{
+    from{ opacity:0; transform:translateY(10px) scale(.96); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .auth-gate-card{
+    background:var(--paper); width:100%; max-width:400px; border-radius:22px;
+    padding:26px 22px 22px; box-shadow:0 12px 40px rgba(0,0,0,0.4);
+    animation:authGatePop .32s ease;
+  }
+  .auth-gate-brand{
+    display:flex; align-items:center; justify-content:center; gap:9px; margin-bottom:18px;
+  }
+  .auth-gate-logo{ width:34px; height:34px; border-radius:9px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .auth-gate-brand-name{ font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--emerald); }
+  .auth-gate-card h3{ text-align:center; margin:0 0 4px; }
+  .auth-gate-subtitle{ font-size:12.5px; color:var(--charcoal-soft); text-align:center; margin:0 0 18px; line-height:1.5; }
+  .auth-gate-input-wrap{ position:relative; }
+  .auth-gate-input-wrap input{ padding-right:42px !important; letter-spacing:1px; }
+  .auth-gate-eye{
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    background:none; border:none; font-size:16px; padding:8px; cursor:pointer;
+    line-height:1; opacity:.65;
+  }
+  .auth-gate-eye:active{ opacity:1; }
+  .auth-gate-forgot{
+    display:block; text-align:center; font-size:11.5px; margin-top:12px;
+    color:var(--charcoal-soft); text-decoration:underline; cursor:pointer;
+  }
+  .auth-gate-switch{
+    text-align:center; font-size:13px; margin:16px 0 0; padding-top:14px;
+    border-top:1px solid var(--paper-2); color:var(--charcoal-soft);
+  }
+  .auth-gate-switch a{ color:var(--emerald-light); font-weight:700; cursor:pointer; text-decoration:underline; margin-left:4px; }
+  .auth-gate-google-wrap{ width:100%; max-width:400px; margin-top:2px; }
+  .auth-gate-or{
+    display:flex; align-items:center; gap:10px;
+    text-align:center; font-size:11px; color:rgba(247,243,232,0.6);
+    margin:16px 0 12px;
+  }
+  .auth-gate-or::before, .auth-gate-or::after{
+    content:""; flex:1; height:1px; background:rgba(247,243,232,0.25);
+  }
+  .auth-gate-google-btn{
+    width:100%; background:#fff; color:var(--charcoal); border:none; border-radius:12px;
+    padding:14px; font-size:14.5px; font-weight:700; font-family:'Sora',sans-serif; cursor:pointer;
+    box-shadow:0 3px 12px rgba(0,0,0,.18);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .auth-gate-google-btn::before{
+    content:"G"; display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%; font-size:12px; font-weight:800;
+    background:conic-gradient(from -45deg,#4285F4 0 25%,#34A853 0 50%,#FBBC05 0 75%,#EA4335 0 100%);
+    color:#fff;
+  }
+  .auth-gate-note{
+    color:rgba(247,243,232,0.75); font-size:11px; text-align:center;
+    margin-top:16px; max-width:340px; line-height:1.5;
+  }
   h1,h2,h3,.display{ font-family:'Sora',sans-serif; }
   #app{
     max-width:480px; margin:0 auto; min-height:100vh;
@@ -634,47 +703,9 @@
   .multi-qty-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .multi-total-divider{height:1px; background:var(--paper-2); margin:12px 0;}
   .multi-list-separator{height:1px; background:var(--paper-2); margin:8px 0;}
-  .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;}
+  .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
   .multi-total-row .lbl{font-size:13.5px; font-weight:700;}
   .multi-total-row .val{font-family:'Sora'; font-size:19px; font-weight:800; color:var(--emerald);}
-
-  /* ---- Remises (vente simple + panier "vente plusieurs") ---- */
-  .discount-preview-line{
-    text-align:right; font-size:11.5px; font-weight:700; color:var(--alert);
-    margin:-6px 0 14px;
-  }
-  /* Ligne de produit du panier repliée en colonne dès qu'elle porte ses propres
-     contrôles de remise (uniquement les lignes déjà sélectionnées, voir
-     renderMultiProductRow() dans sales.js) — les autres gardent la mise en page
-     horizontale d'origine. */
-  .multi-product-row.has-discount-row{flex-direction:column; align-items:stretch; gap:8px;}
-  .mpr-top{display:flex; justify-content:space-between; align-items:center; gap:10px;}
-  .mpr-discount{display:flex; align-items:center; gap:8px;}
-  .disc-type-toggle{display:flex; gap:4px; flex-shrink:0;}
-  .disc-type-btn{
-    padding:7px 9px; border-radius:8px; border:1.5px solid var(--paper-2);
-    background:var(--card-bg); font-size:11px; font-weight:700; cursor:pointer; font-family:'Inter';
-    color:var(--charcoal-soft);
-  }
-  .disc-type-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
-  .mpr-discount-input{
-    flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1.5px solid var(--paper-2);
-    background:var(--card-bg); font-size:13px; font-family:'Inter'; color:var(--charcoal);
-  }
-  .mpr-discount-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
-
-  /* ---- Tableau de bord consolidé (toutes boutiques, palier Pro) ---- */
-  .consolidated-status-msg{text-align:center; color:var(--charcoal-soft); font-size:13px; padding:20px 0;}
-  .store-compare-row{
-    background:var(--card-bg); border:1.5px solid var(--paper-2); border-radius:12px;
-    padding:12px 14px; margin-bottom:10px;
-  }
-  .store-compare-row.loss{border-color:var(--alert); background:rgba(220,53,69,0.05);}
-  .scr-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:6px;}
-  .scr-name{font-size:14px; font-weight:700; color:var(--charcoal);}
-  .scr-net{font-family:'Sora'; font-size:15px; font-weight:800; color:var(--emerald);}
-  .store-compare-row.loss .scr-net{color:var(--alert);}
-  .scr-detail{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11.5px; color:var(--charcoal-soft);}
 
   .backup-banner{
     display:none; align-items:center; gap:10px;
