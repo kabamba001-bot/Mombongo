@@ -45,10 +45,10 @@ async function run(){
         .where('storeId', '==', storeId).get();
       const storeDebts = debtsSnap.docs.map(d => d.data());
 
-      const { lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData, storeDebts);
-      if(lowStock.length === 0 && expired.length === 0 && expiringSoon.length === 0 && (!dueSoonDebts || dueSoonDebts.length === 0)) continue;
+      const { lowStock, expired, expiringSoon, dueSoonDebts, dormant } = computeStoreAlerts(storeData, storeDebts);
+      if(lowStock.length === 0 && expired.length === 0 && expiringSoon.length === 0 && (!dueSoonDebts || dueSoonDebts.length === 0) && (!dormant || dormant.length === 0)) continue;
 
-      const { title, body } = buildMessage(store.name, lowStock, expired, expiringSoon, dueSoonDebts, '🔔 Rappel —');
+      const { title, body } = buildMessage(store.name, lowStock, expired, expiringSoon, dueSoonDebts, dormant, '🔔 Rappel —');
 
       try{
         notificationsSent += await sendAndCleanup(db, ownerUid, store.name, storeId, tokens, title, body);
