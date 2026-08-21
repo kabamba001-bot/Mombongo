@@ -32,7 +32,7 @@ jobs:
           cp icon-*.png www/ 2>/dev/null || true
 
       - name: Empaqueter le pont d'authentification native
-        run: npx esbuild native-auth-bridge.src.js --bundle --format=iife --outfile=www/native-auth-bridge.js
+        run: npx esbuild native-auth-bridge.src.js --bundle --format=iife --outfile=www/native-auth-bridge.js --external:firebase/auth
 
       - name: Préparer l'icône de l'app native
         run: |
