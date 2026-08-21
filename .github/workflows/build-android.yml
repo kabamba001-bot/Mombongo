@@ -31,9 +31,15 @@ jobs:
           cp *.js www/ 2>/dev/null || true
           cp icon-*.png www/ 2>/dev/null || true
 
+      - name: Préparer l'icône de l'app native
+        run: |
+          mkdir -p assets
+          cp icon-512.png assets/icon.png 2>/dev/null || cp icon-192.png assets/icon.png 2>/dev/null || true
+
       - name: Initialiser / synchroniser Capacitor
         run: |
           npx cap add android || true
+          npx --yes @capacitor/assets generate --android
           npx cap sync android
 
       - name: Compiler l'APK (debug, non signé)
