@@ -6,7 +6,8 @@
   "plugins": {
     "FirebaseAuthentication": {
       "skipNativeAuth": false,
-      "providers": ["google.com"]
+      "providers": ["google.com"],
+      "webClientId": "212073636592-8ks671i1em0n204haq0bdek3l1o7boeg.apps.googleusercontent.com"
     }
   }
 }
