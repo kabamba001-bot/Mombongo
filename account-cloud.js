@@ -277,4 +277,4 @@ async function confirmDeleteAccountFinal(){
     }
     if(btn) btn.disabled = false;
   }
-                                  }
+}
