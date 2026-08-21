@@ -45,6 +45,7 @@ jobs:
           npx --yes @capacitor/assets generate --android
           sed -i "/com.android.tools.build:gradle/a\    classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
           echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+          sed -i '/dependencies {/a \    implementation "com.google.android.gms:play-services-auth:21.2.0"' android/app/build.gradle
           npx cap sync android
 
       - name: Utiliser notre keystore stable (signature constante entre les builds)
