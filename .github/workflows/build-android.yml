@@ -31,6 +31,9 @@ jobs:
           cp *.js www/ 2>/dev/null || true
           cp icon-*.png www/ 2>/dev/null || true
 
+      - name: Empaqueter le pont d'authentification native
+        run: npx esbuild native-auth-bridge.src.js --bundle --format=iife --outfile=www/native-auth-bridge.js
+
       - name: Préparer l'icône de l'app native
         run: |
           mkdir -p assets
@@ -40,7 +43,17 @@ jobs:
         run: |
           npx cap add android || true
           npx --yes @capacitor/assets generate --android
+          sed -i "/com.android.tools.build:gradle/a\    classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
           npx cap sync android
+
+      - name: Utiliser notre keystore stable (signature constante entre les builds)
+        run: |
+          mkdir -p ~/.android
+          cp mombongo-debug.keystore ~/.android/debug.keystore
+
+      - name: Placer google-services.json
+        run: cp google-services.json android/app/google-services.json
 
       - name: Compiler l'APK (debug, non signé)
         working-directory: android
