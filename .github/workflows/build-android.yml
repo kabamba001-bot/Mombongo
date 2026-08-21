@@ -53,6 +53,9 @@ jobs:
           mkdir -p ~/.android
           cp mombongo-debug.keystore ~/.android/debug.keystore
 
+      - name: Afficher l'empreinte SHA-1 du keystore
+        run: keytool -list -v -keystore mombongo-debug.keystore -alias androiddebugkey -storepass android -keypass android || true
+
       - name: Placer google-services.json
         run: cp google-services.json android/app/google-services.json
 
