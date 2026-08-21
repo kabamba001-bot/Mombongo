@@ -95,6 +95,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     <div id="auth-gate-login-view">
       <h3 id="t-authgate-login-title">Connexion</h3>
       <p class="auth-gate-subtitle" id="t-authgate-login-subtitle">Connecte-toi avec ton numéro de téléphone pour continuer</p>
+      <p class="auth-gate-error" id="auth-gate-login-error" style="display:none;"></p>
       <div class="field">
         <label id="t-authgate-login-phone-label">📱 Numéro de téléphone</label>
         <input type="tel" id="auth-gate-login-phone" placeholder="+243 8xx xxx xxx" autocomplete="tel" inputmode="tel">
@@ -115,7 +116,8 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
     </div>
     <div id="auth-gate-signup-view" style="display:none;">
       <h3 id="t-authgate-signup-title">Inscription</h3>
-      <p class="auth-gate-subtitle" id="t-authgate-signup-subtitle">Choisis un code de 4 à 8 caractères (chiffres et/ou lettres) — pas de SMS</p>
+      <p class="auth-gate-subtitle" id="t-authgate-signup-subtitle">Choisis un code de 4 à 8 caractères (chiffres et/ou lettres)</p>
+      <p class="auth-gate-error" id="auth-gate-signup-error" style="display:none;"></p>
       <div class="field">
         <label id="t-authgate-signup-phone-label">📱 Numéro de téléphone</label>
         <input type="tel" id="auth-gate-signup-phone" placeholder="+243 8xx xxx xxx" autocomplete="tel" inputmode="tel">

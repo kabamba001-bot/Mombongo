@@ -25,14 +25,22 @@
 const PHONE_AUTH_EMAIL_DOMAIN = 'phone.mombongo.app';
 const PHONE_AUTH_PASSWORD_PREFIX = 'Mombongo#';
 const PHONE_AUTH_CODE_REGEX = /^[A-Za-z0-9]{4,8}$/;
+const PHONE_DEFAULT_COUNTRY_CODE = '243'; // RD Congo — marché principal de Mombongo (voir DEV_WHATSAPP)
 
 // Garde uniquement les chiffres (retire espaces, tirets, parenthèses, le "+"
 // initial ou un éventuel "00" international) — le numéro affiché à
 // l'utilisateur peut rester saisi librement, seule cette version normalisée
 // sert à construire l'email interne.
+// IMPORTANT : "0970989141" (format local, 10 chiffres) et "+243970989141"
+// (même numéro en format international) doivent aboutir à EXACTEMENT le même
+// résultat, sinon un client qui tape son numéro différemment à l'inscription
+// et à la connexion se retrouve avec 2 comptes distincts sans le savoir.
 function normalizePhoneDigits(raw){
   let digits = String(raw || '').replace(/\D/g, '');
   if(digits.startsWith('00')) digits = digits.slice(2);
+  if(digits.length === 10 && digits.startsWith('0')){
+    digits = PHONE_DEFAULT_COUNTRY_CODE + digits.slice(1);
+  }
   return digits;
 }
 function isValidPhoneDigits(digits){
@@ -48,9 +56,23 @@ function codeToAuthPassword(code){
   return PHONE_AUTH_PASSWORD_PREFIX + code;
 }
 
+// En plus du toast (en haut de l'écran, disparaît vite), un message reste
+// affiché DANS la carte tant que l'utilisateur n'a pas retenté — pour être
+// sûr que l'erreur exacte reste visible et lisible, même si le toast est
+// manqué. C'est ce message-là qu'il faut lire/renvoyer si ça bloque encore.
+function showAuthGateError(view, msg){
+  const el = document.getElementById('auth-gate-' + view + '-error');
+  if(el){ el.textContent = msg; el.style.display = 'block'; }
+}
+function clearAuthGateError(view){
+  const el = document.getElementById('auth-gate-' + view + '-error');
+  if(el){ el.style.display = 'none'; el.textContent = ''; }
+}
+
 /* ---------- Inscription ---------- */
 function signUpWithPhoneCode(){
   const t = dict[currentLang];
+  clearAuthGateError('signup');
   if(typeof fbq === 'function') fbq('trackCustom', 'ClicInscriptionTelephone');
   if(!cloudEnabled){
     showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
@@ -63,14 +85,17 @@ function signUpWithPhoneCode(){
 
   if(!isValidPhoneDigits(digits)){
     showToast(t.authGateInvalidPhone, 4000);
+    showAuthGateError('signup', t.authGateInvalidPhone);
     return;
   }
   if(!isValidPhoneCode(code)){
     showToast(t.authGateInvalidCode, 4500);
+    showAuthGateError('signup', t.authGateInvalidCode);
     return;
   }
   if(code !== code2){
     showToast(t.authGateCodeMismatch, 4000);
+    showAuthGateError('signup', t.authGateCodeMismatch);
     return;
   }
 
@@ -100,13 +125,16 @@ function signUpWithPhoneCode(){
       return;
     }
     console.error('Erreur inscription téléphone', e);
-    showToast(t.authGateGenericError + ' ' + (e.code || e.message || e), 5000);
+    const msg = t.authGateGenericError + ' ' + (e.code || e.message || e);
+    showToast(msg, 6000);
+    showAuthGateError('signup', msg);
   });
 }
 
 /* ---------- Connexion ---------- */
 function signInWithPhoneCode(){
   const t = dict[currentLang];
+  clearAuthGateError('login');
   if(typeof fbq === 'function') fbq('trackCustom', 'ClicConnexionTelephone');
   if(!cloudEnabled){
     showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
@@ -118,10 +146,12 @@ function signInWithPhoneCode(){
 
   if(!isValidPhoneDigits(digits)){
     showToast(t.authGateInvalidPhone, 4000);
+    showAuthGateError('login', t.authGateInvalidPhone);
     return;
   }
   if(!code){
     showToast(t.authGateInvalidCode, 4500);
+    showAuthGateError('login', t.authGateInvalidCode);
     return;
   }
 
@@ -139,17 +169,20 @@ function signInWithPhoneCode(){
     if(btn){ btn.disabled = false; btn.textContent = t.authGateLoginBtn; }
     if(e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-email'){
       showToast(t.authGateLoginFailed, 4500);
+      showAuthGateError('login', t.authGateLoginFailed);
       return;
     }
     console.error('Erreur connexion téléphone', e);
-    showToast(t.authGateGenericError + ' ' + (e.code || e.message || e), 5000);
+    const msg = t.authGateGenericError + ' ' + (e.code || e.message || e);
+    showToast(msg, 6000);
+    showAuthGateError('login', msg);
   });
 }
 
 /* ---------- Code oublié → contacter l'admin sur WhatsApp ----------
-   Pas de réinitialisation automatique (pas de SMS, pas d'email réel connu du
-   client) : l'admin réinitialise à la main via reset-phone-code.js (voir ce
-   fichier), après avoir identifié le client par son numéro sur WhatsApp. */
+   Pas de réinitialisation automatique (pas d'email réel connu du client) :
+   l'admin réinitialise à la main via reset-phone-code.js (voir ce fichier),
+   après avoir identifié le client par son numéro sur WhatsApp. */
 function openAuthGateForgotPassword(){
   const t = dict[currentLang];
   const phoneRaw = document.getElementById('auth-gate-login-phone').value
@@ -201,10 +234,12 @@ function closeAuthGate(){
 function showAuthGateLoginView(){
   document.getElementById('auth-gate-login-view').style.display = 'block';
   document.getElementById('auth-gate-signup-view').style.display = 'none';
+  clearAuthGateError('signup');
 }
 function showAuthGateSignupView(){
   document.getElementById('auth-gate-login-view').style.display = 'none';
   document.getElementById('auth-gate-signup-view').style.display = 'block';
+  clearAuthGateError('login');
 }
 
 // Bouton 👁 à côté des champs code : masqué par défaut (comme un mot de passe,

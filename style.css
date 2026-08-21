@@ -88,6 +88,10 @@
   .auth-gate-brand-name{ font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--emerald); }
   .auth-gate-card h3{ text-align:center; margin:0 0 4px; }
   .auth-gate-subtitle{ font-size:12.5px; color:var(--charcoal-soft); text-align:center; margin:0 0 18px; line-height:1.5; }
+  .auth-gate-error{
+    background:var(--alert-bg); color:var(--alert); border-radius:10px; padding:9px 12px;
+    font-size:12px; text-align:center; margin:0 0 16px; line-height:1.5; font-weight:600;
+  }
   .auth-gate-input-wrap{ position:relative; }
   .auth-gate-input-wrap input{ padding-right:42px !important; letter-spacing:1px; }
   .auth-gate-eye{
@@ -729,7 +733,7 @@
   .toast{
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
     background:var(--charcoal); color:var(--paper); padding:11px 18px; border-radius:999px;
-    font-size:13px; font-weight:600; z-index:50; box-shadow:0 4px 14px rgba(0,0,0,0.25);
+    font-size:13px; font-weight:600; z-index:999999; box-shadow:0 4px 14px rgba(0,0,0,0.25);
     opacity:0; pointer-events:none; transition:opacity .25s ease;
   }
   .toast.show{opacity:1;}

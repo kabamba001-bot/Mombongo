@@ -38,7 +38,20 @@ const { initAdmin } = require('./alert-utils');
 
 const PHONE_AUTH_EMAIL_DOMAIN = 'phone.mombongo.app';
 const PHONE_AUTH_PASSWORD_PREFIX = 'Mombongo#';
+const PHONE_DEFAULT_COUNTRY_CODE = '243'; // doit rester identique à phone-auth.js
 const CODE_REGEX = /^[A-Za-z0-9]{4,8}$/;
+
+// Même règle que normalizePhoneDigits() dans phone-auth.js : "0970989141"
+// (format local) et "243970989141" (format international) doivent donner le
+// MÊME résultat, sinon on ne retrouve pas le compte du client.
+function normalizePhoneDigits(raw){
+  let digits = String(raw || '').replace(/\D/g, '');
+  if(digits.startsWith('00')) digits = digits.slice(2);
+  if(digits.length === 10 && digits.startsWith('0')){
+    digits = PHONE_DEFAULT_COUNTRY_CODE + digits.slice(1);
+  }
+  return digits;
+}
 
 function parseArgs(){
   const args = {};
@@ -51,7 +64,7 @@ function parseArgs(){
 
 async function run(){
   const args = parseArgs();
-  const phone = (args.phone || process.env.RESET_PHONE || '').replace(/\D/g, '');
+  const phone = normalizePhoneDigits(args.phone || process.env.RESET_PHONE || '');
   const code = (args.code || process.env.RESET_CODE || '').trim();
 
   if(!phone || phone.length < 8){
