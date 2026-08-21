@@ -44,7 +44,7 @@ async function run(){
         .where('storeId', '==', storeId).get();
       const storeDebts = debtsSnap.docs.map(d => d.data());
 
-      const { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts } = computeStoreAlerts(storeData, storeDebts);
+      const { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts, dormant } = computeStoreAlerts(storeData, storeDebts);
 
       const stateRef = db.collection('mombongo_users').doc(ownerUid).collection('notifState').doc(storeId);
       const stateDoc = await stateRef.get();
@@ -66,7 +66,8 @@ async function run(){
       const newExp = expired.filter(p => newKeys.some(k => k.startsWith(`exp:${p.id}:`)));
       const newSoon = expiringSoon.filter(p => newKeys.some(k => k.startsWith(`soon:${p.id}:`)));
       const newDue = (dueSoonDebts || []).filter(d => newKeys.some(k => k.startsWith(`due:${d.id}:`)));
-      const { title, body } = buildMessage(store.name, newLow, newExp, newSoon, newDue, '⚠️');
+      const newDormant = (dormant || []).filter(p => newKeys.some(k => k.startsWith(`dormant:${p.id}:`)));
+      const { title, body } = buildMessage(store.name, newLow, newExp, newSoon, newDue, newDormant, '⚠️');
 
       try{
         notificationsSent += await sendAndCleanup(db, ownerUid, store.name, storeId, tokens, title, body);

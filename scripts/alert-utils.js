@@ -9,6 +9,11 @@ const admin = require('firebase-admin');
 
 const EXPIRY_WARNING_DAYS = 10;
 const DEBT_DUE_WARNING_DAYS = 3;
+// Même seuil que dormant côté app (voir render.js, renderAlertsSheet() : "pas vendu
+// depuis 14 jours") — les deux DOIVENT rester synchronisés si ce seuil change un jour.
+const DORMANT_DAYS_THRESHOLD = 14;
+
+function daysSinceServer(ts){ return Math.floor((Date.now() - ts) / 86400000); }
 
 function initAdmin(){
   if(admin.apps.length) return; // évite une double initialisation
@@ -50,6 +55,13 @@ function computeStoreAlerts(storeData, debts){
   const lowStock = products.filter(p => typeof p.qty === 'number' && typeof p.threshold === 'number' && p.qty <= p.threshold);
   const expired = products.filter(p => p.expiryDate && p.expiryDate < todayStr);
   const expiringSoon = products.filter(p => p.expiryDate && p.expiryDate >= todayStr && daysUntilExpiry(p.expiryDate) <= EXPIRY_WARNING_DAYS);
+  // Stock dormant : invendu depuis DORMANT_DAYS_THRESHOLD jours — même règle que
+  // dormant côté app (render.js) : jamais vendu ET jamais réapprovisionné n'entre
+  // pas en compte séparément, "lastSoldAt || createdAt" couvre déjà les deux cas.
+  const dormant = products.filter(p => {
+    const ref = p.lastSoldAt || p.createdAt;
+    return ref && daysSinceServer(ref) >= DORMANT_DAYS_THRESHOLD;
+  });
 
   // Dettes ouvertes dont l'échéance approche (ou est dépassée) — à partir de
   // DEBT_DUE_WARNING_DAYS jours avant, sans limite une fois l'échéance passée
@@ -67,8 +79,15 @@ function computeStoreAlerts(storeData, debts){
   expired.forEach(p => alertKeys.add(`exp:${p.id}:${daysUntilExpiry(p.expiryDate)}`));
   expiringSoon.forEach(p => alertKeys.add(`soon:${p.id}:${daysUntilExpiry(p.expiryDate)}`));
   dueSoonDebts.forEach(d => alertKeys.add(`due:${d.id}:${daysUntilExpiry(d.dueDate)}`));
+  // Bucket PAR SEMAINE (pas par jour comme les alertes ci-dessus) : un produit peut
+  // rester dormant des mois — renotifier chaque jour serait vite envahissant. Ici,
+  // l'alerte est vue comme "nouvelle" une fois par semaine de dormance continue.
+  dormant.forEach(p => {
+    const ref = p.lastSoldAt || p.createdAt;
+    alertKeys.add(`dormant:${p.id}:${Math.floor(daysSinceServer(ref)/7)}`);
+  });
 
-  return { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts };
+  return { alertKeys, lowStock, expired, expiringSoon, dueSoonDebts, dormant };
 }
 
 const UNIT_LABELS_FR = { pc:'pièce(s)', kg:'kg', g:'g', l:'L', ml:'ml', m:'m', cm:'cm' };
@@ -86,8 +105,9 @@ function formatQtyFr(qty, unit){
 // à la fois) est résumé en une dernière ligne "... et N autres".
 const MAX_MESSAGE_LINES = 6;
 
-function buildMessage(storeName, lowStock, expired, expiringSoon, dueSoonDebts, prefix){
+function buildMessage(storeName, lowStock, expired, expiringSoon, dueSoonDebts, dormant, prefix){
   dueSoonDebts = dueSoonDebts || [];
+  dormant = dormant || [];
   const lines = [];
 
   lowStock.forEach(p=>{
@@ -112,6 +132,14 @@ function buildMessage(storeName, lowStock, expired, expiringSoon, dueSoonDebts, 
       : days === 0
         ? `💳 ${d.clientName} : dette à échéance aujourd'hui`
         : `💳 ${d.clientName} : dette à échéance dans ${days} jour${days>1?'s':''}`);
+  });
+  // Même famille d'alerte que "stock faible" côté app (même onglet), mais le nombre
+  // de jours réel remplace le texte fixe "14 jours" affiché en app — plus utile dans
+  // une notification qu'on ne peut pas cliquer pour vérifier.
+  dormant.forEach(p=>{
+    const ref = p.lastSoldAt || p.createdAt;
+    const days = ref ? daysSinceServer(ref) : DORMANT_DAYS_THRESHOLD;
+    lines.push(`😴 ${p.name} : pas vendu depuis ${days} jour${days>1?'s':''}`);
   });
 
   let body;
