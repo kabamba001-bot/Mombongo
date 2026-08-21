@@ -1,0 +1,6 @@
+{
+  "appId": "com.mombongo.app",
+  "appName": "Mombongo",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
