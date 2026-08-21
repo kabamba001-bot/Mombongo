@@ -886,6 +886,10 @@ function applyTranslations(){
   document.getElementById('t-sell-qty').textContent = t.sellQty;
   document.getElementById('t-total-label').textContent = t.total;
   document.getElementById('t-profit-label').textContent = t.profit;
+  document.getElementById('t-discount-toggle').textContent = t.discountToggle;
+  document.getElementById('t-discount-amount-btn').textContent = t.discountAmountBtn;
+  document.getElementById('t-discount-percent-btn').textContent = t.discountPercentBtn;
+  document.getElementById('in-discount-value').placeholder = t.discountValuePlaceholder;
   document.getElementById('t-confirm-sale').textContent = t.confirmSale;
   document.getElementById('t-cancel2').textContent = t.cancel;
   document.getElementById('t-rate-label').textContent = t.rateLabel;
@@ -900,6 +904,12 @@ function applyTranslations(){
   document.getElementById('t-client-phone').textContent = t.clientPhone;
   document.getElementById('t-due-date').textContent = t.dueDateField;
   document.getElementById('t-multi-toggle').textContent = t.multiToggle;
+  document.getElementById('t-global-discount-toggle').textContent = t.globalDiscountToggle;
+  document.getElementById('t-global-discount-label').textContent = t.globalDiscountLabel;
+  document.getElementById('t-global-discount-amount-btn').textContent = t.discountAmountBtn;
+  document.getElementById('t-global-discount-percent-btn').textContent = t.discountPercentBtn;
+  document.getElementById('in-global-discount-value').placeholder = t.discountValuePlaceholder;
+  document.getElementById('t-multi-total-label').textContent = t.total;
   document.getElementById('t-debt-amount').textContent = t.debtAmount;
   document.getElementById('t-debt-client-name').textContent = t.debtClientName;
   document.getElementById('t-debt-client-phone').textContent = t.debtClientPhone;
@@ -928,6 +938,10 @@ function applyTranslations(){
   document.getElementById('t-period-from').textContent = t.periodFrom;
   document.getElementById('t-period-to').textContent = t.periodTo;
   document.getElementById('t-period-apply').textContent = t.periodApply;
+  document.getElementById('t-history-search-label').textContent = t.historySearchLabel;
+  document.getElementById('in-history-search').placeholder = t.historySearchPlaceholder;
+  document.getElementById('t-history-amount-min').textContent = t.historyAmountMinLabel;
+  document.getElementById('t-history-amount-max').textContent = t.historyAmountMaxLabel;
   document.getElementById('t-summary-revenue').textContent = t.summaryRevenue;
   document.getElementById('t-summary-expenses').textContent = t.summaryExpenses;
   document.getElementById('t-summary-net').textContent = t.summaryNet;
@@ -981,6 +995,21 @@ function applyTranslations(){
 
   document.getElementById('t-stores-title').textContent = t.storesTitle;
   document.getElementById('t-add-store-btn').textContent = t.addStoreBtn;
+  document.getElementById('t-consolidated-section-title').textContent = t.consolidatedSectionTitle;
+  document.getElementById('t-consolidated-section-desc').textContent = t.consolidatedSectionDesc;
+  document.getElementById('t-consolidated-open-btn').textContent = t.consolidatedOpenBtn;
+  document.getElementById('t-consolidated-title').textContent = t.consolidatedTitle;
+  document.getElementById('t-consolidated-period-day').textContent = t.periodDay;
+  document.getElementById('t-consolidated-period-week').textContent = t.periodWeek;
+  document.getElementById('t-consolidated-period-month').textContent = t.periodMonth;
+  document.getElementById('t-consolidated-period-custom').textContent = t.periodCustom;
+  document.getElementById('t-consolidated-period-from').textContent = t.periodFrom;
+  document.getElementById('t-consolidated-period-to').textContent = t.periodTo;
+  document.getElementById('t-consolidated-period-apply').textContent = t.periodApply;
+  document.getElementById('t-consolidated-summary-revenue').textContent = t.summaryRevenue;
+  document.getElementById('t-consolidated-summary-expenses').textContent = t.summaryExpenses;
+  document.getElementById('t-consolidated-summary-net').textContent = t.summaryNet;
+  document.getElementById('t-consolidated-export-btn').textContent = t.consolidatedExportBtn;
   document.getElementById('t-new-store-title').textContent = t.newStoreTitle;
   document.getElementById('t-store-name').textContent = t.storeNameLabel;
   document.getElementById('in-store-name').placeholder = t.storeNamePlaceholder;

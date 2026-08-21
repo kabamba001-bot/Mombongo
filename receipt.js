@@ -69,7 +69,7 @@ function generateReceiptPdf(items, meta){
 
   const lineH = 5.2;
   const headerH = 30;
-  const footerH = meta.isCredit ? 24 : 16;
+  const footerH = (meta.isCredit ? 24 : 16) + (meta.discount > 0 ? 6 : 0);
   const estHeight = headerH + items.length * lineH + footerH + 10;
   const doc = new jsPDF({ unit:'mm', format:[80, Math.max(estHeight, 90)] });
 
@@ -106,6 +106,13 @@ function generateReceiptPdf(items, meta){
 
   doc.line(5, y, 75, y);
   y += 6;
+  if(meta.discount > 0){
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(t.receiptDiscountLine || 'Remise', 5, y);
+    doc.text('−' + formatMoneyForPdf(meta.discount), 75, y, { align:'right' });
+    y += 5.5;
+  }
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.text(t.summaryRevenue || 'Total', 5, y);
@@ -225,13 +232,15 @@ function closeReceiptSheet(){
 
 function offerReceiptForSingleSale(saleRecord){
   openReceiptSheet(buildReceiptItemsFromSaleRecord(saleRecord), {
-    id: saleRecord.id, date: saleRecord.date, total: saleRecord.total, isCredit: !!saleRecord.isCredit
+    id: saleRecord.id, date: saleRecord.date, total: saleRecord.total, isCredit: !!saleRecord.isCredit,
+    discount: saleRecord.discount || 0
   });
 }
 function offerReceiptForMultiSale(saleRecords, grandTotal, isCredit){
   const multiId = saleRecords.length && saleRecords[0].multiSaleId ? saleRecords[0].multiSaleId : Date.now().toString();
+  const totalDiscount = saleRecords.reduce((s,r)=>s+(r.itemDiscount||0)+(r.globalDiscountShare||0), 0);
   openReceiptSheet(buildReceiptItemsFromSaleRecords(saleRecords), {
-    id: multiId, date: Date.now(), total: grandTotal, isCredit: !!isCredit
+    id: multiId, date: Date.now(), total: grandTotal, isCredit: !!isCredit, discount: totalDiscount
   });
 }
 
@@ -254,9 +263,10 @@ function reprintReceipt(entryId){
     return;
   }
   const grandTotal = group.reduce((s,sr)=>s+sr.total,0);
+  const totalDiscount = group.reduce((s,sr)=>s+(sr.discount||0)+(sr.itemDiscount||0)+(sr.globalDiscountShare||0), 0);
   const isCredit = group.some(sr=>sr.isCredit);
   const id = group[0].multiSaleId || group[0].id;
   openReceiptSheet(buildReceiptItemsFromSaleRecords(group), {
-    id, date: group[0].date, total: grandTotal, isCredit
+    id, date: group[0].date, total: grandTotal, isCredit, discount: totalDiscount
   });
 }

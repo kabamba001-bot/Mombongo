@@ -144,9 +144,23 @@ function buildUnifiedHistory(){
     // Le produit peut avoir été supprimé depuis — on garde son nom (enregistré sur la
     // vente elle-même) au lieu de perdre l'identité du produit dans l'historique.
     const pname = product ? product.name : (s.productName || t.historyDeletedProduct);
+    let label = pname + ' × ' + formatQty(s.qty, s.unit);
+    if(s.isCredit){
+      label += ' ('+t.creditTag+')';
+      // Le nom du client n'est PAS stocké sur la vente elle-même (seulement sur la
+      // dette liée, via debtId) — on va le chercher pour que la recherche par client
+      // dans l'historique (voir renderHistory()) fonctionne aussi sur les ventes à
+      // crédit, pas seulement sur les remboursements.
+      const debt = debts.find(d=>d.id===s.debtId);
+      if(debt && debt.clientName) label += ' — ' + debt.clientName;
+    }
+    // Petit repère visuel discret — le montant de la remise reste consultable sur le
+    // reçu (voir receipt.js) plutôt que d'alourdir chaque ligne de l'historique.
+    const saleDiscount = (s.discount||0) + (s.itemDiscount||0) + (s.globalDiscountShare||0);
+    if(saleDiscount > 0.001) label += ' 🏷️';
     entries.push({
       type:'sale', id:s.id, date:s.date,
-      label: pname + ' × ' + formatQty(s.qty, s.unit) + (s.isCredit ? ' ('+t.creditTag+')' : ''),
+      label,
       amount: s.total, sub: '+'+formatMoney(s.profit), deletable:true
     });
   });

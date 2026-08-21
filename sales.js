@@ -1,6 +1,79 @@
 /* ---------- Vente ---------- */
 let multiCart = {}; // { productId: qty } — utilisé seulement quand "vente plusieurs" est actif
 
+/* ---------- Remises / promotions ----------
+   Principe : une remise réduit le prix payé par le client, JAMAIS le prix d'achat
+   du produit. Le bénéfice enregistré (profit) reste donc toujours revenue - coût,
+   recalculé après remise — la marge n'est jamais gonflée ni cachée : une remise de
+   500 FC fait baisser le bénéfice de cette vente d'exactement 500 FC, ni plus ni
+   moins, quel que soit le prix d'achat du produit. Si la remise dépasse le
+   bénéfice, la vente devient une vente à perte assumée — jamais bloquée, mais le
+   total ne peut jamais devenir négatif (plafonné à baseTotal).
+   Deux formats au choix du vendeur, comme pour la dette (voir in-debt-amount) :
+   montant fixe (dans la devise actuellement affichée, via toInternal — pas de
+   sélecteur $/FC dédié par souci de simplicité) ou pourcentage du prix de vente. */
+function computeDiscountAmount(baseTotal, type, rawValue){
+  const raw = parseFloat(rawValue);
+  if(isNaN(raw) || raw <= 0 || baseTotal <= 0) return 0;
+  const amount = (type === 'percent') ? baseTotal * Math.min(raw, 100) / 100 : toInternal(raw);
+  return Math.max(0, Math.min(amount, baseTotal));
+}
+// Utilisé uniquement à la CONFIRMATION (pas à chaque frappe dans l'aperçu, pour ne
+// pas spammer de toast pendant la saisie) : signale que la remise demandée a dû être
+// plafonnée, plutôt que de le faire silencieusement. La vente n'est jamais bloquée
+// pour autant — plafonner à 100% du total (article offert) reste une décision
+// légitime du vendeur.
+function discountExceedsTotal(baseTotal, type, rawValue){
+  const raw = parseFloat(rawValue);
+  if(isNaN(raw) || raw <= 0 || baseTotal <= 0) return false;
+  const amount = (type === 'percent') ? baseTotal * raw / 100 : toInternal(raw);
+  return amount > baseTotal + 0.01;
+}
+
+/* ---- Remise vente simple ---- */
+let saleDiscountType = 'amount';
+function setSaleDiscountType(type){
+  saleDiscountType = type;
+  document.querySelectorAll('#discount-type-toggle button').forEach(b=>b.classList.toggle('active', b.dataset.type===type));
+  updateSellPreview();
+}
+function toggleSaleDiscountFields(){
+  const cb = document.getElementById('in-has-discount');
+  if(cb.checked && !isFeatureUnlocked('saleDiscounts')){
+    cb.checked = false;
+    openLimitSheet('discount');
+    return;
+  }
+  document.getElementById('discount-fields').style.display = cb.checked ? 'block' : 'none';
+  if(!cb.checked) document.getElementById('in-discount-value').value = '';
+  updateSellPreview();
+}
+
+/* ---- Remise par produit + remise globale, panier "vente plusieurs" ----
+   multiCartDiscounts est le pendant, pour les remises, de multiCart pour les
+   quantités : { productId: { type:'amount'|'percent', value: <texte brut saisi> } }.
+   Nettoyé au même rythme que multiCart (produit retiré du panier = sa remise
+   éventuelle disparaît aussi, sinon elle réapparaîtrait si le produit est
+   resélectionné plus tard dans la même vente). */
+let multiCartDiscounts = {};
+let multiGlobalDiscountType = 'amount';
+function setGlobalDiscountType(type, btn){
+  multiGlobalDiscountType = type;
+  document.querySelectorAll('#global-discount-type-toggle button').forEach(b=>b.classList.toggle('active', b===btn));
+  updateMultiTotal();
+}
+function toggleGlobalDiscountFields(){
+  const cb = document.getElementById('in-has-global-discount');
+  if(cb.checked && !isFeatureUnlocked('saleDiscounts')){
+    cb.checked = false;
+    openLimitSheet('discount');
+    return;
+  }
+  document.getElementById('global-discount-fields').style.display = cb.checked ? 'block' : 'none';
+  if(!cb.checked) document.getElementById('in-global-discount-value').value = '';
+  updateMultiTotal();
+}
+
 function openSellSheet(id){
   if(!canSell()){ showToast(dict[currentLang].restrictedFeature); return; }
   if(typeof isProductFrozen === 'function' && isProductFrozen(id, products)){
@@ -20,6 +93,14 @@ function openSellSheet(id){
   setDateValue('in-due-date', '');
   document.getElementById('credit-fields').style.display = 'none';
 
+  document.getElementById('in-has-discount').checked = false;
+  document.getElementById('discount-fields').style.display = 'none';
+  document.getElementById('in-discount-value').value = '';
+  saleDiscountType = 'amount';
+  document.querySelectorAll('#discount-type-toggle button').forEach(b=>b.classList.toggle('active', b.dataset.type==='amount'));
+  const discountPreviewEl = document.getElementById('discount-preview');
+  if(discountPreviewEl) discountPreviewEl.textContent = '';
+
   document.getElementById('in-is-multi').checked = false;
   document.getElementById('single-sale-fields').style.display = 'block';
   document.getElementById('multi-fields').style.display = 'none';
@@ -32,7 +113,15 @@ function openSellSheet(id){
   document.getElementById('in-debt-client-phone').value = '';
   setDateValue('in-debt-due-date', '');
   document.getElementById('debt-toggle-row').style.display = 'flex';
+
+  document.getElementById('in-has-global-discount').checked = false;
+  document.getElementById('global-discount-fields').style.display = 'none';
+  document.getElementById('in-global-discount-value').value = '';
+  multiGlobalDiscountType = 'amount';
+  document.querySelectorAll('#global-discount-type-toggle button').forEach(b=>b.classList.toggle('active', b.dataset.gdtype==='amount'));
+
   multiCart = {};
+  multiCartDiscounts = {};
   if(id) multiCart[id] = 1; // le produit sur lequel on a tapé "Vendre" est pré-sélectionné si on bascule en multi
 
   document.getElementById('sell-overlay').classList.add('open');
@@ -74,6 +163,7 @@ function toggleMultiFields(){
 // 🗑️ affiché sur chaque ligne déjà sélectionnée (renderMultiProductRow()).
 function clearMultiCart(){
   multiCart = {};
+  multiCartDiscounts = {};
   renderMultiProductList();
 }
 function toggleDebtFields(){
@@ -96,7 +186,7 @@ function changeMultiQty(productId, delta){
   if(!product) return;
   const current = multiCart[productId] || 0;
   const next = Math.max(0, Math.min(product.qty, current + delta));
-  if(next === 0) delete multiCart[productId];
+  if(next === 0){ delete multiCart[productId]; delete multiCartDiscounts[productId]; }
   else multiCart[productId] = next;
   renderMultiProductList();
 }
@@ -111,7 +201,7 @@ function setMultiQtyDirect(productId, rawValue){
   const unit = product.unit || 'pc';
   let qty = parseQtyForUnit(rawValue, unit);
   qty = Math.max(0, Math.min(product.qty, qty));
-  if(qty === 0) delete multiCart[productId];
+  if(qty === 0){ delete multiCart[productId]; delete multiCartDiscounts[productId]; }
   else multiCart[productId] = qty;
   updateMultiTotal();
 }
@@ -132,7 +222,7 @@ function renderMultiProductRow(p, removable){
   const qty = multiCart[p.id] || 0;
   const unit = p.unit || 'pc';
   const row = document.createElement('div');
-  row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '');
+  row.className = 'multi-product-row' + (p.qty<=0 ? ' out-of-stock' : '') + (removable ? ' has-discount-row' : '');
   const qtyControlHtml = isDecimalUnit(unit)
     ? '<input type="number" class="multi-qty-input" inputmode="decimal" step="' + unitStep(unit) + '" min="0" max="' + p.qty + '" value="' + (qty || '') + '" placeholder="0" data-id="' + p.id + '">'
     : '<div class="qty-stepper">' +
@@ -146,12 +236,33 @@ function renderMultiProductRow(p, removable){
   const removeBtnHtml = removable
     ? '<button type="button" class="multi-row-remove" data-remove-id="' + p.id + '" aria-label="Retirer">🗑️</button>'
     : '';
-  row.innerHTML =
-    '<div class="info">' +
-      '<div class="name">' + escapeHtml(p.name) + '</div>' +
-      '<div class="meta">' + formatMoney(p.sell) + ' · ' + formatQty(p.qty, unit) + ' disponible' + (p.qty>1?'s':'') + '</div>' +
-    '</div>' +
-    qtyControlHtml + removeBtnHtml;
+  const topRowHtml =
+    '<div class="mpr-top">' +
+      '<div class="info">' +
+        '<div class="name">' + escapeHtml(p.name) + '</div>' +
+        '<div class="meta">' + formatMoney(p.sell) + ' · ' + formatQty(p.qty, unit) + ' disponible' + (p.qty>1?'s':'') + '</div>' +
+      '</div>' +
+      qtyControlHtml + removeBtnHtml +
+    '</div>';
+  // Remise PAR PRODUIT — seulement affichée pour les lignes déjà dans le panier
+  // (removable===true) : régler une remise sur un produit qu'on n'a pas encore
+  // choisi de vendre n'aurait pas de sens. Se cumule avec la remise globale du
+  // panier (voir global-discount-fields, index.html) — chacune s'applique sur ce
+  // qu'il reste après l'autre, jamais les deux sur le même montant.
+  let discountRowHtml = '';
+  if(removable){
+    const t = dict[currentLang];
+    const d = multiCartDiscounts[p.id] || { type:'amount', value:'' };
+    discountRowHtml =
+      '<div class="mpr-discount">' +
+        '<div class="disc-type-toggle">' +
+          '<button type="button" class="disc-type-btn' + (d.type==='amount'?' active':'') + '" data-disc-type-id="' + p.id + '" data-disc-type="amount">' + (currentCurrency==='usd'?'$':'FC') + '</button>' +
+          '<button type="button" class="disc-type-btn' + (d.type==='percent'?' active':'') + '" data-disc-type-id="' + p.id + '" data-disc-type="percent">%</button>' +
+        '</div>' +
+        '<input type="number" class="mpr-discount-input" inputmode="decimal" min="0" placeholder="' + escapeHtml(t.itemDiscountPlaceholder || 'Remise') + '" value="' + escapeHtml(d.value || '') + '" data-disc-id="' + p.id + '">' +
+      '</div>';
+  }
+  row.innerHTML = topRowHtml + discountRowHtml;
   return row;
 }
 function renderMultiProductList(){
@@ -193,19 +304,70 @@ function renderMultiProductList(){
     inp.addEventListener('input', ()=> setMultiQtyDirect(inp.dataset.id, inp.value));
     inp.addEventListener('blur', ()=> renderMultiProductList());
   });
+  wrap.querySelectorAll('button[data-disc-type-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!isFeatureUnlocked('saleDiscounts')){ openLimitSheet('discount'); return; }
+      const id = btn.dataset.discTypeId;
+      const existing = multiCartDiscounts[id] || { type:'amount', value:'' };
+      multiCartDiscounts[id] = { type: btn.dataset.discType, value: existing.value };
+      renderMultiProductList();
+    });
+  });
+  wrap.querySelectorAll('input.mpr-discount-input').forEach(inp=>{
+    inp.addEventListener('focus', ()=>{
+      if(!isFeatureUnlocked('saleDiscounts')){ inp.blur(); openLimitSheet('discount'); }
+    });
+    inp.addEventListener('input', ()=>{
+      if(!isFeatureUnlocked('saleDiscounts')){ inp.value = ''; inp.blur(); openLimitSheet('discount'); return; }
+      const id = inp.dataset.discId;
+      if(!inp.value){ delete multiCartDiscounts[id]; }
+      else {
+        const existing = multiCartDiscounts[id] || { type:'amount', value:'' };
+        multiCartDiscounts[id] = { type: existing.type, value: inp.value };
+      }
+      updateMultiTotal();
+    });
+  });
   updateMultiTotal();
 }
+// Chaque item porte déjà sa remise PAR PRODUIT (si réglée) : total/profit ci-dessous
+// sont donc le prix "après remise ligne", AVANT l'éventuelle remise globale du
+// panier — celle-ci est répartie ensuite au prorata (voir updateMultiTotal() et
+// confirmMultiSaleInner()), comme le reliquat de dette partielle l'est déjà pour
+// le bénéfice (debtProfitShare) un peu plus bas dans ce fichier.
 function getMultiCartItems(){
   return Object.keys(multiCart).map(id=>{
     const product = products.find(p=>p.id===id);
+    if(!product) return null;
     const qty = multiCart[id];
-    return product ? { product, qty, total: qty*product.sell, profit: qty*(product.sell-product.buy) } : null;
+    const grossTotal = qty*product.sell;
+    const grossProfit = qty*(product.sell-product.buy);
+    const d = isFeatureUnlocked('saleDiscounts') ? multiCartDiscounts[id] : null;
+    const itemDiscount = d ? computeDiscountAmount(grossTotal, d.type, d.value) : 0;
+    return {
+      product, qty, grossTotal, grossProfit, itemDiscount,
+      total: grossTotal - itemDiscount, profit: grossProfit - itemDiscount
+    };
   }).filter(Boolean);
 }
 function updateMultiTotal(){
   const items = getMultiCartItems();
-  const total = items.reduce((s,it)=>s+it.total,0);
+  const subtotal = items.reduce((s,it)=>s+it.total,0);
+  const itemDiscountsSum = items.reduce((s,it)=>s+it.itemDiscount,0);
+  const hasGlobalDiscount = document.getElementById('in-has-global-discount').checked && isFeatureUnlocked('saleDiscounts');
+  const globalDiscountAmount = hasGlobalDiscount
+    ? computeDiscountAmount(subtotal, multiGlobalDiscountType, document.getElementById('in-global-discount-value').value)
+    : 0;
+  const total = subtotal - globalDiscountAmount;
   document.getElementById('multi-total').textContent = formatMoney(total);
+
+  const discountPreviewEl = document.getElementById('multi-discount-preview');
+  if(discountPreviewEl){
+    const totalDiscount = itemDiscountsSum + globalDiscountAmount;
+    discountPreviewEl.textContent = totalDiscount > 0
+      ? '−' + formatMoney(totalDiscount) + ' ' + (dict[currentLang].discountLabel || 'remise').toLowerCase()
+      : '';
+  }
 
   const debtPreviewEl = document.getElementById('debt-cash-preview');
   if(document.getElementById('in-has-debt').checked){
@@ -222,10 +384,22 @@ function updateSellPreview(){
   const product = products.find(p=>p.id===sellingProductId);
   if(!product) return;
   const qty = parseQtyForUnit(document.getElementById('in-sell-qty').value, product.unit || 'pc');
-  const total = qty * product.sell;
-  const profit = qty * (product.sell - product.buy);
+  const grossTotal = qty * product.sell;
+  const grossProfit = qty * (product.sell - product.buy);
+  const hasDiscount = document.getElementById('in-has-discount').checked && isFeatureUnlocked('saleDiscounts');
+  const discountAmount = hasDiscount
+    ? computeDiscountAmount(grossTotal, saleDiscountType, document.getElementById('in-discount-value').value)
+    : 0;
+  // La remise vient toujours en réduction du BÉNÉFICE, jamais du coût d'achat : le
+  // stock a coûté ce qu'il a coûté, seule la marge encaisse la remise consentie.
+  const total = grossTotal - discountAmount;
+  const profit = grossProfit - discountAmount;
   document.getElementById('preview-total').textContent = formatMoney(total);
   document.getElementById('preview-profit').textContent = formatMoney(profit);
+  const discountPreviewEl = document.getElementById('discount-preview');
+  if(discountPreviewEl){
+    discountPreviewEl.textContent = discountAmount > 0 ? '−' + formatMoney(discountAmount) + ' ' + (dict[currentLang].discountLabel || 'remise').toLowerCase() : '';
+  }
 }
 let saveInProgress = false; // garde-fou partagé contre les doubles clics (vente, produit)
 
@@ -285,14 +459,26 @@ async function confirmSaleInner(){
     product.qty -= qty;
     product.lastSoldAt = Date.now();
   }
-  const saleTotal = qty*product.sell;
-  const saleProfit = qty*(product.sell-product.buy);
+  const grossTotal = qty*product.sell;
+  const grossProfit = qty*(product.sell-product.buy);
+  const hasDiscount = document.getElementById('in-has-discount').checked && isFeatureUnlocked('saleDiscounts');
+  const discountAmount = hasDiscount
+    ? computeDiscountAmount(grossTotal, saleDiscountType, document.getElementById('in-discount-value').value)
+    : 0;
+  if(hasDiscount && discountExceedsTotal(grossTotal, saleDiscountType, document.getElementById('in-discount-value').value)){
+    showToast(dict[currentLang].discountTooHighMsg, 3500);
+  }
+  const saleTotal = grossTotal - discountAmount;
+  const saleProfit = grossProfit - discountAmount;
   const saleId = Date.now().toString();
   const saleRecord = {
     id: saleId, productId: product.id, productName: product.name,
     qty, unit, total: saleTotal, profit: saleProfit,
     date: Date.now(), isCredit: isCredit
   };
+  // Champ optionnel : jamais 0/undefined écrit tel quel (Firestore refuse "undefined",
+  // et on préfère ne pas polluer chaque vente d'un "discount:0" sans intérêt).
+  if(discountAmount > 0) saleRecord.discount = discountAmount;
   await saveProducts();
 
   // Signal d'activation réelle : la personne a fait plus que s'inscrire, elle a
@@ -373,6 +559,19 @@ async function confirmMultiSaleInner(){
       return;
     }
   }
+  // Même principe que discountExceedsTotal() pour la remise globale (plus bas) :
+  // on avertit sans bloquer si une remise PAR PRODUIT dépassait le total de sa
+  // propre ligne — elle reste plafonnée à 100% de cette ligne (article offert),
+  // mais le vendeur doit le savoir avant de confirmer, pas le découvrir après coup.
+  const overDiscountedNames = isFeatureUnlocked('saleDiscounts')
+    ? items.filter(it => { const d = multiCartDiscounts[it.product.id]; return d && discountExceedsTotal(it.grossTotal, d.type, d.value); }).map(it => it.product.name)
+    : [];
+  if(overDiscountedNames.length){
+    showToast(
+      (currentLang==='fr' ? "Remise trop élevée sur : " : (currentLang==='ln' ? "Remise eleki mingi na : " : "Punguzo kubwa mno kwa : "))
+      + overDiscountedNames.join(', '), 3500
+    );
+  }
   const isCredit = document.getElementById('in-is-credit').checked;
   if(isCredit && !isFeatureUnlocked('customerDebts')){
     document.getElementById('in-is-credit').checked = false;
@@ -387,8 +586,23 @@ async function confirmMultiSaleInner(){
   const clientPhone = document.getElementById('in-client-phone').value.trim();
   const dueDate = getDateValue('in-due-date');
 
-  const grandTotal = items.reduce((s,it)=>s+it.total,0);
-  const grandProfit = items.reduce((s,it)=>s+it.profit,0);
+  // items[].total/profit incluent déjà chaque remise PAR PRODUIT. La remise GLOBALE
+  // du panier s'applique ensuite sur ce sous-total, puis est répartie au prorata sur
+  // chaque ligne (voir plus bas) pour que chaque saleRecord reste cohérent avec
+  // lui-même — indispensable pour que la suppression d'UNE SEULE ligne d'une vente
+  // multiple (voir deleteHistoryEntry(), export.js) réajuste correctement le stock et
+  // les stats sans devoir recalculer toute la vente.
+  const subtotal = items.reduce((s,it)=>s+it.total,0);
+  const subtotalProfit = items.reduce((s,it)=>s+it.profit,0);
+  const hasGlobalDiscount = document.getElementById('in-has-global-discount').checked && isFeatureUnlocked('saleDiscounts');
+  const globalDiscountAmount = hasGlobalDiscount
+    ? computeDiscountAmount(subtotal, multiGlobalDiscountType, document.getElementById('in-global-discount-value').value)
+    : 0;
+  if(hasGlobalDiscount && discountExceedsTotal(subtotal, multiGlobalDiscountType, document.getElementById('in-global-discount-value').value)){
+    showToast(dict[currentLang].discountTooHighMsg, 3500);
+  }
+  const grandTotal = subtotal - globalDiscountAmount;
+  const grandProfit = subtotalProfit - globalDiscountAmount;
 
   const hasPartialDebt = document.getElementById('in-has-debt').checked;
   if(hasPartialDebt && !isFeatureUnlocked('customerDebts')){
@@ -436,11 +650,18 @@ async function confirmMultiSaleInner(){
       product.qty -= it.qty;
       product.lastSoldAt = Date.now();
     }
-    return {
+    // Part de la remise globale attribuée à CETTE ligne, au prorata de son poids dans
+    // le sous-total (déjà net de sa propre remise produit) — même logique que
+    // debtProfitShare un peu plus bas pour une dette partielle.
+    const globalShare = subtotal > 0 ? globalDiscountAmount * (it.total / subtotal) : 0;
+    const rec = {
       id: multiSaleId+'-'+product.id, multiSaleId, productId: product.id, productName: product.name,
-      qty: it.qty, unit: product.unit || 'pc', total: it.total, profit: it.profit,
+      qty: it.qty, unit: product.unit || 'pc', total: it.total - globalShare, profit: it.profit - globalShare,
       date: Date.now(), isCredit: isCredit
     };
+    if(it.itemDiscount > 0) rec.itemDiscount = it.itemDiscount;
+    if(globalShare > 0) rec.globalDiscountShare = globalShare;
+    return rec;
   });
   await saveProducts();
 
@@ -939,7 +1160,7 @@ function pauseCurrentCartIfAny(){
     showToast(dict[currentLang].heldCartsFullMsg, 4500);
     return 'blocked';
   }
-  heldCarts.push({ id: 'held' + Date.now() + Math.random().toString(36).slice(2,6), cart: { ...multiCart }, savedAt: Date.now() });
+  heldCarts.push({ id: 'held' + Date.now() + Math.random().toString(36).slice(2,6), cart: { ...multiCart }, discounts: { ...multiCartDiscounts }, savedAt: Date.now() });
   saveHeldCarts();
   updateHeldCartsBadge();
   showToast(dict[currentLang].cartPausedMsg, 3000);
@@ -1001,6 +1222,7 @@ function resumeHeldCart(index){
   closeHeldCartsSheet();
   openSellSheet(null);
   multiCart = { ...held.cart };
+  multiCartDiscounts = { ...(held.discounts || {}) }; // remises par produit du panier repris, si elles existaient (voir pauseCurrentCartIfAny)
   document.getElementById('in-is-multi').checked = true;
   toggleMultiFields();
 }

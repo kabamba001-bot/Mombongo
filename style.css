@@ -51,6 +51,16 @@
     animation:bootSpin .8s linear infinite;
   }
   @keyframes bootSpin{ to{ transform:rotate(360deg); } }
+  /* Même z-index que #boot-loading-overlay (au-dessus de tout, y compris une fiche VIP
+     déjà ouverte) — masqué par défaut, affiché en JS via .open (voir
+     updateEmployeeDowngradeBlock(), plans.js). display:none ET .open{display:flex} plutôt
+     qu'une simple opacité : doit aussi couper les clics/taps derrière lui. */
+  #employee-plan-block-overlay{
+    position:fixed; inset:0; z-index:99997; background:var(--emerald);
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    color:var(--paper); font-family:'Inter',sans-serif; padding:24px; text-align:center;
+  }
+  #employee-plan-block-overlay.open{ display:flex; }
   h1,h2,h3,.display{ font-family:'Sora',sans-serif; }
   #app{
     max-width:480px; margin:0 auto; min-height:100vh;
@@ -208,9 +218,9 @@
   .products-tab{
     background:none; border:none; padding:0; margin:0; cursor:pointer;
     font-size:14px; text-transform:uppercase; letter-spacing:.05em; font-weight:700;
-    color:var(--paper-2); font-family:'Inter'; transition:color .15s;
+    color:var(--charcoal-soft); opacity:.45; font-family:'Inter'; transition:color .15s, opacity .15s;
   }
-  .products-tab.active{color:var(--charcoal-soft);}
+  .products-tab.active{color:var(--charcoal-soft); opacity:1;}
   .products-tab:last-child{margin-left:auto;}
 
   .alert-banner{
@@ -340,9 +350,13 @@
     left:calc(50% + 62px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
   }
-  /* En miroir de .barcode-fab, côté gauche du micro. */
+  /* En miroir de .barcode-fab, côté gauche du micro. Le barcode-fab est positionné par son
+     bord GAUCHE (left:50%+62px, largeur 48px) ; pour un espacement identique de l'autre
+     côté, on doit ancrer held-carts-fab par son bord DROIT au même decalage — d'où
+     50% - 62px - 48px = 50% - 110px, et non 50% - 62px (qui alignait les bords gauches
+     des deux boutons et faisait chevaucher son bord droit sur le micro). */
   .held-carts-fab{
-    left:calc(50% - 62px); transform:none; width:48px; height:48px; font-size:20px;
+    left:calc(50% - 110px); transform:none; width:48px; height:48px; font-size:20px;
     background:var(--slate); box-shadow:0 6px 18px rgba(90,107,107,0.35);
     position:fixed;
   }
@@ -464,7 +478,22 @@
   .sheet{
     background:var(--paper); width:100%; max-width:480px; margin:0 auto;
     border-radius:20px 20px 0 0; padding:20px 20px 26px; max-height:88vh; overflow-y:auto;
+    overscroll-behavior:contain; /* voir body.overlay-locked plus bas — empêche le "scroll
+      chaining" : sans ça, arriver en haut/bas de la liste À L'INTÉRIEUR d'une fenêtre
+      ouverte (ex. la longue liste "Ajout rapide depuis le catalogue") et continuer à
+      swiper faisait défiler la page D'ARRIÈRE-PLAN en dessous, invisible mais bien réelle. */
   }
+  /* Verrou d'arrière-plan pendant qu'une fenêtre (.sheet-overlay) est ouverte — posé/retiré
+     automatiquement par updateBackgroundLock() (navigation.js) dès qu'une .sheet-overlay
+     gagne/perd sa classe .open, sans avoir à modifier un par un les dizaines de
+     open.../close... déjà présents dans le code. Deux effets : la page ne peut plus défiler
+     derrière la fenêtre (position:fixed + restauration exacte du scroll au retrait), et le
+     contenu visible mais recouvert (#app) devient inerte — aucun tap, aucun raccourci
+     clavier ne peut plus l'atteindre tant que la fenêtre reste ouverte. */
+  body.overlay-locked{ position:fixed; left:0; right:0; overflow:hidden; }
+  body.overlay-locked #app{ pointer-events:none; }
+  body.overlay-locked .sheet-overlay.open{ pointer-events:auto; }
+  body.overlay-locked .sheet-overlay.open .sheet{ pointer-events:auto; }
   .sheet h3{margin:0 0 16px; font-size:17px; font-weight:700;}
   .field{margin-bottom:14px;}
   .field label{display:block; font-size:12.5px; font-weight:600; color:var(--charcoal-soft); margin-bottom:6px;}
@@ -605,9 +634,47 @@
   .multi-qty-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
   .multi-total-divider{height:1px; background:var(--paper-2); margin:12px 0;}
   .multi-list-separator{height:1px; background:var(--paper-2); margin:8px 0;}
-  .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
+  .multi-total-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;}
   .multi-total-row .lbl{font-size:13.5px; font-weight:700;}
   .multi-total-row .val{font-family:'Sora'; font-size:19px; font-weight:800; color:var(--emerald);}
+
+  /* ---- Remises (vente simple + panier "vente plusieurs") ---- */
+  .discount-preview-line{
+    text-align:right; font-size:11.5px; font-weight:700; color:var(--alert);
+    margin:-6px 0 14px;
+  }
+  /* Ligne de produit du panier repliée en colonne dès qu'elle porte ses propres
+     contrôles de remise (uniquement les lignes déjà sélectionnées, voir
+     renderMultiProductRow() dans sales.js) — les autres gardent la mise en page
+     horizontale d'origine. */
+  .multi-product-row.has-discount-row{flex-direction:column; align-items:stretch; gap:8px;}
+  .mpr-top{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .mpr-discount{display:flex; align-items:center; gap:8px;}
+  .disc-type-toggle{display:flex; gap:4px; flex-shrink:0;}
+  .disc-type-btn{
+    padding:7px 9px; border-radius:8px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:11px; font-weight:700; cursor:pointer; font-family:'Inter';
+    color:var(--charcoal-soft);
+  }
+  .disc-type-btn.active{background:var(--emerald); border-color:var(--emerald); color:#fff;}
+  .mpr-discount-input{
+    flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1.5px solid var(--paper-2);
+    background:var(--card-bg); font-size:13px; font-family:'Inter'; color:var(--charcoal);
+  }
+  .mpr-discount-input:focus{outline:2px solid var(--emerald-light); border-color:transparent;}
+
+  /* ---- Tableau de bord consolidé (toutes boutiques, palier Pro) ---- */
+  .consolidated-status-msg{text-align:center; color:var(--charcoal-soft); font-size:13px; padding:20px 0;}
+  .store-compare-row{
+    background:var(--card-bg); border:1.5px solid var(--paper-2); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .store-compare-row.loss{border-color:var(--alert); background:rgba(220,53,69,0.05);}
+  .scr-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:6px;}
+  .scr-name{font-size:14px; font-weight:700; color:var(--charcoal);}
+  .scr-net{font-family:'Sora'; font-size:15px; font-weight:800; color:var(--emerald);}
+  .store-compare-row.loss .scr-net{color:var(--alert);}
+  .scr-detail{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11.5px; color:var(--charcoal-soft);}
 
   .backup-banner{
     display:none; align-items:center; gap:10px;
