@@ -106,7 +106,9 @@ const PLAN_DEFS = {
       lowStockAlerts: true,
       exportPdf: true,
       multiCurrency: true,
-      pushNotifications: true
+      pushNotifications: true,
+      saleDiscounts: true,        // remises/promotions (vente simple + panier "plusieurs")
+      advancedHistorySearch: true // recherche par produit/client + filtre montant dans l'historique
     }
   },
   pro: {
@@ -120,7 +122,11 @@ const PLAN_DEFS = {
     features: Object.assign({}, /* placeholder, rempli plus bas pour éviter la duplication */ {}, {
       multiDevice: true,
       multiStore: true,
-      supplierManagement: true
+      supplierManagement: true,
+      // Nécessite de lire TOUTES les boutiques d'un coup (hors du modèle habituel
+      // "une seule boutique chargée à la fois", voir consolidated.js) — réservé au
+      // patron qui gère plusieurs boutiques à distance, cœur de l'offre Pro.
+      consolidatedReports: true
     })
   }
 };
@@ -399,8 +405,8 @@ function setSimplePaidTier(durationMs){
 const LIMIT_REASON_TARGET_PLAN = {
   history: 'simple_paid', barcode: 'simple_paid', expense: 'simple_paid',
   voice: 'business', export: 'business', notif: 'business', currency: 'business',
-  stock: 'business',
-  stores: 'pro', devices: 'pro', suppliers: 'pro'
+  stock: 'business', discount: 'business', historySearch: 'business',
+  stores: 'pro', devices: 'pro', suppliers: 'pro', consolidated: 'pro'
 };
 function getLimitReasonTargetPlan(reason){
   return LIMIT_REASON_TARGET_PLAN[reason] || 'business';

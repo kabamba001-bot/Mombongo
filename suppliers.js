@@ -73,6 +73,14 @@ function renderSuppliersList(){
   const wrap = document.getElementById('suppliers-list');
   const totalEl = document.getElementById('suppliers-total-owed');
   if(totalEl) totalEl.textContent = formatMoney(totalOwedToAllSuppliers());
+  // Compteur sur le bouton "📦 Commandes en cours" — mis à jour ici plutôt que dans
+  // renderOrdersList() pour rester juste dès l'ouverture de la fiche Fournisseurs,
+  // avant même d'avoir ouvert la fiche Commandes.
+  const ordersBtn = document.getElementById('t-orders-btn');
+  if(ordersBtn){
+    const n = pendingOrdersCount();
+    ordersBtn.textContent = t.ordersBtn + (n > 0 ? ` (${n})` : '');
+  }
   if(!wrap) return;
   wrap.innerHTML = '';
   if(suppliers.length === 0){
@@ -81,16 +89,18 @@ function renderSuppliersList(){
   }
   suppliers.forEach(s=>{
     const owed = supplierTotalOwed(s.id);
+    const avgLead = supplierAvgLeadTimeDays(s.id);
     const row = document.createElement('div');
     row.className = 'history-item';
     row.innerHTML = `
       <div class="info">
         <div class="name">${escapeHtml(s.name)}</div>
-        <div class="meta">${escapeHtml(s.phone || '')}</div>
+        <div class="meta">${escapeHtml(s.phone || '')}${avgLead !== null ? ' · ' + escapeHtml(t.avgLeadTimeLabel.replace('{n}', avgLead.toFixed(1))) : ''}</div>
       </div>
       <div class="amounts">
         ${owed > 0 ? `<div class="alert">${formatMoney(owed)} ${escapeHtml(t.owedToSupplierSuffix)}</div>` : ''}
       </div>
+      <button class="del-entry" onclick="openNewOrderSheet('${s.id}')" aria-label="${escapeHtml(t.newOrderBtn)}" title="${escapeHtml(t.newOrderBtn)}">📦</button>
       <button class="del-entry" onclick="openRecordPurchaseSheet('${s.id}')" aria-label="${escapeHtml(t.recordPurchaseTitle)}" title="${escapeHtml(t.recordPurchaseTitle)}">🛒</button>
       ${owed > 0 ? `<button class="del-entry" onclick="openPaySupplierSheet('${s.id}')" aria-label="${escapeHtml(t.paySupplierBtn)}" title="${escapeHtml(t.paySupplierBtn)}">💳</button>` : ''}
       <button class="del-entry" onclick="openSupplierFormSheet('${s.id}')" aria-label="Modifier">✏️</button>
@@ -160,6 +170,11 @@ function openRecordPurchaseSheet(preselectSupplierId){
     showToast(t.addSupplierFirst, 4000);
     return;
   }
+  // Entrée "normale" (bouton 🛒, pas une réception de commande) : on efface tout
+  // état laissé par un openReceiveOrderSheet() précédent, sinon un achat sans
+  // rapport avec une commande marquerait quand même celle-ci comme reçue.
+  receivingOrderId = null;
+  document.getElementById('t-record-purchase-title').textContent = t.recordPurchaseTitle;
   const select = document.getElementById('in-purchase-supplier');
   select.innerHTML = suppliers.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
   if(typeof preselectSupplierId === 'string') select.value = preselectSupplierId;
@@ -174,6 +189,9 @@ function openRecordPurchaseSheet(preselectSupplierId){
 }
 function closeRecordPurchaseSheet(){
   document.getElementById('record-purchase-overlay').classList.remove('open');
+  // Fermer sans confirmer une réception ne doit pas laisser la commande "en attente
+  // de réception" pour le prochain achat classique qu'on enregistrera juste après.
+  receivingOrderId = null;
 }
 function togglePurchaseCreditFields(){
   const isCredit = document.getElementById('in-purchase-is-credit').checked;
@@ -284,6 +302,21 @@ async function confirmRecordPurchase(){
     if(product){ product.qty += it.qty; product.buy = it.unitCost; }
   });
 
+  // Si cet achat vient de la réception d'une commande en attente (voir
+  // openReceiveOrderSheet ci-dessous), on boucle la commande : passage à "reçue",
+  // horodatage — sert au calcul du délai de livraison moyen, voir
+  // supplierAvgLeadTimeDays() — et lien vers l'achat réellement enregistré.
+  if(receivingOrderId){
+    const order = orders.find(o=>o.id===receivingOrderId);
+    if(order){
+      order.status = 'recue';
+      order.receivedAt = Date.now();
+      order.purchaseId = purchase.id;
+      await saveOrders();
+    }
+    receivingOrderId = null;
+  }
+
   await savePurchases();
   await saveProducts();
   if(currentRole() !== 'patron'){
@@ -386,4 +419,255 @@ async function confirmPaySupplier(){
   closePaySupplierSheet();
   renderSuppliersList();
   showToast(t.paymentSaved);
+}
+
+/* =========================================================================
+   COMMANDES EN COURS & DÉLAI DE LIVRAISON — gestion fournisseurs "avancée",
+   au-delà du simple suivi de dette déjà géré ci-dessus.
+   ---------------------------------------------------------------------------
+   Une COMMANDE (orders, voir orders-sync.js) est distincte d'un ACHAT
+   (purchases, ci-dessus) : elle représente ce qui a été DEMANDÉ à un
+   fournisseur mais pas encore livré — elle n'a donc AUCUN effet sur le stock
+   ni sur le prix d'achat tant qu'elle n'est pas réceptionnée. C'est
+   exactement ce que fait un achat, donc "réceptionner une commande" ne fait
+   que pré-remplir la fiche "Enregistrer un achat" déjà existante avec les
+   articles de la commande (voir openReceiveOrderSheet ci-dessous) : les
+   quantités/coûts confirmés à la réception peuvent différer de l'estimation
+   de départ, volontairement — ce qui compte pour le stock et la marge, c'est
+   ce qui a RÉELLEMENT été livré, jamais l'estimation.
+
+   Le délai de livraison habituel d'un fournisseur (supplierAvgLeadTimeDays)
+   se déduit de cet historique : la moyenne, en jours, entre la date de la
+   commande et sa date de réception — jamais saisi à la main, toujours
+   recalculé depuis les commandes déjà réceptionnées.
+   ========================================================================= */
+
+function supplierAvgLeadTimeDays(supplierId){
+  const received = orders.filter(o => o.supplierId === supplierId && o.status === 'recue' && o.receivedAt);
+  if(received.length === 0) return null;
+  const totalDays = received.reduce((sum,o) => sum + (o.receivedAt - o.date) / 86400000, 0);
+  return totalDays / received.length;
+}
+function pendingOrdersCount(){
+  return orders.filter(o => o.status === 'en_attente').length;
+}
+
+/* ---------- Passer une nouvelle commande ---------- */
+function openNewOrderSheet(preselectSupplierId){
+  const t = dict[currentLang];
+  if(!canManageSuppliers()){ showToast(t.restrictedFeature); return; }
+  if(suppliers.length === 0){
+    showToast(t.addSupplierFirst, 4000);
+    return;
+  }
+  const select = document.getElementById('in-order-supplier');
+  select.innerHTML = suppliers.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  if(typeof preselectSupplierId === 'string') select.value = preselectSupplierId;
+  document.getElementById('order-items-rows').innerHTML = '';
+  addOrderItemRow();
+  document.getElementById('in-order-expected-date').value = '';
+  document.getElementById('in-order-notes').value = '';
+  updateOrderTotal();
+  document.getElementById('new-order-overlay').classList.add('open');
+}
+function closeNewOrderSheet(){
+  document.getElementById('new-order-overlay').classList.remove('open');
+}
+// Même widget de ligne que addPurchaseItemRow() (produit + quantité + coût unitaire
+// + suppression), volontairement dupliqué plutôt que partagé : les deux containers
+// (#order-items-rows / #purchase-items-rows) et listes de lignes ne doivent jamais
+// se marcher dessus si les deux fiches sont ouvertes l'une après l'autre.
+function addOrderItemRow(){
+  const t = dict[currentLang];
+  const row = document.createElement('div');
+  row.className = 'purchase-item-row';
+
+  const select = document.createElement('select');
+  select.className = 'order-item-product';
+  select.innerHTML = `<option value="">${escapeHtml(t.chooseProduct)}</option>` +
+    products.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  select.addEventListener('change', function(){
+    // Même pré-remplissage que pour un achat (voir addPurchaseItemRow) : suggère le
+    // dernier prix d'achat connu, éditable — utile même pour une simple estimation.
+    const product = products.find(p=>p.id===select.value);
+    if(product){
+      const costInput = row.querySelector('.order-item-cost');
+      if(costInput && !costInput.value){
+        costInput.value = currentCurrency==='cdf' ? Math.round(product.buy*exchangeRate) : product.buy;
+      }
+    }
+    updateOrderTotal();
+  });
+
+  const qtyInput = document.createElement('input');
+  qtyInput.type = 'number'; qtyInput.inputMode = 'numeric'; qtyInput.className = 'order-item-qty';
+  qtyInput.placeholder = t.gridColQty || 'Qté';
+  qtyInput.addEventListener('input', updateOrderTotal);
+
+  const costInput = document.createElement('input');
+  costInput.type = 'number'; costInput.inputMode = 'decimal'; costInput.className = 'order-item-cost';
+  costInput.placeholder = t.unitCostPlaceholder;
+  costInput.addEventListener('input', updateOrderTotal);
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button'; delBtn.className = 'grid-row-del';
+  delBtn.textContent = '✕';
+  delBtn.setAttribute('aria-label', t.gridRemoveRowLabel || 'Supprimer la ligne');
+  delBtn.addEventListener('click', function(){ row.remove(); updateOrderTotal(); });
+
+  row.appendChild(select); row.appendChild(qtyInput); row.appendChild(costInput); row.appendChild(delBtn);
+  document.getElementById('order-items-rows').appendChild(row);
+}
+function updateOrderTotal(){
+  const rows = document.querySelectorAll('#order-items-rows .purchase-item-row');
+  let total = 0;
+  rows.forEach(row=>{
+    const qty = parseFloat(row.querySelector('.order-item-qty').value) || 0;
+    const cost = parseFloat(row.querySelector('.order-item-cost').value) || 0;
+    total += qty * cost;
+  });
+  const totalInternal = toInternal(total);
+  document.getElementById('order-total-display').textContent = formatMoney(totalInternal);
+  return totalInternal;
+}
+async function confirmNewOrder(){
+  const t = dict[currentLang];
+  if(!canManageSuppliers()){ showToast(t.restrictedFeature); return; }
+  const supplierId = document.getElementById('in-order-supplier').value;
+  const supplier = suppliers.find(s=>s.id===supplierId);
+  if(!supplier){ showToast(t.supplierNameRequired); return; }
+
+  const rows = document.querySelectorAll('#order-items-rows .purchase-item-row');
+  let hasNegative = false;
+  rows.forEach(row=>{
+    if(!isNonNegativeInput(row.querySelector('.order-item-qty').value)) hasNegative = true;
+    if(!isNonNegativeInput(row.querySelector('.order-item-cost').value)) hasNegative = true;
+  });
+  if(hasNegative){ showToast(t.negativeValueError); return; }
+
+  const items = [];
+  rows.forEach(row=>{
+    const productId = row.querySelector('.order-item-product').value;
+    const product = products.find(p=>p.id===productId);
+    const qty = parseInt(row.querySelector('.order-item-qty').value, 10) || 0;
+    const rawCost = parseFloat(row.querySelector('.order-item-cost').value) || 0;
+    if(!product || qty <= 0) return; // ligne incomplète, simplement ignorée — même choix que confirmRecordPurchase()
+    const unitCost = toInternal(rawCost);
+    items.push({ productId: product.id, productName: product.name, qty, unitCost, total: qty * unitCost });
+  });
+  if(items.length === 0){ showToast(t.purchaseNoItems); return; }
+
+  const totalEstimate = items.reduce((s,it)=>s+it.total, 0);
+  const expectedDate = document.getElementById('in-order-expected-date').value;
+  const notes = document.getElementById('in-order-notes').value.trim();
+
+  const order = {
+    id: 'order_' + Date.now(), supplierId: supplier.id, supplierName: supplier.name,
+    date: Date.now(), expectedDate, items, totalEstimate,
+    status: 'en_attente', receivedAt: null, purchaseId: null, notes
+  };
+  orders.push(order);
+  await saveOrders();
+  if(currentRole() !== 'patron'){
+    logActivity('order_add', t.logOrderPlaced + ' : ' + supplier.name + ' — ' + formatMoney(totalEstimate));
+  }
+  closeNewOrderSheet();
+  renderOrdersList();
+  renderSuppliersList();
+  showToast(t.orderSaved);
+}
+
+/* ---------- Liste des commandes en cours (pas encore livrées) ---------- */
+function openOrdersSheet(){
+  if(!canManageSuppliers()){ showToast(dict[currentLang].restrictedFeature); return; }
+  renderOrdersList();
+  document.getElementById('orders-overlay').classList.add('open');
+}
+function closeOrdersSheet(){
+  document.getElementById('orders-overlay').classList.remove('open');
+}
+function renderOrdersList(){
+  const t = dict[currentLang];
+  const wrap = document.getElementById('orders-list');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  // Les plus anciennes en premier : ce sont celles à relancer en priorité auprès
+  // du fournisseur, pas les dernières passées.
+  const pending = orders.filter(o=>o.status==='en_attente').sort((a,b)=>a.date-b.date);
+  if(pending.length === 0){
+    wrap.innerHTML = `<div class="empty" style="padding:20px 0;">${escapeHtml(t.ordersEmpty)}</div>`;
+    return;
+  }
+  pending.forEach(o=>{
+    const itemsLabel = o.items.length === 1
+      ? o.items[0].productName
+      : `${o.items[0].productName} ${t.andOthersSuffix.replace('{n}', o.items.length - 1)}`;
+    const daysWaiting = Math.max(0, Math.floor((Date.now() - o.date) / 86400000));
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    row.innerHTML = `
+      <div class="info">
+        <div class="name">${escapeHtml(o.supplierName)} — ${escapeHtml(itemsLabel)}</div>
+        <div class="meta">${formatDateTime(o.date)} · ${escapeHtml(t.orderWaitingSince.replace('{n}', daysWaiting))}</div>
+      </div>
+      <div class="amounts">
+        <div>${formatMoney(o.totalEstimate)}</div>
+      </div>
+      <button class="del-entry" onclick="openReceiveOrderSheet('${o.id}')" aria-label="${escapeHtml(t.orderReceiveBtn)}" title="${escapeHtml(t.orderReceiveBtn)}">✅</button>
+      <button class="del-entry" onclick="cancelOrder('${o.id}')" aria-label="${escapeHtml(t.orderCancelBtn)}" title="${escapeHtml(t.orderCancelBtn)}">🗑</button>
+    `;
+    wrap.appendChild(row);
+  });
+}
+async function cancelOrder(orderId){
+  const t = dict[currentLang];
+  if(!canManageSuppliers()){ showToast(t.restrictedFeature); return; }
+  const order = orders.find(o=>o.id===orderId);
+  if(!order) return;
+  const ok = window.confirm(`${t.confirmCancelOrder}\n"${order.supplierName}"`);
+  if(!ok) return;
+  order.status = 'annulee'; // jamais supprimée : garde une trace, mais sort de la liste "en cours" et du calcul du délai moyen
+  await saveOrders();
+  if(currentRole() !== 'patron'){
+    logActivity('order_cancel', t.logOrderCancelled + ' : ' + order.supplierName);
+  }
+  renderOrdersList();
+  renderSuppliersList();
+  showToast(t.orderCancelled);
+}
+
+/* ---------- Réceptionner une commande = enregistrer l'achat correspondant ----------
+   Réutilise la fiche "Enregistrer un achat" déjà existante (record-purchase-overlay)
+   plutôt que d'en construire une nouvelle : une commande reçue EST un achat, avec
+   les mêmes effets sur le stock et le prix d'achat (voir confirmRecordPurchase, plus
+   bas, pour la partie qui boucle la commande une fois l'achat confirmé). */
+let receivingOrderId = null;
+function openReceiveOrderSheet(orderId){
+  const t = dict[currentLang];
+  if(!canManageSuppliers()){ showToast(t.restrictedFeature); return; }
+  const order = orders.find(o=>o.id===orderId);
+  if(!order) return;
+  receivingOrderId = orderId;
+  closeOrdersSheet();
+
+  const select = document.getElementById('in-purchase-supplier');
+  select.innerHTML = suppliers.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  select.value = order.supplierId;
+
+  const rowsWrap = document.getElementById('purchase-items-rows');
+  rowsWrap.innerHTML = '';
+  order.items.forEach(it=>{
+    addPurchaseItemRow();
+    const row = rowsWrap.lastElementChild;
+    row.querySelector('.purchase-item-product').value = it.productId;
+    row.querySelector('.purchase-item-qty').value = it.qty;
+    row.querySelector('.purchase-item-cost').value = currentCurrency==='cdf' ? Math.round(it.unitCost*exchangeRate) : it.unitCost;
+  });
+  document.getElementById('in-purchase-is-credit').checked = false;
+  document.getElementById('purchase-credit-fields').style.display = 'none';
+  document.getElementById('in-purchase-due').value = '';
+  document.getElementById('in-purchase-paid-now').value = '';
+  updatePurchaseTotal();
+  document.getElementById('t-record-purchase-title').textContent = t.receiveOrderTitle;
+  document.getElementById('record-purchase-overlay').classList.add('open');
 }

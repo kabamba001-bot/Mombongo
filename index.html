@@ -81,75 +81,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
   <p id="t-employee-plan-block-title" style="font-weight:700; font-size:16px; margin:0;">Accès suspendu</p>
   <p id="t-employee-plan-block-body" style="font-size:13.5px; max-width:280px; text-align:center; opacity:.9;">L'abonnement Pro du patron n'est plus actif. Demande-lui de le renouveler pour retrouver l'accès sur cet appareil.</p>
 </div>
-<!-- Fenêtre obligatoire d'inscription/connexion — voir maybeScheduleAuthGate()
-     dans phone-auth.js. Apparaît 0 à 5s après l'arrivée, impossible à fermer sans
-     se connecter (par numéro+code ou par Google). Volontairement HORS du système
-     .sheet-overlay habituel (jamais fermée par le bouton retour, voir
-     navigation.js), et en dehors de #app comme #boot-loading-overlay ci-dessus. -->
-<div id="auth-gate-overlay">
-  <div class="auth-gate-card">
-    <div class="auth-gate-brand">
-      <img src="./icon-192.png" alt="" class="auth-gate-logo" onerror="this.style.display='none'">
-      <span class="auth-gate-brand-name">Mombongo</span>
-    </div>
-    <div id="auth-gate-login-view">
-      <h3 id="t-authgate-login-title">Connexion</h3>
-      <p class="auth-gate-subtitle" id="t-authgate-login-subtitle">Connecte-toi avec ton numéro de téléphone pour continuer</p>
-      <p class="auth-gate-error" id="auth-gate-login-error" style="display:none;"></p>
-      <div class="field">
-        <label id="t-authgate-login-phone-label">📱 Numéro de téléphone</label>
-        <input type="tel" id="auth-gate-login-phone" placeholder="+243 8xx xxx xxx" autocomplete="tel" inputmode="tel">
-      </div>
-      <div class="field">
-        <label id="t-authgate-login-code-label">🔑 Code (4 à 8 caractères)</label>
-        <div class="auth-gate-input-wrap">
-          <input type="password" id="auth-gate-login-code" maxlength="8" autocomplete="current-password">
-          <button type="button" class="auth-gate-eye" onclick="toggleAuthGateCodeVisibility('auth-gate-login-code', this)" aria-label="Afficher le code">👁</button>
-        </div>
-      </div>
-      <button class="btn-primary" id="t-authgate-login-btn" onclick="signInWithPhoneCode()">Se connecter</button>
-      <a class="auth-gate-forgot" onclick="openAuthGateForgotPassword()" id="t-authgate-forgot">Code oublié ? Contacter l'administrateur sur WhatsApp</a>
-      <p class="auth-gate-switch">
-        <span id="t-authgate-no-account">Pas encore inscrit ?</span>
-        <a onclick="showAuthGateSignupView()" id="t-authgate-signup-link">Inscription</a>
-      </p>
-    </div>
-    <div id="auth-gate-signup-view" style="display:none;">
-      <h3 id="t-authgate-signup-title">Inscription</h3>
-      <p class="auth-gate-subtitle" id="t-authgate-signup-subtitle">Choisis un code de 4 à 8 caractères (chiffres et/ou lettres)</p>
-      <p class="auth-gate-error" id="auth-gate-signup-error" style="display:none;"></p>
-      <div class="field">
-        <label id="t-authgate-signup-phone-label">📱 Numéro de téléphone</label>
-        <input type="tel" id="auth-gate-signup-phone" placeholder="+243 8xx xxx xxx" autocomplete="tel" inputmode="tel">
-      </div>
-      <div class="field">
-        <label id="t-authgate-signup-code-label">🔑 Choisis ton code</label>
-        <div class="auth-gate-input-wrap">
-          <input type="password" id="auth-gate-signup-code" maxlength="8" autocomplete="new-password">
-          <button type="button" class="auth-gate-eye" onclick="toggleAuthGateCodeVisibility('auth-gate-signup-code', this)" aria-label="Afficher le code">👁</button>
-        </div>
-      </div>
-      <div class="field">
-        <label id="t-authgate-signup-code2-label">🔑 Confirme ton code</label>
-        <div class="auth-gate-input-wrap">
-          <input type="password" id="auth-gate-signup-code2" maxlength="8" autocomplete="new-password">
-          <button type="button" class="auth-gate-eye" onclick="toggleAuthGateCodeVisibility('auth-gate-signup-code2', this)" aria-label="Afficher le code">👁</button>
-        </div>
-      </div>
-      <button class="btn-primary" id="t-authgate-signup-btn" onclick="signUpWithPhoneCode()">S'inscrire</button>
-      <p class="auth-gate-switch">
-        <span id="t-authgate-have-account">Déjà inscrit ?</span>
-        <a onclick="showAuthGateLoginView()" id="t-authgate-login-link">Se connecter</a>
-      </p>
-    </div>
-  </div>
-  <div class="auth-gate-google-wrap">
-    <p class="auth-gate-or" id="t-authgate-or">— ou —</p>
-
-    <button class="auth-gate-google-btn" onclick="signInWithGoogle()" id="t-authgate-google-btn">Se connecter avec Google</button>
-  </div>
-  <p class="auth-gate-note" id="t-authgate-note">La connexion est obligatoire pour utiliser Mombongo.</p>
-</div>
 <div id="app">
 
   <header class="top">
@@ -577,6 +508,22 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
           <label id="t-sell-qty">Quantité vendue</label>
           <input id="in-sell-qty" type="number" inputmode="numeric" value="1" oninput="updateSellPreview()" onfocus="scrollConfirmIntoView()">
         </div>
+
+        <div class="toggle-row" id="discount-toggle-row">
+          <span id="t-discount-toggle">Remise ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-has-discount" onchange="toggleSaleDiscountFields()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="discount-fields" style="display:none;">
+          <div class="method-row" id="discount-type-toggle" style="margin-bottom:8px;">
+            <button type="button" class="export-format-btn active" data-type="amount" onclick="setSaleDiscountType('amount')" id="t-discount-amount-btn">Montant</button>
+            <button type="button" class="export-format-btn" data-type="percent" onclick="setSaleDiscountType('percent')" id="t-discount-percent-btn">%</button>
+          </div>
+          <input id="in-discount-value" type="number" inputmode="decimal" min="0" placeholder="Ex : 500" oninput="updateSellPreview()">
+        </div>
+
         <div class="sell-preview">
           <div class="col">
             <div class="lbl" id="t-total-label">Total</div>
@@ -588,6 +535,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
             <div class="val" id="preview-profit">0 $</div>
           </div>
         </div>
+        <div id="discount-preview" class="discount-preview-line"></div>
       </div>
 
       <div class="toggle-row-pair">
@@ -638,11 +586,31 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         </div>
         <div id="multi-product-list"></div>
         <button id="load-more-multi-btn" class="load-more-btn" onclick="loadMoreMultiProducts()" style="display:none;"></button>
+
+        <div class="toggle-row" id="global-discount-toggle-row">
+          <span id="t-global-discount-toggle">Remise globale ?</span>
+          <label class="switch">
+            <input type="checkbox" id="in-has-global-discount" onchange="toggleGlobalDiscountFields()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div id="global-discount-fields" style="display:none;">
+          <div class="field">
+            <label id="t-global-discount-label">Remise sur le total du panier</label>
+            <div class="method-row" id="global-discount-type-toggle" style="margin-bottom:8px;">
+              <button type="button" class="export-format-btn active" data-gdtype="amount" onclick="setGlobalDiscountType('amount', this)" id="t-global-discount-amount-btn">Montant</button>
+              <button type="button" class="export-format-btn" data-gdtype="percent" onclick="setGlobalDiscountType('percent', this)" id="t-global-discount-percent-btn">%</button>
+            </div>
+            <input id="in-global-discount-value" type="number" inputmode="decimal" min="0" placeholder="Ex : 5" oninput="updateMultiTotal()">
+          </div>
+        </div>
+
         <div class="multi-total-divider"></div>
         <div class="multi-total-row">
           <span class="lbl" id="t-multi-total-label">Total</span>
           <span class="val" id="multi-total">0 $</span>
         </div>
+        <div id="multi-discount-preview" class="discount-preview-line"></div>
 
         <div class="toggle-row" id="debt-toggle-row">
           <span id="t-debt-toggle">Dettes ?</span>
@@ -750,6 +718,12 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         </div>
 
         <div style="margin-top:16px;">
+          <h3 style="font-size:14px; margin:0 0 10px;" id="t-consolidated-section-title">📊 Rapports consolidés</h3>
+          <p style="font-size:12px; color:var(--charcoal-soft); margin-top:0;" id="t-consolidated-section-desc">Vue globale et comparaison entre toutes tes boutiques.</p>
+          <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openConsolidatedSheet()" id="t-consolidated-open-btn">Ouvrir le tableau de bord consolidé</button>
+        </div>
+
+        <div style="margin-top:16px;">
           <div class="toggle-row">
             <span id="t-suppliers-toggle-label">🚚 Gestion fournisseurs</span>
             <label class="switch">
@@ -783,6 +757,69 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </div>
       <button type="button" class="account-privacy-link" onclick="openPrivacySheet()" id="t-privacy-link">🔒 Politique de confidentialité</button>
       <button class="btn-secondary" onclick="closeAccountSheet()" id="t-cancel3">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Tableau de bord consolidé (toutes boutiques) — palier Pro uniquement, voir
+       consolidated.js. Ouvert depuis le menu Compte → Rapports consolidés. -->
+  <div class="sheet-overlay" id="consolidated-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="t-consolidated-title" style="margin:0;">Tableau de bord consolidé</h3>
+        <button onclick="closeConsolidatedSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+
+      <div class="period-row">
+        <button class="period-btn" data-period="day" onclick="setConsolidatedPeriod('day')" id="t-consolidated-period-day">Aujourd'hui</button>
+        <button class="period-btn" data-period="week" onclick="setConsolidatedPeriod('week')" id="t-consolidated-period-week">Semaine</button>
+        <button class="period-btn active" data-period="month" onclick="setConsolidatedPeriod('month')" id="t-consolidated-period-month">Mois</button>
+        <button class="period-btn" data-period="custom" onclick="setConsolidatedPeriod('custom')" id="t-consolidated-period-custom">Personnalisé</button>
+      </div>
+
+      <div id="consolidated-custom-range-fields" style="display:none;">
+        <div class="field">
+          <label id="t-consolidated-period-from">Du</label>
+          <div class="date-group">
+            <input id="in-consolidated-from-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-consolidated-from-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-consolidated-from-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+          </div>
+        </div>
+        <div class="field">
+          <label id="t-consolidated-period-to">Au</label>
+          <div class="date-group">
+            <input id="in-consolidated-to-d" type="number" inputmode="numeric" placeholder="JJ" min="1" max="31" class="date-part">
+            <input id="in-consolidated-to-m" type="number" inputmode="numeric" placeholder="MM" min="1" max="12" class="date-part">
+            <input id="in-consolidated-to-y" type="number" inputmode="numeric" placeholder="AAAA" min="2020" max="2100" class="date-part-year">
+          </div>
+        </div>
+        <button class="btn-secondary" style="margin-top:0;" onclick="applyConsolidatedCustomRange()" id="t-consolidated-period-apply">Appliquer</button>
+      </div>
+
+      <div class="summary-card" id="consolidated-summary-card" style="display:none;">
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-consolidated-summary-revenue">Ventes</div>
+          <div class="summary-val money" id="consolidated-total-revenue">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-consolidated-summary-expenses">Dépenses</div>
+          <div class="summary-val alert" id="consolidated-total-expenses">0 $</div>
+        </div>
+        <div class="summary-col">
+          <div class="summary-lbl" id="t-consolidated-summary-net">Gain net</div>
+          <div class="summary-val money" id="consolidated-total-net">0 $</div>
+        </div>
+      </div>
+
+      <div id="consolidated-stores-list"></div>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--paper-2);">
+        <div class="method-row" id="consolidated-export-format-toggle" style="margin-bottom:8px;">
+          <button type="button" class="export-format-btn active" data-fmt="pdf" onclick="selectConsolidatedExportFormat('pdf', this)">PDF</button>
+          <button type="button" class="export-format-btn" data-fmt="excel" onclick="selectConsolidatedExportFormat('excel', this)">Excel</button>
+        </div>
+        <button class="btn-primary" onclick="exportConsolidatedReport()" id="t-consolidated-export-btn">Exporter le rapport</button>
+      </div>
     </div>
   </div>
 
@@ -1134,6 +1171,21 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
         <button class="btn-secondary" style="margin-top:0;" onclick="applyCustomRange()" id="t-period-apply">Appliquer</button>
       </div>
 
+      <div class="field">
+        <label id="t-history-search-label">Rechercher (produit ou client)</label>
+        <input id="in-history-search" type="text" placeholder="Ex : Savon, Maman Marie" onfocus="guardHistoryAdvancedSearch(this)" oninput="applyHistorySearch()">
+      </div>
+      <div class="two-col" style="margin-bottom:14px;">
+        <div class="field" style="margin-bottom:0;">
+          <label id="t-history-amount-min">Montant min</label>
+          <input id="in-history-amount-min" type="number" inputmode="decimal" min="0" placeholder="0" onfocus="guardHistoryAdvancedSearch(this)" oninput="applyHistoryAmountFilter()">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label id="t-history-amount-max">Montant max</label>
+          <input id="in-history-amount-max" type="number" inputmode="decimal" min="0" placeholder="" onfocus="guardHistoryAdvancedSearch(this)" oninput="applyHistoryAmountFilter()">
+        </div>
+      </div>
+
       <div class="summary-card">
         <div class="summary-col">
           <div class="summary-lbl" id="t-summary-revenue">Ventes</div>
@@ -1247,8 +1299,54 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
       </p>
       <div id="suppliers-list"></div>
       <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px; margin-top:10px;" onclick="openSupplierFormSheet(null)" id="t-add-supplier-btn">+ Nouveau fournisseur</button>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openNewOrderSheet()" id="t-orders-new-btn">+ Nouvelle commande</button>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openOrdersSheet()" id="t-orders-btn">📦 Commandes en cours</button>
       <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="openPurchaseHistorySheet()" id="t-purchase-history-btn">🧾 Historique des achats</button>
       <button class="btn-secondary" onclick="closeSuppliersSheet()" id="t-cancel-suppliers">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Commandes en cours (pas encore livrées) — voir suppliers.js. Distinct de
+       purchase-history-overlay, qui liste les achats déjà RÉCEPTIONNÉS. -->
+  <div class="sheet-overlay" id="orders-overlay">
+    <div class="sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;" id="t-orders-title">Commandes en cours</h3>
+        <button onclick="closeOrdersSheet()" aria-label="Fermer" style="background:none; border:none; font-size:20px; color:var(--charcoal-soft); cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+      </div>
+      <div id="orders-list"></div>
+      <button class="btn-secondary" style="background:var(--paper-2); border-radius:10px;" onclick="closeOrdersSheet(); openNewOrderSheet();" id="t-orders-new-btn-2">+ Nouvelle commande</button>
+      <button class="btn-secondary" onclick="closeOrdersSheet()" id="t-cancel-orders">Fermer</button>
+    </div>
+  </div>
+
+  <!-- Passer une nouvelle commande — pas d'effet sur le stock tant qu'elle n'est pas
+       réceptionnée (voir openReceiveOrderSheet dans suppliers.js). -->
+  <div class="sheet-overlay" id="new-order-overlay">
+    <div class="sheet">
+      <h3 id="t-new-order-title">Nouvelle commande</h3>
+      <div class="field">
+        <label id="t-order-supplier-label">Fournisseur</label>
+        <select id="in-order-supplier"></select>
+      </div>
+      <div class="field">
+        <label id="t-order-items-label">Produits commandés</label>
+        <div id="order-items-rows"></div>
+        <button type="button" class="btn-secondary" style="background:var(--paper-2); border-radius:8px; margin-top:2px;" onclick="addOrderItemRow()" id="t-order-add-row">+ Ajouter une ligne</button>
+      </div>
+      <div class="field">
+        <label id="t-order-expected-date-label">Livraison prévue (optionnel)</label>
+        <input id="in-order-expected-date" type="date">
+      </div>
+      <div class="field">
+        <label id="t-order-notes-label">Note (optionnel)</label>
+        <input id="in-order-notes" type="text" placeholder="Ex : payer à la livraison">
+      </div>
+      <p style="font-size:14px; font-weight:700; text-align:right; margin:10px 0;">
+        <span id="t-order-total-label">Estimation :</span> <span id="order-total-display">0 $</span>
+      </p>
+      <button class="btn-primary" onclick="confirmNewOrder()" id="t-order-save">Enregistrer la commande</button>
+      <button class="btn-secondary" onclick="closeNewOrderSheet()" id="t-cancel-new-order">Annuler</button>
     </div>
   </div>
 
@@ -1385,8 +1483,6 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="translations.js"></script>
 <script src="helpers.js"></script>
 <script src="account-cloud.js"></script>
-<script src="native-auth-bridge.js"></script>
-<script src="phone-auth.js"></script>
 <script src="stores-devices.js"></script>
 <script src="sales-sync.js"></script>
 <script src="products-sync.js"></script>
@@ -1394,6 +1490,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="expenses-sync.js"></script>
 <script src="suppliers-sync.js"></script>
 <script src="purchases-sync.js"></script>
+<script src="orders-sync.js"></script>
 <script src="activity-log-sync.js"></script>
 <script src="data-catalog.js"></script>
 <script src="community-catalog.js"></script>
@@ -1406,6 +1503,7 @@ src="https://www.facebook.com/tr?id=1097558122598024&ev=PageView&noscript=1"
 <script src="plan-onboarding.js"></script>
 <script src="navigation.js"></script>
 <script src="export.js"></script>
+<script src="consolidated.js"></script>
 <script src="debts-expenses-alerts.js"></script>
 <script src="suppliers.js"></script>
 </body>

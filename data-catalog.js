@@ -12,6 +12,7 @@ let sellingProductId = null;
 // suppliersFeatureEnabled est le réglage (par boutique) qui affiche ou masque tout ça.
 let suppliers = [];
 let purchases = [];
+let orders = []; // commandes en cours (pas encore livrées) — voir suppliers.js et orders-sync.js
 let suppliersFeatureEnabled = false;
 
 function saveLots(){

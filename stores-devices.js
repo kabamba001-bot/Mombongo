@@ -218,6 +218,7 @@ function applyDocData(data){
     if(typeof attachExpensesListener === 'function') attachExpensesListener(getDataOwnerUid(), employeeStoreId);
     if(typeof attachSuppliersListener === 'function') attachSuppliersListener(getDataOwnerUid(), employeeStoreId);
     if(typeof attachPurchasesListener === 'function') attachPurchasesListener(getDataOwnerUid(), employeeStoreId);
+    if(typeof attachOrdersListener === 'function') attachOrdersListener(getDataOwnerUid(), employeeStoreId);
     if(typeof attachActivityLogListener === 'function') attachActivityLogListener(getDataOwnerUid(), employeeStoreId);
   } else {
     // Propriétaire réel, OU appareil secondaire connecté en rôle "patron" (aucune
@@ -231,6 +232,7 @@ function applyDocData(data){
     if(typeof attachExpensesListener === 'function') attachExpensesListener(getDataOwnerUid(), activeStoreId);
     if(typeof attachSuppliersListener === 'function') attachSuppliersListener(getDataOwnerUid(), activeStoreId);
     if(typeof attachPurchasesListener === 'function') attachPurchasesListener(getDataOwnerUid(), activeStoreId);
+    if(typeof attachOrdersListener === 'function') attachOrdersListener(getDataOwnerUid(), activeStoreId);
     if(typeof attachActivityLogListener === 'function') attachActivityLogListener(getDataOwnerUid(), activeStoreId);
   }
 
@@ -371,6 +373,17 @@ async function switchStore(storeId){
   loadStoreDataIntoWorkingArrays(storesDataCache[storeId]);
   if(typeof attachSalesListener === 'function') attachSalesListener(getDataOwnerUid(), storeId);
   if(typeof attachProductsListener === 'function') attachProductsListener(getDataOwnerUid(), storeId);
+  // BUG CORRIGÉ : ces 5 écoutes n'étaient JAMAIS rattachées à un changement de
+  // boutique (seules ventes/produits l'étaient) — dettes, dépenses, fournisseurs,
+  // achats et journal d'activité restaient donc figés sur l'ANCIENNE boutique
+  // après un switchStore(), silencieusement. Même liste que le chargement initial
+  // ci-dessus (employeeStoreId / activeStoreId au boot).
+  if(typeof attachDebtsListener === 'function') attachDebtsListener(getDataOwnerUid(), storeId);
+  if(typeof attachExpensesListener === 'function') attachExpensesListener(getDataOwnerUid(), storeId);
+  if(typeof attachSuppliersListener === 'function') attachSuppliersListener(getDataOwnerUid(), storeId);
+  if(typeof attachPurchasesListener === 'function') attachPurchasesListener(getDataOwnerUid(), storeId);
+  if(typeof attachOrdersListener === 'function') attachOrdersListener(getDataOwnerUid(), storeId);
+  if(typeof attachActivityLogListener === 'function') attachActivityLogListener(getDataOwnerUid(), storeId);
   await pushToCloud(); // persiste activeStoreId
   renderStoresList();
   render();
@@ -716,7 +729,6 @@ if(cloudEnabled){
     renderAccountUI();
     if(user) handlePostLogin();
     hideBootLoading();
-    if(typeof maybeScheduleAuthGate === 'function') maybeScheduleAuthGate();
   });
 }
 
@@ -865,25 +877,6 @@ function applyTranslations(){
   document.getElementById('t-delete-confirm-label').textContent = (t.deleteConfirmLabel || '').replace('{word}', t.deleteConfirmWord);
   document.getElementById('t-delete-confirm-btn').textContent = t.deleteConfirmBtn;
   document.getElementById('t-delete-confirm-cancel').textContent = t.close;
-  document.getElementById('t-authgate-login-title').textContent = t.authGateLoginTitle;
-  document.getElementById('t-authgate-login-subtitle').textContent = t.authGateLoginSubtitle;
-  document.getElementById('t-authgate-login-phone-label').textContent = t.authGateLoginPhoneLabel;
-  document.getElementById('t-authgate-login-code-label').textContent = t.authGateLoginCodeLabel;
-  if(!document.getElementById('t-authgate-login-btn').disabled) document.getElementById('t-authgate-login-btn').textContent = t.authGateLoginBtn;
-  document.getElementById('t-authgate-no-account').textContent = t.authGateNoAccount;
-  document.getElementById('t-authgate-signup-link').textContent = t.authGateSignupLink;
-  document.getElementById('t-authgate-forgot').textContent = t.authGateForgot;
-  document.getElementById('t-authgate-signup-title').textContent = t.authGateSignupTitle;
-  document.getElementById('t-authgate-signup-subtitle').textContent = t.authGateSignupSubtitle;
-  document.getElementById('t-authgate-signup-phone-label').textContent = t.authGateSignupPhoneLabel;
-  document.getElementById('t-authgate-signup-code-label').textContent = t.authGateSignupCodeLabel;
-  document.getElementById('t-authgate-signup-code2-label').textContent = t.authGateSignupCode2Label;
-  if(!document.getElementById('t-authgate-signup-btn').disabled) document.getElementById('t-authgate-signup-btn').textContent = t.authGateSignupBtn;
-  document.getElementById('t-authgate-have-account').textContent = t.authGateHaveAccount;
-  document.getElementById('t-authgate-login-link').textContent = t.authGateLoginLink;
-  document.getElementById('t-authgate-or').textContent = t.authGateOr;
-  document.getElementById('t-authgate-google-btn').textContent = t.authGateGoogleBtn;
-  document.getElementById('t-authgate-note').textContent = t.authGateNote;
   if(document.getElementById('privacy-overlay').classList.contains('open')){
     document.getElementById('privacy-content').innerHTML = t.privacyPolicyHtml || '';
   }
@@ -906,6 +899,10 @@ function applyTranslations(){
   document.getElementById('t-sell-qty').textContent = t.sellQty;
   document.getElementById('t-total-label').textContent = t.total;
   document.getElementById('t-profit-label').textContent = t.profit;
+  document.getElementById('t-discount-toggle').textContent = t.discountToggle;
+  document.getElementById('t-discount-amount-btn').textContent = t.discountAmountBtn;
+  document.getElementById('t-discount-percent-btn').textContent = t.discountPercentBtn;
+  document.getElementById('in-discount-value').placeholder = t.discountValuePlaceholder;
   document.getElementById('t-confirm-sale').textContent = t.confirmSale;
   document.getElementById('t-cancel2').textContent = t.cancel;
   document.getElementById('t-rate-label').textContent = t.rateLabel;
@@ -920,6 +917,12 @@ function applyTranslations(){
   document.getElementById('t-client-phone').textContent = t.clientPhone;
   document.getElementById('t-due-date').textContent = t.dueDateField;
   document.getElementById('t-multi-toggle').textContent = t.multiToggle;
+  document.getElementById('t-global-discount-toggle').textContent = t.globalDiscountToggle;
+  document.getElementById('t-global-discount-label').textContent = t.globalDiscountLabel;
+  document.getElementById('t-global-discount-amount-btn').textContent = t.discountAmountBtn;
+  document.getElementById('t-global-discount-percent-btn').textContent = t.discountPercentBtn;
+  document.getElementById('in-global-discount-value').placeholder = t.discountValuePlaceholder;
+  document.getElementById('t-multi-total-label').textContent = t.total;
   document.getElementById('t-debt-amount').textContent = t.debtAmount;
   document.getElementById('t-debt-client-name').textContent = t.debtClientName;
   document.getElementById('t-debt-client-phone').textContent = t.debtClientPhone;
@@ -948,6 +951,10 @@ function applyTranslations(){
   document.getElementById('t-period-from').textContent = t.periodFrom;
   document.getElementById('t-period-to').textContent = t.periodTo;
   document.getElementById('t-period-apply').textContent = t.periodApply;
+  document.getElementById('t-history-search-label').textContent = t.historySearchLabel;
+  document.getElementById('in-history-search').placeholder = t.historySearchPlaceholder;
+  document.getElementById('t-history-amount-min').textContent = t.historyAmountMinLabel;
+  document.getElementById('t-history-amount-max').textContent = t.historyAmountMaxLabel;
   document.getElementById('t-summary-revenue').textContent = t.summaryRevenue;
   document.getElementById('t-summary-expenses').textContent = t.summaryExpenses;
   document.getElementById('t-summary-net').textContent = t.summaryNet;
@@ -1001,6 +1008,21 @@ function applyTranslations(){
 
   document.getElementById('t-stores-title').textContent = t.storesTitle;
   document.getElementById('t-add-store-btn').textContent = t.addStoreBtn;
+  document.getElementById('t-consolidated-section-title').textContent = t.consolidatedSectionTitle;
+  document.getElementById('t-consolidated-section-desc').textContent = t.consolidatedSectionDesc;
+  document.getElementById('t-consolidated-open-btn').textContent = t.consolidatedOpenBtn;
+  document.getElementById('t-consolidated-title').textContent = t.consolidatedTitle;
+  document.getElementById('t-consolidated-period-day').textContent = t.periodDay;
+  document.getElementById('t-consolidated-period-week').textContent = t.periodWeek;
+  document.getElementById('t-consolidated-period-month').textContent = t.periodMonth;
+  document.getElementById('t-consolidated-period-custom').textContent = t.periodCustom;
+  document.getElementById('t-consolidated-period-from').textContent = t.periodFrom;
+  document.getElementById('t-consolidated-period-to').textContent = t.periodTo;
+  document.getElementById('t-consolidated-period-apply').textContent = t.periodApply;
+  document.getElementById('t-consolidated-summary-revenue').textContent = t.summaryRevenue;
+  document.getElementById('t-consolidated-summary-expenses').textContent = t.summaryExpenses;
+  document.getElementById('t-consolidated-summary-net').textContent = t.summaryNet;
+  document.getElementById('t-consolidated-export-btn').textContent = t.consolidatedExportBtn;
   document.getElementById('t-new-store-title').textContent = t.newStoreTitle;
   document.getElementById('t-store-name').textContent = t.storeNameLabel;
   document.getElementById('in-store-name').placeholder = t.storeNamePlaceholder;
@@ -1072,8 +1094,22 @@ function applyTranslations(){
   document.getElementById('t-suppliers-title').textContent = t.suppliersTitle;
   document.getElementById('t-suppliers-total-label').textContent = t.suppliersTotalLabel;
   document.getElementById('t-add-supplier-btn').textContent = t.addSupplierBtn;
+  document.getElementById('t-orders-new-btn').textContent = t.ordersNewBtn;
+  document.getElementById('t-orders-btn').textContent = t.ordersBtn; // renderSuppliersList() y ajoute le compteur ensuite
   document.getElementById('t-purchase-history-btn').textContent = t.purchaseHistoryBtn;
   document.getElementById('t-cancel-suppliers').textContent = t.close;
+  document.getElementById('t-orders-title').textContent = t.ordersTitle;
+  document.getElementById('t-orders-new-btn-2').textContent = t.ordersNewBtn;
+  document.getElementById('t-cancel-orders').textContent = t.close;
+  document.getElementById('t-new-order-title').textContent = t.newOrderTitle;
+  document.getElementById('t-order-supplier-label').textContent = t.orderSupplierLabel;
+  document.getElementById('t-order-items-label').textContent = t.orderItemsLabel;
+  document.getElementById('t-order-add-row').textContent = t.orderAddRow;
+  document.getElementById('t-order-expected-date-label').textContent = t.orderExpectedDateLabel;
+  document.getElementById('t-order-notes-label').textContent = t.orderNotesLabel;
+  document.getElementById('t-order-total-label').textContent = t.orderTotalLabel;
+  document.getElementById('t-order-save').textContent = t.orderSave;
+  document.getElementById('t-cancel-new-order').textContent = t.cancel;
   document.getElementById('t-supplier-name-label').textContent = t.supplierNameLabel;
   document.getElementById('t-supplier-phone-label').textContent = t.supplierPhoneLabel;
   document.getElementById('t-supplier-form-save').textContent = t.supplierFormSave;
