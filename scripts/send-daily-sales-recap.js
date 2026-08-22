@@ -68,11 +68,20 @@ function yesterdayRangeKinshasa(){
 }
 
 // Le récap parle toujours en FC (voir l'exemple donné : "ventes : 36 000fc"),
-// indépendamment de la devise d'affichage choisie côté app — les montants
-// stockés dans /sales et storesData[].stats sont déjà dans l'unité "interne"
-// du compte (jamais convertis avant l'enregistrement, voir toInternal côté app).
-function formatMoneyFc(n){
-  return Math.round(n).toLocaleString('fr-FR').replace(/\u202f/g, ' ') + ' FC';
+// indépendamment de la devise d'affichage choisie côté app. ⚠️ CORRECTIF (22/08/2026) :
+// les montants stockés dans /sales et storesData[].stats sont dans l'unité INTERNE du
+// compte, qui est TOUJOURS l'équivalent USD (voir toInternal() dans products.js côté
+// app — un montant saisi en FC est divisé par le taux de change avant enregistrement,
+// jamais stocké tel quel). Cette fonction doit donc reconvertir en FC avec le taux du
+// compte (data.rate) avant affichage — la version précédente affichait le nombre brut
+// avec juste "+' FC'" collé dessus, sans jamais multiplier par le taux, ce qui donnait
+// des montants ~2300x trop petits dans la notification (confirmé par une vraie
+// notification reçue : "Ventes hier : 12 FC" pour une journée dont l'historique
+// affichait des ventes de plusieurs milliers de FC). Même taux par défaut que
+// exchangeRate dans config.js côté app (2300) si le compte n'a jamais réglé le sien.
+const DEFAULT_EXCHANGE_RATE = 2300;
+function formatMoneyFc(n, rate){
+  return Math.round(n * rate).toLocaleString('fr-FR').replace(/\u202f/g, ' ') + ' FC';
 }
 
 async function sumSalesForStore(db, ownerUid, storeId, start, end){
@@ -88,11 +97,11 @@ async function sumSalesForStore(db, ownerUid, storeId, start, end){
   return { revenue, profit };
 }
 
-function buildRecapMessage(storeName, yesterday, totalProfit, perStore, includePerStore){
+function buildRecapMessage(storeName, yesterday, totalProfit, perStore, includePerStore, rate){
   const lines = [];
-  lines.push(`💰 Ventes hier : ${formatMoneyFc(yesterday.revenue)}`);
-  lines.push(`📈 Bénéfice hier : ${formatMoneyFc(yesterday.profit)}`);
-  lines.push(`🏆 Bénéfice total : ${formatMoneyFc(totalProfit)}`);
+  lines.push(`💰 Ventes hier : ${formatMoneyFc(yesterday.revenue, rate)}`);
+  lines.push(`📈 Bénéfice hier : ${formatMoneyFc(yesterday.profit, rate)}`);
+  lines.push(`🏆 Bénéfice total : ${formatMoneyFc(totalProfit, rate)}`);
 
   // "Amplification par boutique", réservée Pro : n'a de sens que si le compte a
   // effectivement plus d'une boutique (Business est de toute façon limité à une
@@ -100,7 +109,7 @@ function buildRecapMessage(storeName, yesterday, totalProfit, perStore, includeP
   if(includePerStore && perStore.length > 1){
     lines.push('');
     perStore.forEach(s=>{
-      lines.push(`• ${s.name} : ${formatMoneyFc(s.revenue)} (bénéfice ${formatMoneyFc(s.profit)})`);
+      lines.push(`• ${s.name} : ${formatMoneyFc(s.revenue, rate)} (bénéfice ${formatMoneyFc(s.profit, rate)})`);
     });
   }
 
@@ -156,12 +165,14 @@ async function run(){
     if(globalRevenue === 0 && globalProfit === 0) continue;
 
     const accountLabel = stores.length === 1 ? stores[0].name : (data.displayName || 'Mombongo');
+    const rate = (data.rate && parseFloat(data.rate) > 0) ? parseFloat(data.rate) : DEFAULT_EXCHANGE_RATE;
     const { title, body } = buildRecapMessage(
       accountLabel,
       { revenue: globalRevenue, profit: globalProfit },
       globalTotalProfit,
       perStore,
-      planTier === 'pro'
+      planTier === 'pro',
+      rate
     );
 
     try{
