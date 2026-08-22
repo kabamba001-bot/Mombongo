@@ -1,0 +1,31 @@
+name: Rapports IA hebdomadaires Mombongo (Pro)
+
+on:
+  schedule:
+    # 19:00 UTC dimanche = 20:00 dimanche soir à Kinshasa (Africa/Kinshasa, UTC+1,
+    # pas de changement d'heure — voir daily-recap.yml pour le même principe).
+    - cron: '0 19 * * 0'
+  workflow_dispatch: {}
+
+jobs:
+  weekly-ai-reports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cloner le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances
+        working-directory: ./scripts
+        run: npm install
+
+      - name: Générer et envoyer les rapports IA hebdomadaires
+        working-directory: ./scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node send-weekly-ai-reports.js
