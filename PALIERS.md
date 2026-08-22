@@ -129,23 +129,8 @@ de Y. Veux-tu y passer ?") — jamais un "c'est VIP" générique.
 Aucun paiement en ligne intégré. Le parcours est le même que l'ancien
 `isVip` : le commerçant clique sur un CTA de paiement → WhatsApp s'ouvre avec
 un message pré-rempli vers `DEV_WHATSAPP` (`243980979141`) → une fois payé
-(mobile money, en dehors de l'app), **toi** tu actives manuellement.
-
-**Méthode rapide (recommandée) : `admin.html`.** Page autonome, à part de
-l'app cliente — ouvre-la, connecte-toi avec ton propre compte Google
-(`kabambavincent120@gmail.com`, le seul autorisé — voir la règle dédiée
-dans `firestore.rules`, `/mombongo_users/{ownerUid}`), tape l'email du
-client, cherche son compte, choisis le palier et la durée payée, et clique
-sur Activer. Quelques secondes, pas besoin d'ouvrir la console Firebase ni
-de calculer un timestamp à la main. Mets-la en raccourci sur l'écran
-d'accueil de ton téléphone pour l'ouvrir aussi vite qu'une app. L'écriture
-Firestore qu'elle déclenche est strictement limitée à 4 champs (voir plus
-bas) — impossible, même par erreur, de toucher aux données de la boutique
-du client.
-
-**Méthode de secours : console Firebase**, si `admin.html` est
-inaccessible pour une raison quelconque (pas de compte Google sous la main,
-page cassée...). Sur le document `mombongo_users/{uid}` du client :
+(mobile money, en dehors de l'app), **toi** tu actives manuellement dans la
+console Firebase, sur le document `mombongo_users/{uid}` :
 
 ```
 userPlan: "business"          // ou "simple" / "pro"
@@ -203,75 +188,40 @@ ne concerne que l'essai gratuit, pas les abonnements payés.
   `navigation.js`, qui appelle maintenant `closeSellSheet()` (ou
   `pauseCurrentCartIfAny()`, §11) au lieu de retirer juste la classe CSS.
 
-## 7. Promos "places offertes par palier" — système généralisé
+## 7. Promo "50 places par palier" (Business et Pro séparément)
 
-Voir `PROMO_CAMPAIGNS` dans `debts-expenses-alerts.js`. Généralise la
-première version (une seule promo, tout codé en dur : fenêtre, plafonds ET
-comptage, tout dans le JS) en une **liste de campagnes** : lancer une promo
-ponctuelle ne demande plus de toucher à la logique de réclamation, juste
-d'ajouter une entrée à ce tableau — voir le modèle donné en commentaire dans
-le fichier.
+Voir `tryClaimPlanPromo()` dans `debts-expenses-alerts.js`. Remplace
+l'ancienne promo "50 premiers utilisateurs d'août", qui accordait l'ancien
+`isVip`/`vipUntil` legacy à la création du compte, indépendamment de tout
+palier.
 
-**⚠️ Migration à faire manuellement AVANT de déployer ce changement.** La
-promo de lancement (1er août → 1er novembre 2026) est **déjà en cours** au
-moment où ce système a été généralisé (nous sommes le 19 août 2026) — elle
-utilisait encore l'ancien schéma à deux documents séparés
-(`mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`,
-champ `claimed` seul). Le nouveau schéma fusionne tout dans un seul document
-par campagne. Avant de déployer :
-1. Sur la console Firebase, relève les valeurs `claimed` actuelles de
-   `mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`.
-2. Crée un nouveau document `mombongo_meta/promo_2026_launch` avec :
-   `{ claimedBusiness: <valeur relevée>, maxSlotsBusiness: 50,
-   claimedPro: <valeur relevée>, maxSlotsPro: 50 }`.
-3. Déploie le code (JS + `firestore.rules`).
-Sans cette étape, `tryClaimPlanPromo()` verra que le document
-`promo_2026_launch` n'existe pas encore et refusera toute réclamation en
-silence (échec sûr, pas de triche possible — mais la promo serait en pause
-sans que personne ne le sache) jusqu'à ce que le document soit créé.
-
-**Comment lancer une NOUVELLE promo ponctuelle (ex. "X places Business et Y
-Pro, pendant 1 semaine, 1 mois offert") — deux étapes, jamais de logique à
-réécrire :**
-1. Ajoute un objet à `PROMO_CAMPAIGNS` (`debts-expenses-alerts.js`) :
-   `{ id, start, end, giftMonths }` — un identifiant unique, la fenêtre de
-   dates, et la durée du cadeau. Déploie.
-2. Sur la console Firebase, crée `mombongo_meta/{id}` (le même id que
-   choisi ci-dessus) avec `{ claimedBusiness: 0, maxSlotsBusiness: X,
-   claimedPro: 0, maxSlotsPro: Y }` — ne mets `X` ou `Y` que pour les
-   paliers réellement offerts par cette promo (0 ou champ absent = personne
-   ne peut rien gagner sur ce palier-là pour cette campagne).
-
-Ajuster le nombre de places d'une promo déjà lancée (ou simplement suivre en
-direct combien ont déjà été prises) se fait **uniquement** sur ce document
-Firestore, à la main — jamais besoin de redéployer pour ça. Seules la
-fenêtre de dates et la durée du cadeau restent dans le code (elles doivent
-être connues par tous les appareils dès l'ouverture de l'app, avant toute
-connexion réseau).
-
-**Règles inchangées d'une campagne à l'autre :**
-- **Places comptées séparément par palier** : être dans les places Business
-  d'une campagne n'a aucun effet sur ses places Pro, et inversement.
+**Règles :**
+- Fenêtre de 3 mois : du 1er août 2026 au 1er novembre 2026 (fin exclusive) —
+  `PROMO_START`/`PROMO_END`.
+- **50 places par catégorie, séparément** : un compteur Firestore dédié par
+  palier (`mombongo_meta/promo_business_2026` et `mombongo_meta/promo_pro_2026`).
+  Être dans les 50 premiers Business n'a aucun effet sur les places Pro, et
+  inversement.
 - **Le cadeau se joue au choix du palier, pas à la création du compte** :
   la réclamation est tentée dans `choosePlanOnboarding()`
   (`plan-onboarding.js`) au moment précis où le patron choisit Business ou
-  Pro — jamais à l'inscription (`handlePostLogin()` ne s'en occupe pas).
-- Gagnée, la promo accorde **`giftMonths` mois du palier choisi directement
-  actifs** (`userPlanStatus:'active'`), à la place de l'essai de 14 jours
-  habituel (Business) ou du paiement manuel via WhatsApp (Pro).
-- **Un seul cadeau par compte, à vie, tous paliers ET toutes campagnes
-  confondus** : le verrou est un unique document
-  `mombongo_promo_claims/{uid}` (indexé par uid seul). Un patron qui a déjà
-  gagné une promo passée (Business ou Pro, peu importe laquelle) NE
-  bénéficie PAS d'une deuxième place lors d'une promo suivante, même sur un
-  palier différent — le document existe déjà, donc la transaction échoue
-  avant même de vérifier le compteur de la nouvelle campagne.
-- Anti-fraude : tout passe par une transaction Firestore (jamais une
-  déclaration du client), et les règles Firestore (`firestore.rules`,
-  collections `mombongo_meta` et `mombongo_promo_claims`) revérifient
-  indépendamment côté serveur que le rang réclamé correspond bien au
-  compteur de la bonne campagne+catégorie et ne dépasse jamais le plafond
-  fixé manuellement pour elle — voir la note #5 en bas de `firestore.rules`.
+  Pro — jamais à l'inscription (`handlePostLogin()` ne s'en occupe plus).
+- Gagnée, la promo accorde **2 mois du palier choisi directement actifs**
+  (`userPlanStatus:'active'`, `userPlanExpiresAt` = maintenant + 2 mois),
+  à la place de l'essai de 14 jours habituel (Business) ou du paiement
+  manuel via WhatsApp (Pro).
+- **Un seul cadeau par compte, à vie, tous paliers confondus** : le verrou
+  est un unique document `mombongo_promo_claims/{uid}` (indexé par uid seul,
+  pas par uid+palier). Un patron qui a déjà eu ses 2 mois Business offerts
+  et qui tente ensuite de passer à Pro NE bénéficie PAS d'une deuxième
+  place, même s'il reste des places Pro disponibles — le document existe
+  déjà, donc la transaction échoue avant même de vérifier le compteur Pro.
+- Anti-fraude : comme pour l'ancienne version, tout passe par une
+  transaction Firestore (jamais une déclaration du client), et les règles
+  Firestore (`firestore.rules`, collections `mombongo_meta` et
+  `mombongo_promo_claims`) revérifient indépendamment côté serveur que le
+  rang réclamé correspond bien au compteur de la bonne catégorie et ne
+  dépasse jamais 50.
 
 ## 8. Alerte de fin d'essai/abonnement (J-5)
 
@@ -392,3 +342,126 @@ Suppression de compte (`confirmDeleteAccountFinal()`) :
 - Après succès : `localStorage.clear()` + rechargement complet de l'app,
   plus sûr que d'essayer de réinitialiser chaque variable JS une par une.
 
+## 14. Octroi manuel d'un palier payant sans passer par Firebase
+
+`scripts/grant-vip.js` (+ `.github/workflows/grant-vip.yml`, à partir de
+`grant-vip.yml.txt`) — remplace le geste manuel décrit en §5 (modifier
+`userPlan`/`userPlanStatus`/`userPlanExpiresAt` à la main dans la console
+Firebase). Prend un email de compte Google Mombongo + un palier + une durée,
+retrouve l'uid via `admin.auth().getUserByEmail()`, et écrit exactement les
+mêmes champs que le geste manuel qu'il remplace. Déclenchable soit en ligne
+de commande, soit via un workflow GitHub Actions à formulaire (onglet
+Actions → "Accorder un palier VIP" → Run workflow) — aucun accès Firebase
+console requis. Réutilise le secret `FIREBASE_SERVICE_ACCOUNT` déjà en place
+pour `send-daily-recap.js`/`send-new-alerts.js`.
+
+## 15. Fermeture des actions VIP en cours + blocage employé au moment d'un downgrade
+
+Le système `isVip`/`vipUntil` legacy (badge, `checkVipExpiryLive`, écran de
+blocage employé dédié) avait déjà été entièrement retiré avant ce document
+(voir §6) — rien à supprimer de ce côté. Ce qui manquait : réagir *pendant*
+la session, pas seulement au rechargement suivant, quand `checkPlanExpiryLive()`
+détecte un vrai downgrade du palier effectif.
+
+**Un seul minuteur de vérification** : `setInterval(checkPlanExpiryLive, 60000)`
++ le listener `visibilitychange` (retour au premier plan), tous deux tout en
+bas de `stores-devices.js` — c'est le SEUL endroit d'où partent ces
+vérifications périodiques. Tout ce qui doit réagir à un changement de palier
+(toast J-5, fermeture des fenêtres VIP en cours, blocage/déblocage employé)
+passe par `checkPlanExpiryLive()` elle-même plutôt que par un minuteur séparé.
+
+**Fermeture des fenêtres VIP ouvertes** (`closeDowngradedActionSheets()`,
+`plans.js`) : à chaque changement de palier effectif détecté, parcourt une
+liste de fonctionnalités (`voiceSales`, `barcode`, `supplierManagement`,
+`multiDevice`, `multiStore`) et ferme proprement toute fenêtre ouverte qui
+en dépend si `isFeatureUnlocked()` y répond désormais non — via les vraies
+fonctions de fermeture (`cancelVoiceSale()`, `closeBarcodeScanner()`...) pour
+couper micro/caméra correctement, pas un simple retrait de classe CSS. Sans
+effet sur un upgrade (rien à fermer pour une fonctionnalité qui vient d'être
+débloquée).
+
+**Blocage de l'appareil employé** (`updateEmployeeDowngradeBlock()`,
+`plans.js`, écran `#employee-plan-block-overlay` dans `index.html`) : un
+appareil employé (caissier/magasinier) n'existe que parce que le palier du
+PATRON débloque `multiDevice` (Pro). `attachRealtimeListener()` synchronise
+déjà en direct le palier du patron sur l'appareil employé via
+`applyDocData()` — `updateEmployeeDowngradeBlock()` s'appuie dessus pour
+afficher/masquer un écran plein écran bloquant (même famille visuelle que
+`#boot-loading-overlay`, hors de `#app`, rien d'actionnable derrière) dès que
+`multiDevice` n'est plus débloqué pour un rôle caissier/magasinier — jamais
+pour un patron, même sur un appareil "secondaire". Appelée à CHAQUE passage
+de `checkPlanExpiryLive()` (premier compris, pas seulement sur un
+changement) : un employé qui ouvre l'app alors que le Pro du patron est
+*déjà* expiré est bloqué immédiatement. Le blocage se lève automatiquement
+dès qu'un renouvellement est détecté par ce même mécanisme, sans action
+manuelle de personne.
+
+## Rapports IA hebdomadaires (Pro uniquement)
+
+Voir `send-weekly-ai-reports.js` (serveur, GitHub Actions), `ai-reports.js`
+(client, lecture seule) et le bouton "🤖 Rapports IA de la semaine" dans
+"Compte", entre "Appareils connectés" et "Parrainage".
+
+**La clé Gemini ne vit jamais côté client.** Exactement comme
+`FIREBASE_SERVICE_ACCOUNT` pour les autres scripts de ce dossier :
+`GEMINI_API_KEY` est un secret GitHub, lu uniquement par
+`send-weekly-ai-reports.js` qui tourne sur GitHub Actions — jamais dans un
+fichier livré au téléphone. Une clé IA côté client serait extractible par
+n'importe qui via "Afficher le code source". L'app ne fait JAMAIS d'appel
+direct à une IA depuis le téléphone : `ai-reports.js` ne fait que LIRE un
+document déjà généré dans Firestore (`aiReports/{weekId}`).
+
+**L'IA ne calcule jamais aucun chiffre.** Tous les indicateurs (ventes,
+bénéfice, meilleures ventes, produits qui dorment depuis 14+ jours, dettes
+ouvertes) sont calculés en JS pur côté serveur, à partir de `/sales`,
+`/products` et `/debts` — Gemini reçoit ces chiffres déjà exacts et se
+contente de les mettre en mots. Si l'appel Gemini échoue (quota, réseau,
+clé expirée...), le rapport est quand même enregistré et notifié, juste
+sans la partie conseils textuels — les graphiques/chiffres n'ont jamais
+dépendu de l'IA et restent donc toujours fiables.
+
+**Ton "conseil suggéré", jamais catégorique** — contrainte posée dès la
+conception et appliquée dans le prompt (`buildGeminiPrompt()`) : interdiction
+explicite de l'impératif ("fais X"), toujours "tu pourrais / pense à /
+envisage de". Rappelé aussi visuellement côté app ("💡 Conseils suggérés",
+jamais "Instructions").
+
+**Réservé au palier Pro, jamais Business ni Simple** — `isFeatureUnlocked
+('aiReports')` côté client, `getEffectivePlanServer()` (copie fidèle de
+`getEffectivePlan()`) côté script. Patron uniquement
+(`canManageStoresAndDevices()`), jamais un caissier/magasinier même en Pro
+— ce sont des conseils stratégiques (marges, tendances), pas une donnée de
+caisse quotidienne. Ajouté à `DOWNGRADE_CLOSE_ACTIONS` (`plans.js`) : la
+fenêtre se ferme automatiquement si le Pro expire pendant qu'elle est
+ouverte, comme les autres écrans Pro.
+
+**Amplification par boutique (Pro multi-boutiques)** : `renderAiReportStoresList()`
+n'affiche le détail boutique par boutique que si le compte en a plus d'une
+— pour un compte Pro à une seule boutique, la carte résumé du haut suffit
+déjà, inutile de répéter la même chose deux fois.
+
+**Semaine glissante des 7 derniers jours pleins** (pas "lundi à dimanche"
+calendaire), en heure de Kinshasa — `weekId` = date du premier jour de
+cette fenêtre, sert d'identifiant unique du document. Un rapport déjà
+généré pour un `weekId` n'est jamais régénéré (évite les doublons si le
+workflow est relancé manuellement).
+
+**Devises — piège déjà repéré et corrigé ici** : `/sales.total` et
+`.profit` sont stockés dans l'unité INTERNE du compte, qui est TOUJOURS
+l'équivalent USD (`toInternal()`, `products.js`) — jamais directement des FC,
+même pour un compte qui affiche tout en FC. Le document Firestore du
+rapport garde ces valeurs BRUTES non converties (comme `/sales` lui-même) ;
+c'est `ai-reports.js` qui les passe systématiquement par `formatMoney()`
+(ou une conversion manuelle équivalente pour Chart.js) avec le taux à jour
+au moment de la consultation. Côté serveur, `buildGeminiPrompt()`
+reconvertit lui aussi en FC (`data.rate`) avant de citer des montants à
+Gemini, sous peine de lui faire écrire des chiffres ~2300x trop petits
+dans son résumé.
+
+**✅ Corrigé le 22/08/2026** dans `send-daily-sales-recap.js` — confirmé par
+une vraie notification reçue affichant "Ventes hier : 12 FC" alors que
+l'historique du jour montrait des ventes de plusieurs milliers de FC.
+`formatMoneyFc()` multiplie maintenant par `data.rate` (défaut 2300, comme
+`exchangeRate` dans `config.js` côté app) avant d'afficher — même correctif
+que celui déjà appliqué dès le départ dans `send-weekly-ai-reports.js`
+ci-dessus.

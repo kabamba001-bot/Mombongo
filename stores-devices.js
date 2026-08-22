@@ -1055,6 +1055,15 @@ function applyTranslations(){
   document.getElementById('t-devices-title2').textContent = t.devicesTitle;
   document.getElementById('t-devices-desc').textContent = t.devicesDesc;
   document.getElementById('t-add-device-btn').textContent = t.addDeviceBtn;
+  document.getElementById('t-ai-reports-section-title').textContent = t.aiReportsSectionTitle;
+  document.getElementById('t-ai-reports-section-desc').textContent = t.aiReportsSectionDesc;
+  document.getElementById('t-ai-reports-open-btn').textContent = t.aiReportsOpenBtn;
+  document.getElementById('t-ai-reports-title').textContent = t.aiReportsTitle;
+  document.getElementById('t-ai-reports-week-label').textContent = t.aiReportsWeekLabel;
+  document.getElementById('t-ai-reports-summary-revenue').textContent = t.aiReportsSummaryRevenue;
+  document.getElementById('t-ai-reports-summary-profit').textContent = t.aiReportsSummaryProfit;
+  document.getElementById('t-ai-reports-advice-title').textContent = t.aiReportsAdviceTitle;
+  document.getElementById('t-cancel-ai-reports').textContent = t.close;
   document.getElementById('t-referral-title').textContent = t.referralTitle;
   document.getElementById('t-referral-desc').textContent = t.referralDesc;
   document.getElementById('t-referral-share-btn').textContent = t.referralShareBtn;

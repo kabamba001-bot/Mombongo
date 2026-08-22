@@ -126,7 +126,11 @@ const PLAN_DEFS = {
       // Nécessite de lire TOUTES les boutiques d'un coup (hors du modèle habituel
       // "une seule boutique chargée à la fois", voir consolidated.js) — réservé au
       // patron qui gère plusieurs boutiques à distance, cœur de l'offre Pro.
-      consolidatedReports: true
+      consolidatedReports: true,
+      // Rapports/conseils IA hebdomadaires (dimanche soir) — voir ai-reports.js.
+      // Générés côté serveur (send-weekly-ai-reports.js), jamais côté client : Pro
+      // uniquement, comme demandé, pas de version Business même dégradée.
+      aiReports: true
     })
   }
 };
@@ -406,7 +410,7 @@ const LIMIT_REASON_TARGET_PLAN = {
   history: 'simple_paid', barcode: 'simple_paid', expense: 'simple_paid',
   voice: 'business', export: 'business', notif: 'business', currency: 'business',
   stock: 'business', discount: 'business', historySearch: 'business',
-  stores: 'pro', devices: 'pro', suppliers: 'pro', consolidated: 'pro'
+  stores: 'pro', devices: 'pro', suppliers: 'pro', consolidated: 'pro', aiReports: 'pro'
 };
 function getLimitReasonTargetPlan(reason){
   return LIMIT_REASON_TARGET_PLAN[reason] || 'business';
@@ -676,7 +680,8 @@ const DOWNGRADE_CLOSE_ACTIONS = [
       if(typeof closeGeneratePinSheet === 'function') closeGeneratePinSheet();
       if(typeof closeJoinWithCodeSheet === 'function') closeJoinWithCodeSheet();
     } },
-  { feature:'multiStore', run: function(){ if(typeof closeNewStoreSheet === 'function') closeNewStoreSheet(); } }
+  { feature:'multiStore', run: function(){ if(typeof closeNewStoreSheet === 'function') closeNewStoreSheet(); } },
+  { feature:'aiReports', ids: ['ai-reports-overlay'] }
 ];
 function closeDowngradedActionSheets(){
   DOWNGRADE_CLOSE_ACTIONS.forEach(function(entry){

@@ -11,13 +11,14 @@ function openAccountSheet(){
   if(typeof updatePlanSummary === 'function') updatePlanSummary();
   renderStoresList();
   renderDevicesList();
+  if(typeof updateAiReportsBadge === 'function') updateAiReportsBadge();
   const suppliersToggle = document.getElementById('in-suppliers-toggle');
   if(typeof enforceSupplierFeatureForPlan === 'function') enforceSupplierFeatureForPlan();
   if(suppliersToggle) suppliersToggle.checked = !!suppliersFeatureEnabled;
 }
 function closeAccountSheet(){ document.getElementById('account-overlay').classList.remove('open'); }
 
-async function signInWithGoogle(){
+function signInWithGoogle(){
   if(typeof fbq === 'function'){
     fbq('trackCustom', 'ClicConnexionGoogle');
   }
@@ -25,28 +26,24 @@ async function signInWithGoogle(){
     showToast("La connexion n'est pas encore configurée (voir la note du développeur dans le code)");
     return;
   }
-  try {
-    let result;
-    if (window.MombongoNativeAuth && window.MombongoNativeAuth.isNative()) {
-      // App native (Capacitor) : connexion via le vrai système Google d'Android,
-      // pas via une page web — contourne le blocage Google des WebView.
-      const native = await window.MombongoNativeAuth.signInWithGoogle();
-      const idToken = native && native.credential && native.credential.idToken;
-      if(!idToken){
-        throw new Error('Aucun idToken reçu de Google');
-      }
-      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
-      result = await firebase.auth().signInWithCredential(credential);
-    } else {
-      // Navigateur web classique : méthode habituelle.
-      const provider = new firebase.auth.GoogleAuthProvider();
-      result = await firebase.auth().signInWithPopup(provider);
-    }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).then((result)=>{
     if(result && result.user){
       showToast(currentLang==='fr' ? "Connexion réussie" : "Ekangami");
+      // On ne compte comme "inscription" que la toute première connexion de ce compte
+      // (Firebase l'indique via additionalUserInfo.isNewUser) — sinon chaque reconnexion
+      // d'un utilisateur existant fausserait les statistiques d'inscription dans Meta.
       if(typeof fbq === 'function' && result.additionalUserInfo && result.additionalUserInfo.isNewUser){
         fbq('track', 'CompleteRegistration');
       }
+      // Demande le métier (boutique/pharmacie/quincaillerie/autre) dès l'inscription plutôt
+      // que d'attendre le premier "Ajout rapide depuis le catalogue" — pour que TOUT nouveau
+      // compte (VIP ou non) profite du bon catalogue suggéré dès l'ajout en masse initial.
+      // Un compte existant qui se reconnecte, ou qui a déjà répondu (myStoreType déjà réglé
+      // localement ou via un autre appareil du même compte), n'est jamais re-sollicité —
+      // reste modifiable ensuite via le lien 🏪 dans la fenêtre d'ajout rapide (voir
+      // community-catalog.js §9, PALIERS.md). Skippable ("Ne pas partager") sans bloquer
+      // l'accès au reste de l'app.
       if(result.additionalUserInfo && result.additionalUserInfo.isNewUser && !myStoreType){
         if(typeof openCategoryPromptSheet === 'function'){
           openCategoryPromptSheet(function(cat){
@@ -56,10 +53,10 @@ async function signInWithGoogle(){
       }
       updateBackupBanner();
     }
-  } catch(e){
+  }).catch((e)=>{
     console.error('Erreur de connexion', e);
     showToast('Erreur : ' + (e.code || e.message || e), 5000);
-  }
+  });
 }
 function signOutGoogle(){
   const t = dict[currentLang];
